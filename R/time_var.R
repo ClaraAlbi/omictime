@@ -1,7 +1,12 @@
+library(tidyr)
+library(dplyr)
+library(glue)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+library(purrr)
 
 time <- data.table::fread("/mnt/project/blood_sampling.tsv") %>%
-
-time %>%
   mutate(max_time = pmax(`3166-0.0`, `3166-0.1`, `3166-0.2`, `3166-0.3`, `3166-0.4`, `3166-0.5`, na.rm = T)) %>%
   separate(max_time, into = c("date", "time"), sep = " ") %>%
   separate(time, into = c("h", "min", "s"), sep = ":") %>%
@@ -21,5 +26,5 @@ covs <- data.table::fread("/mnt/project/covariates.tsv") %>%
 colnames(covs) <- c("eid", "sex", "birth_year",  "age_recruitment",  "assessment_centre", "month_attending", "bmi", "smoking")
 
 gen_covs <- data.table::fread("/mnt/project/genetic_covs.tsv") %>%
-  select(eid, "22009-0.1":"22009-0.20")
-colnames(gen_covs) <- c("eid", paste0("PC", 1:20))
+  select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`)
+colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel")
