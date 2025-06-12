@@ -1,5 +1,12 @@
 
 
+olink_cohort <- data.table::fread("/mnt/project/olink_instance_0.csv", select = "eid")
+
+olink_cohort %>%
+  mutate(IID = eid) %>%
+  rename(FID = eid) %>%
+  data.table::fwrite(., "olink_cohort.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
 l <- list.files("/mnt/project/biomarkers_3", full.names = T)
 
 data_b <- tibble(f = l[str_detect(l, "predictions")]) %>%
