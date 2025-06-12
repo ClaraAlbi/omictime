@@ -26,5 +26,5 @@ covs <- data.table::fread("/mnt/project/covariates.tsv") %>%
 colnames(covs) <- c("eid", "sex", "birth_year",  "age_recruitment",  "assessment_centre", "month_attending", "bmi", "smoking")
 
 gen_covs <- data.table::fread("/mnt/project/genetic_covs.tsv") %>%
-  select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`)
-colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel")
+  select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`, `22000-0.0`)
+colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel", "batch")

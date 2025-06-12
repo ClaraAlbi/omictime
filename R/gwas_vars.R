@@ -15,3 +15,13 @@ data_b <- tibble(f = l[str_detect(l, "predictions")]) %>%
   filter(is_white == 1) %>%
   filter(rel == 0)
 
+data_b %>% mutate(FID = eid) %>%
+  select(FID, eid, sex, age_recruitment, batch, contains("PC")) %>%
+  mutate(across(c(sex, batch), as.factor)) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "covariates.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+data_b %>% mutate(FID = eid, absgap = abs(gap)) %>%
+  select(FID, eid, gap, absgap) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "phenotypes.txt", sep = "\t", quote = FALSE, row.names = FALSE)
