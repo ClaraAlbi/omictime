@@ -12,3 +12,15 @@ s <- data.table::fread("blood_sampling.tsv") %>% janitor::clean_names() %>%
   rename(fasting = x74_0_0,
          num_bsamples = x68_0_0,
          date_bsampling = date)
+
+covs <- data.table::fread("covariates.tsv") %>%
+  mutate(across(c(2,3, 6, 7, 9), as.factor),
+         bmi = `21002-0.0` / (`50-0.0`/100)^2,
+         smoking = case_when(`20116-0.0` == "-3" ~ NA_character_,
+                             TRUE ~ `20116-0.0`)) %>% select(-"50-0.0", -"21002-0.0", -"20116-0.0")
+
+colnames(covs) <- c("eid", "sex", "birth_year",  "age_recruitment",  "assessment_centre", "month_attending", "bmi", "smoking")
+
+gen_covs <- data.table::fread("/mnt/project/genetic_covs.tsv") %>%
+  select(eid, "22009-0.1":"22009-0.20")
+colnames(gen_covs) <- c("eid", paste0("PC", 1:20))
