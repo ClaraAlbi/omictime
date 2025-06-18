@@ -28,3 +28,25 @@ colnames(covs) <- c("eid", "sex", "birth_year",  "age_recruitment",  "assessment
 gen_covs <- data.table::fread("/mnt/project/genetic_covs.tsv") %>%
   select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`, `22000-0.0`)
 colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel", "batch")
+
+
+l <- list.files("/mnt/project/biomarkers_3", full.names = T)
+
+data_b <- tibble(f = l[str_detect(l, "predictions")]) %>%
+  mutate(d = map(f, readRDS),
+         type = stringr::str_extract(f, "(?<=predictions_)([^_]+)")) %>%
+  unnest(d) %>%
+  pivot_wider(id_cols = c(eid, time_day), names_from = type, values_from = contains("pred")) %>%
+  mutate(gap = time_day - pred_lasso_olink) %>%
+  filter(!is.na(pred_lasso_olink)) %>%
+  select(eid, time_day, gap, pred_lasso_olink) %>%
+  left_join(covs) %>%
+  left_join(gen_covs) %>%
+  filter(is_white == 1 & rel == 0)
+
+
+data_b %>%
+  mutate(absgap = abs(gap)) %>%
+  select(eid, time_day, gap, absgap, sex, age_recruitment, batch, contains("PC")) %>%
+  mutate(batch = paste0("b", batch))
+
