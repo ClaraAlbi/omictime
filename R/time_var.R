@@ -45,8 +45,9 @@ data_b <- tibble(f = l[str_detect(l, "predictions")]) %>%
   filter(is_white == 1 & rel == 0)
 
 
-data_b %>%
-  mutate(absgap = abs(gap)) %>%
-  select(eid, time_day, gap, absgap, sex, age_recruitment, batch, contains("PC")) %>%
+out <- data_b %>%
+  mutate(FID = eid, absgap = abs(gap)) %>%
+  select(FID, IID = eid, time_day, gap, absgap, sex, age_recruitment, batch, contains("PC")) %>%
   mutate(batch = paste0("b", batch))
 
+data.table::fwrite(out, "phenotypes_gap.txt")
