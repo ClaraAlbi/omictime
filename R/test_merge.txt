@@ -1,0 +1,2 @@
+/mnt/project/data/ukbi_chr21_v3_qc
+/mnt/project/data/ukbi_chr22_v3_qc
