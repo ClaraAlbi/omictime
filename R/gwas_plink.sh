@@ -1,31 +1,29 @@
 #!/bin/bash
 
 project="blood_biomarkers - Jul 01, 2024"
-phenotypes="phenotypes.txt"
-covariates="covariates.txt"
+phenotypes="phenotypes_gap.txt"
 
-for CHR in 22; do
-  echo "Processing chromosome $CHR..."
+COVARS="sex,age_recruitment,batch,PC1-PC20"
 
-  BGEN_FILE="ukb22828_c${CHR}_b0_v3.bgen"
-  SAMPLE_FILE="ukb22828_c${CHR}_b0_v3.sample"
+for pheno in absgap_rint; do
+  echo "==> Running GWAS for phenotype: $pheno"
 
   plink_command="plink2 \
-    --pfile /mnt/project/data/ukbi_chr${CHR}_v3_qc \
-    --pheno-name gap \
+    --pfile /mnt/project/data/ukbi_v3_qc \
+    --pheno-name ${pheno} \
     --pheno $phenotypes  \
-    --covar-name sex,age_recruitment,batch,PC1-PC10 \
-    --covar $covariates  \
+    --covar-name ${COVARS} \
+    --covar $phenotypes  \
     --no-input-missing-phenotype \
-    --glm firth-fallback  \
-    --threads 8   \
-    --out gwas_gap_chr${CHR}"
+    --glm hide-covar \
+    --covar-variance-standardize \
+    --threads 16   \
+    --out gwas_${pheno}"
 
   dx run swiss-army-knife \
     -iin="${phenotypes}" \
-    -iin="${covariates}" \
     -icmd="${plink_command}" \
-    --instance-type="mem1_ssd1_v2_x16" \
+    --instance-type="mem1_ssd1_v2_x36" \
     --destination="${project}:/gwas/" \
     --priority high \
     --brief --yes
