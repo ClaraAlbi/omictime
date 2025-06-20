@@ -3,7 +3,6 @@ library(cowplot)
 library(ggpubr)
 
 fields <- data.table::fread("data/field.tsv")
-gs <- data.table::fread("data/Nightingale_biomarker_groups.txt")
 
 df_effects <- bind_rows(readRDS("data/effects_labs.rds") %>% mutate(type = "Biochemistry") %>%
                           left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
@@ -120,6 +119,6 @@ legend_plot <- as_ggplot(legend_grob)
 ggsave(
   filename = "plots/legend_only.png",
   plot     = legend_plot,
-  width    = 6,    # tweak to taste
-  height   = 1.5  # shallow height since it's just the legend
+  width    = 6,
+  height   = 1.5
   )
