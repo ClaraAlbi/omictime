@@ -22,10 +22,12 @@ df_r2 <- bind_rows(readRDS("data/aov_labs.rds") %>% mutate(type = "Biochemistry"
                                type == "Cell_counts" ~ "#8F3985",
                                type == "Biochemistry" ~ "#E85F5C")) %>%
   mutate(title = case_when(title == "White blood cell (leukocyte) count" ~ "Leukocyte count",
-                           title == "Phospholipids to Total Lipids in Small HDL percentage" ~ "Phosphlipid ratio",
-                           title == "Cholesterol to Total Lipids in Very Large HDL percentage" ~ "Cholesterol ratio",
+                           title == "Phospholipids to Total Lipids in Small HDL percentage" ~ "Phosphlipid ratio SHDL",
+                           title == "Cholesterol to Total Lipids in Very Large HDL percentage" ~ "Cholesterol ratio VLHDL",
+                           title == "Phospholipids to Total Lipids in Very Large HDL percentage" ~ "Phospholipids ratio VLHDL",
+                           title == "Cholesterol to Total Lipids in Small HDL percentage" ~ "Cholesterol ratio SHLD",
+                           title == "Spectrometer-corrected alanine" ~ "Alanine",
                            TRUE ~ title))
-
 
 df_top <- df_r2 %>%
   group_by(type, phen) %>%
@@ -60,31 +62,37 @@ plot_bars_v <- df_top %>%
   mutate(
     f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title),
     facet_html = factor(f_html, levels = facet_levels),
+    model = case_when(model == "age_recruitment" ~ "Age",
+                      model == "time_day" ~ "Time of day",
+                      model == "technical" ~ "Technical",
+                      model == "smoking" ~ "Smoking",
+                      model == "sex" ~ "Sex",
+                      model == "bmi" ~ "BMI",
+                      model == "fasting" ~ "Fasting"),
     model = factor(
       model,
-      levels = c("fasting",  "bmi", "smoking", "sex", "age_recruitment", "technical","time_day")
+      levels = c("Fasting", "BMI", "Smoking", "Sex", "Age", "Technical",  "Time of day")
     )
   ) %>%
 
   ggplot(aes(y = title, x = t_r2, fill = model)) +
   geom_col(width = 1) +
   facet_wrap(~facet_html, scales = "free_y", nrow = 20, ncol = 2) +
-  #scale_fill_paletteer_d("ghibli::KikiLight") +
-  scale_fill_paletteer_d("ghibli::LaputaLight") +
+  scale_fill_paletteer_d("rcartocolor::Temps") +
   labs(fill = "Covariate", y = "", x = "R2") +
-  guides(fill = guide_legend(reverse = TRUE, ncol = 4)) +
+  guides(fill = guide_legend(reverse = TRUE, ncol = 3)) +
   theme_minimal() +
   theme(legend.position = "bottom",
         axis.text.y = element_blank(),
         axis.text.x = element_text(size = 8),
         strip.background = element_blank(),
-        strip.text  = element_markdown(size = 6, hjust = 0),
+        strip.text  = element_markdown(size = 10, hjust = 0),
         strip.placement = "inside",
         panel.spacing = unit(0, "lines"),
         panel.spacing.x = unit(0.5, "lines"),
         legend.key.size = unit(0.3, "cm"),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10)
+        legend.text = element_text(size = 11),
+        legend.title = element_text(size = 12)
   )
 
 
@@ -97,5 +105,5 @@ plot_bars_v <- df_top %>%
 #
 # ggsave("plot_1.png", plot_final, width = 5.2, height = 5.2)
 
-ggsave("plots/plot_vars_h.png", plot_bars_v, width = 4, height = 5.2)
+ggsave("plots/plot_vars_h.png", plot_bars_v, width = 4, height = 7)
 

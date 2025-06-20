@@ -64,7 +64,7 @@ plot_bars_h <- plot_data2 %>%
   # fill the panel (try >1 if you want even thicker)
   geom_bar(
     stat     = "identity",
-    width    = 0.8,       # full width
+    width    = 0.6,       # full width
     color    = "black",
     position = position_stack(reverse = TRUE)
   ) +
@@ -75,7 +75,7 @@ plot_bars_h <- plot_data2 %>%
   geom_text(
     aes(label = label_inside),
     position    = position_stack(vjust = 0.5, reverse = TRUE),
-    size        = 4,
+    size        = 6,
     show.legend = FALSE
   ) +
 
@@ -84,17 +84,17 @@ plot_bars_h <- plot_data2 %>%
     aes(x      = type, y = mid_pos, label = n),
     inherit.aes = FALSE,
     direction   = "x",
-    nudge_x     = 0.7,
+    nudge_x     = 0.4,
     segment.color = "grey20",
-    size        = 4,
+    size        = 6,
     show.legend = FALSE
   ) +
 
   scale_y_reverse(expand = expansion(mult = c(0, 0.05))) +
   facet_wrap(~facet_html, scales = "free", ncol = 4) +
   labs(fill = "Time of day R²", y = "Number of biomarkers") +
-  scale_fill_paletteer_d("ghibli::LaputaLight", direction = -1) +
-  guides(fill = guide_legend(ncol = 1, byrow = TRUE)) +
+  paletteer::scale_fill_paletteer_d("LaCroixColoR::Pamplemousse") +
+  #guides(fill = guide_legend(ncol = 1, byrow = TRUE)) +
 
   theme_minimal() +
   theme(
@@ -103,21 +103,22 @@ plot_bars_h <- plot_data2 %>%
 
     strip.placement  = "inside",
     strip.background = element_blank(),
-    strip.text       = element_markdown(size = 14, hjust = 0),
+    strip.text       = element_markdown(size = 18, hjust = 0),
 
     axis.text        = element_blank(),
     axis.title.x       = element_blank(),
+    axis.title.y= element_text(size = 14),
     panel.grid       = element_blank(),
 
-    legend.position  = "right",
-    legend.direction = "vertical",
+    legend.position  = "bottom",
+    #legend.direction = "vertical",
     legend.key.size  = unit(1, "cm"),
     legend.spacing.x = unit(1, "cm"),
-    legend.text      = element_text(size = 12),
-    legend.title     = element_text(size = 12)
+    legend.text      = element_text(size = 16),
+    legend.title     = element_text(size = 16)
   )
 
-ggsave("plots/plot_vars_v.png", plot_bars_h, height = 6, width = 6)
+ggsave("plots/plot_vars_v.png", `plot_bars_h`, height = 6, width = 8)
 
 
 
