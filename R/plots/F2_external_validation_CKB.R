@@ -6,11 +6,10 @@ library(lightgbm)
 library(xgboost)
 library(glmnet)
 
-
-lgb1 <- lightgbm::lgb.load("data_share/cv.finngen_lightgbm_cv1.rds")
-xgb <- xgboost::xgb.load("data_share/cv.finngen_xgb_cv1.rds")
-lasso <- readRDS("data_share/cv.finngen_lasso_cv1.rds")
-lassox2 <- readRDS("data_share/cv.finngen_lassox2_cv1.rds")
+lgb1 <- lightgbm::lgb.load("data_share/cv.olink_lightgbm_cv1.rds")
+xgb <- xgboost::xgb.load("data_share/cv.olink_xgb_cv1.rds")
+lasso <- readRDS("data_share/cv.olink_lasso_cv1.rds")
+lassox2 <- readRDS("data_share/cv.olink_lassox2_cv1.rds")
 
 # File with time of blood sampling info
 time_file <- data.table::fread("/mnt/project/blood_sampling.tsv")
@@ -18,12 +17,12 @@ time_file <- data.table::fread("/mnt/project/blood_sampling.tsv")
 # Raw proteomics file
 olink_raw_file <- data.table::fread("/mnt/project/olink_instance_0.csv")
 # Order of proteins in model
-prot_order <- data.table::fread("/mnt/project/biomarkers_3/2025-04-04_FinnGen_Olink_ProteinList.txt")
+prot_order <- lasso$glmnet.fit$beta@Dimnames[[1]]
 
 # Order dataset and scale all raw values
-finngen_olink <- olink_raw_file %>%
+ckb_olink <- olink_raw_file %>%
   select(-glipr1) %>% # Remove this protein because it had too few values in UKB
-  select(eid, any_of(tolower(prot_order$Assay))) %>%
+  select(eid, any_of(tolower(prot_order))) %>%
   mutate(across(-eid, ~scale(.x)[,1]))
 
 # The UKB has 6 available times, each for a blood sample replicate. I just pick the latest one because the empty value is "1900-01-01"
@@ -37,33 +36,33 @@ time_day <- time_file %>%
   filter(time_day >= 9 & time_day <= 20)
 
 # Impute values needed to use glmnet
-finngen_olink_imp <- glmnet::makeX(finngen_olink %>% select(-eid), na.impute = T)
-finngen_olink_imp_x2 <- glmnet::makeX(finngen_olink %>% select(-eid) %>% mutate(across(where(is.numeric), list(sq = ~ .^2), .names = "{.col}_sq")), na.impute = T)
+ckb_olink_imp <- glmnet::makeX(ckb_olink %>% select(-eid), na.impute = T)
+ckb_olink_imp_x2 <- glmnet::makeX(ckb_olink %>% select(-eid) %>% mutate(across(where(is.numeric), list(sq = ~ .^2), .names = "{.col}_sq")), na.impute = T)
 
 # Individual-lebel predictions
-out_finngen <- tibble(eid = time_day$eid[match(finngen_olink$eid, time_day$eid)],
-                      y_test = time_day$time_day[match(finngen_olink$eid, time_day$eid)],
-                pred_lgb = predict(lgb1, as.matrix(finngen_olink %>% select(-eid))),
-                pred_xgb = predict(xgb, as.matrix(finngen_olink %>% select(-eid))),
-                pred_lasso = predict(lasso, finngen_olink_imp)[,1],
-                pred_lassox2 = predict(lassox2, finngen_olink_imp_x2)[,1])
+out_ckb <- tibble(eid = time_day$eid[match(ckb_olink$eid, time_day$eid)],
+                      y_test = time_day$time_day[match(ckb_olink$eid, time_day$eid)],
+                      pred_lgb = predict(lgb1, as.matrix(ckb_olink %>% select(-eid))),
+                      pred_xgb = predict(xgb, as.matrix(ckb_olink %>% select(-eid))),
+                      pred_lasso = predict(lasso, ckb_olink_imp)[,1],
+                      pred_lassox2 = predict(lassox2, ckb_olink_imp_x2)[,1])
 
 # Prediction accuracy estimation
-pred <- out_finngen %>%
+pred <- out_ckb %>%
   pivot_longer(c(-y_test, -eid)) %>%
   group_by(name) %>%
   nest() %>%
   mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value, use = "complete.obs")^2)) %>%
   select(-data)
 
-saveRDS(pred, "prediction_olink_finngen.rds")
+saveRDS(pred, "prediction_olink_ckb.rds")
 
 
 ### Validate chronotype associations if possible
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv")
 
-plot <- out_finngen %>%
+plot <- out_ckb %>%
   mutate(gap = y_test - pred_lasso) %>%
   left_join(sleep %>% select(eid, chrono = `1180-0.0`)) %>%
   filter(chrono %in% 1:4) %>%
@@ -76,4 +75,4 @@ plot <- out_finngen %>%
         legend.position = "bottom"
   )
 
-ggsave("chronotype_finngen_proteotime.png", plot, width = 10, height = 10)
+ggsave("chronotype_ckb_proteotime.png", plot, width = 10, height = 10)

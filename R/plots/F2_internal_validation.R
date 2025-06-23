@@ -33,7 +33,8 @@ xgboost::xgb.save(xgb, "cv.i0_xgb_cv1.rds")
 
 ### validation
 
-i2_data <- data.table::fread("/mnt/project/OLINK_i2.tsv")
+i2_data <- data.table::fread("/mnt/project/OLINK_i2.tsv") %>%
+  mutate(across(-eid, ~scale(.x)[,1]))
 i2_meta <- data.table::fread("/mnt/project/blood_sampling_instance2.tsv") %>%
   filter(!is.na(`3166-2.0`)) %>%
   mutate(max_time = pmax(`3166-2.0`,`3166-2.1`,`3166-2.2`,`3166-2.3`,`3166-2.4`, `3166-2.5`, na.rm = T)) %>%
@@ -61,7 +62,8 @@ out_i2 <- tibble(y_test = i2_meta$time_day[match(i2_data$eid, i2_meta$eid)],
 
 
 # i3
-i3_data <- data.table::fread("/mnt/project/OLINK_i3.tsv")
+i3_data <- data.table::fread("/mnt/project/OLINK_i3.tsv") %>%
+  mutate(across(-eid, ~scale(.x)[,1]))
 i3_meta <- data.table::fread("/mnt/project/blood_sampling_instance3.tsv") %>%
   filter(!is.na(`3166-3.0`)) %>%
   mutate(max_time = pmax(`3166-3.0`,`3166-3.1`,`3166-3.2`,`3166-3.3`,`3166-3.4`, `3166-3.5`, na.rm = T)) %>%

@@ -20,7 +20,7 @@ night_band <- data.frame(
   ymax = Inf
 )
 
-time %>%
+p_hist <- time %>%
   filter(time_day < 24 & time_day > 0) %>%
   ggplot(aes(x = time_day)) +
   geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -35,3 +35,5 @@ time %>%
   theme(text = element_text(size = 20),
         axis.text.y = element_text(size = 14),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
+
+ggsave("plot_histogram.png", p_hist, width = 8, height = 8)
