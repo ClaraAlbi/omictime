@@ -1,6 +1,5 @@
 library(tidyverse)
 
-
 fields <- data.table::fread("data/field.tsv")
 
 df_effects <- bind_rows(readRDS("data/effects_labs.rds") %>% mutate(type = "Biochemistry") %>%
@@ -24,6 +23,17 @@ df_effects <- bind_rows(readRDS("data/effects_labs.rds") %>% mutate(type = "Bioc
   mutate(amplitude_24hfreq = sqrt(estimate_beta_cos1^2 + estimate_beta_sin1^2),
          acrophase_24hfreq = (atan2(estimate_beta_sin1, estimate_beta_cos1) / (2 * pi) * 24 + 24) %% 24,
          q = as.integer(round(acrophase_24hfreq, 0)))
+
+df_r2 <- bind_rows(readRDS("data/aov_labs.rds") %>% mutate(type = "Biochemistry") %>%
+                     left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
+                   readRDS("data/aov_counts.rds") %>% mutate(type = "Cell_counts") %>%
+                     left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
+                   readRDS("data/aov_nmr.rds") %>% mutate(type = "Metabolomics-NMR") %>%
+                     left_join(fields %>% select(field_id, title), by = c("phen" = "field_id"))) %>%
+  mutate(phen = as.character(phen)) %>%
+  bind_rows(readRDS("data/aov_olink.rds") %>% mutate(type = "Proteomics-Olink") %>%
+              mutate(title = phen)) %>%
+  filter(term == "time_day")
 
 circ_diff24 <- function(a, b) {
   # returns difference in hours in [-12,12]
@@ -65,7 +75,8 @@ df_best <- df_pha %>%
   # build a combined legend variable
   mutate(
     combo = paste0(`Rhythmic Category`, " / ", best_harmonic)
-  )
+  ) %>%
+  left_join(df_r2)
 
 
 p_phase <- ggplot(df_best, aes(
@@ -76,7 +87,7 @@ p_phase <- ggplot(df_best, aes(
 )) +
   geom_abline(linetype = "dashed", color = "grey50") +
   geom_point(size = 2) +
-  ggrepel::geom_text_repel(data = df_best[df_best$amplitude_24hfreq > 0.2,],
+  ggrepel::geom_text_repel(data = df_best[df_best$amplitude_24hfreq > 0.2 & df_best$p.value < 0.05*3000 & df_best$pr2 > 0.01,],
                            size = 5) +
   scale_y_continuous(
     "Acrophase from 24h data (h)",
@@ -100,6 +111,12 @@ p_phase <- ggplot(df_best, aes(
       "diurnal / 1h"   = "#4575B4",
       "diurnal / 2h-1st"= "#91BFDB",
       "diurnal / 2h-fundamental"= "darkblue"
+    ),
+    guide = guide_legend(
+      override.aes = list(
+        shape = 15,    # solid square
+        size  = 6      # enlarge the square
+      )
     )
   ) +
   theme_minimal(base_size = 18) +

@@ -1,4 +1,5 @@
 library(tidyverse)
+library(paletteer)
 
 fields <- data.table::fread("data/field.tsv")
 
@@ -42,7 +43,8 @@ df_cmp <- readxl::read_xlsx("data/1-s2.0-S2352721823002401-mmc1.xlsx", skip = 1)
       mutate(Gene = toupper(phen)) %>%
       select(Gene, acrophase_24hfreq, phen, type, color_var, title, amplitude_24hfreq),
     by = "Gene"
-  )
+  ) %>%
+  left_join(df_r2)
 
 p_amp <- ggplot(df_cmp, aes(
   x     = amplitude_24hfreq,
@@ -52,7 +54,7 @@ p_amp <- ggplot(df_cmp, aes(
 )) +
   geom_abline(linetype = "dashed", color = "grey50") +
   geom_point(size = 2) +
-  ggrepel::geom_text_repel(data = df_cmp[df_cmp$amplitude_24hfreq > 0.2 | df_cmp$amp_1h > 0.2,],
+  ggrepel::geom_text_repel(data = df_cmp[df_cmp$amplitude_24hfreq > 0.2 & df_cmp$p.value < 0.05*3000 & df_cmp$pr2 > 0.01,],
                            size = 5) +
   scale_y_continuous(
     "Amplitude 24h data"
@@ -60,7 +62,15 @@ p_amp <- ggplot(df_cmp, aes(
   scale_x_continuous(
     "Amplitude 12h data"
   ) +
-  scale_color_manual(values = paletteer_dynamic("cartography::green.pal", 2)) +
+  scale_color_manual(
+    values = paletteer_dynamic("cartography::green.pal", 2),
+    guide = guide_legend(
+      override.aes = list(
+        shape = 15,    # solid square
+        size  = 6      # enlarge the square
+      )
+    )
+  ) +
   coord_fixed() +
   theme_minimal(base_size = 18) +
   theme(
