@@ -58,12 +58,87 @@ pred <- out_ckb %>%
 saveRDS(pred, "prediction_olink_ckb.rds")
 
 
+### Plot time histogram
+
+light_band <- data.frame(
+  xmin = 6,
+  xmax = 20,
+  ymin = -Inf,
+  ymax = Inf
+)
+
+night_band <- data.frame(
+  xmin = c(0, 20),
+  xmax = c(6, 24),
+  ymin = -Inf,
+  ymax = Inf
+)
+
+p_hist <- time_day %>%
+  filter(time_day < 24 & time_day > 0) %>%
+  ggplot(aes(x = time_day)) +
+  geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
+  geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "gray", alpha = 0.2, inherit.aes = FALSE) +
+  geom_histogram(bins = 60) +
+  coord_polar(start = 0) +
+  labs(x = "Time of day") +
+  scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
+  theme_minimal() +
+  theme(text = element_text(size = 20),
+        axis.text.y = element_text(size = 14),
+        axis.title.y = element_blank(), panel.grid.minor = element_blank())
+
+ggsave("plot_histogram_ckb.png", p_hist, width = 8, height = 8)
+
+
+
+### Age / sex distributions of circadian acceleration and dysregulation
+
+covs <- data.table::fread("/mnt/project/covariates.tsv") %>%
+  select(eid, `31-0.0`, `21022-0.0`)
+colnames(covs) <- c("eid", "Sex", "Age")
+
+data_c <- out_finngen %>%
+  left_join(covs) %>%
+  mutate(gap = time_day - pred_lasso,
+         absgap = abs(gap), Sex = factor(
+           Sex,
+           levels = c(0, 1),
+           labels = c("Female", "Male")))
+
+summary(data_c$Sex)
+summary(data_c$Age)
+
+plot_covs <- data_c %>%
+  pivot_longer(
+    cols      = c(gap, absgap),
+    names_to  = "variable",
+    values_to = "value"
+  ) %>%
+  mutate(
+    variable = recode(variable,
+                      gap    = "Acceleration",
+                      absgap = "Dysregulation"),
+    variable = factor(variable,
+                      levels = c("Acceleration", "Dysregulation"))
+  ) %>%
+  ggplot(aes(x = Age, y = value,
+           colour = Sex)) +
+  geom_smooth() +
+  facet_wrap(~ variable, scales = "free_y") +
+  theme_minimal(base_size = 12)
+
+ggsave("plot_sexage_ckb.png", plot_covs, width = 12, height = 8)
+
+
 ### Validate chronotype associations if possible
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv")
+# The chronotype phenotypes follows 1: Definitely morning to 4: Definitely evening
 
-plot <- out_ckb %>%
-  mutate(gap = y_test - pred_lasso) %>%
+plot_chrono <- data_c %>%
   left_join(sleep %>% select(eid, chrono = `1180-0.0`)) %>%
   filter(chrono %in% 1:4) %>%
   ggplot(aes(x = y_test, y = gap, color = as.factor(chrono))) +
@@ -75,4 +150,4 @@ plot <- out_ckb %>%
         legend.position = "bottom"
   )
 
-ggsave("chronotype_ckb_proteotime.png", plot, width = 10, height = 10)
+ggsave("chronotype_ckb_proteotime.png", plot_chrono, width = 10, height = 10)

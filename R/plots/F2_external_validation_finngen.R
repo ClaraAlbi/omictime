@@ -6,7 +6,6 @@ library(lightgbm)
 library(xgboost)
 library(glmnet)
 
-
 lgb1 <- lightgbm::lgb.load("data_share/cv.finngen_lightgbm_cv1.rds")
 xgb <- xgboost::xgb.load("data_share/cv.finngen_xgb_cv1.rds")
 lasso <- readRDS("data_share/cv.finngen_lasso_cv1.rds")
@@ -34,7 +33,7 @@ time_day <- time_file %>%
   separate(date, into = c("y", "m", "d"), sep = "-", remove = F) %>%
   mutate(across(y:s, as.numeric),
          time_day = h + min/60) %>%
-  filter(time_day >= 9 & time_day <= 20)
+  filter(time_day >= 9 & time_day <= 20) # ADAPT THIS TO WHAT MAKES SENSE IN YOUR DATA
 
 # Impute values needed to use glmnet
 finngen_olink_imp <- glmnet::makeX(finngen_olink %>% select(-eid), na.impute = T)
@@ -75,7 +74,7 @@ night_band <- data.frame(
   ymax = Inf
 )
 
-time_day %>%
+p_hist <- time_day %>%
   filter(time_day < 24 & time_day > 0) %>%
   ggplot(aes(x = time_day)) +
   geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -91,13 +90,54 @@ time_day %>%
         axis.text.y = element_text(size = 14),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
+ggsave("plot_histogram_fingen.png", p_hist, width = 8, height = 8)
+
+
+### Age / sex distributions of circadian acceleration and dysregulation
+
+covs <- data.table::fread("/mnt/project/covariates.tsv") %>%
+  select(eid, `31-0.0`, `21022-0.0`)
+colnames(covs) <- c("eid", "Sex", "Age")
+
+data_c <- out_finngen %>%
+  left_join(covs) %>%
+  mutate(gap = time_day - pred_lasso,
+         absgap = abs(gap), Sex = factor(
+           Sex,
+           levels = c(0, 1),
+           labels = c("Female", "Male")))
+
+summary(data_c$Sex)
+summary(data_c$Age)
+
+plot_covs <- data_c %>%
+  pivot_longer(
+    cols      = c(gap, absgap),
+    names_to  = "variable",
+    values_to = "value"
+  ) %>%
+  mutate(
+    variable = recode(variable,
+                      gap    = "Acceleration",
+                      absgap = "Dysregulation"),
+    variable = factor(variable,
+                      levels = c("Acceleration", "Dysregulation"))
+  ) %>%
+  ggplot(aes(x = Age, y = value,
+             colour = Sex)) +
+  geom_smooth() +
+  facet_wrap(~ variable, scales = "free_y") +
+  theme_minimal(base_size = 12)
+
+ggsave("plot_sexage_fingen.png", plot_covs, width = 12, height = 8)
+
 
 ### Validate chronotype associations if possible
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv")
+# The chronotype phenotypes follows 1: Definitely morning to 4: Definitely evening
 
-plot <- out_finngen %>%
-  mutate(gap = y_test - pred_lasso) %>%
+plot_chrono <- data_c %>%
   left_join(sleep %>% select(eid, chrono = `1180-0.0`)) %>%
   filter(chrono %in% 1:4) %>%
   ggplot(aes(x = y_test, y = gap, color = as.factor(chrono))) +
@@ -109,4 +149,4 @@ plot <- out_finngen %>%
         legend.position = "bottom"
   )
 
-ggsave("chronotype_finngen_proteotime.png", plot, width = 10, height = 10)
+ggsave("chronotype_finngen_proteotime.png", plot_chrono, width = 10, height = 10)
