@@ -36,4 +36,4 @@ p_hist <- time %>%
         axis.text.y = element_text(size = 14),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
-ggsave("plot_histogram.png", p_hist, width = 8, height = 8)
+ggsave("plots/plot_histogram_i0.png", p_hist, width = 8, height = 8)

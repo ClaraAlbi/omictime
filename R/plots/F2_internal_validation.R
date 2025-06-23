@@ -42,7 +42,8 @@ i2_meta <- data.table::fread("/mnt/project/blood_sampling_instance2.tsv") %>%
   separate(time, into = c("h", "min", "s"), sep = ":") %>%
   separate(date, into = c("y", "m", "d"), sep = "-", remove = F) %>%
   mutate(across(y:s, as.numeric),
-         time_day = h + min/60)
+         time_day = h + min/60) %>%
+  filter(time_day >= 9 & time_day <= 20)
 
 summary(i2_meta$y[!is.na(i2_meta$time_day)])
 
@@ -59,6 +60,37 @@ out_i2 <- tibble(y_test = i2_meta$time_day[match(i2_data$eid, i2_meta$eid)],
   nest() %>%
   mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value)^2)) %>%
   select(-data)
+
+
+light_band <- data.frame(
+  xmin = 6,
+  xmax = 20,
+  ymin = -Inf,
+  ymax = Inf
+)
+
+night_band <- data.frame(
+  xmin = c(0, 20),
+  xmax = c(6, 24),
+  ymin = -Inf,
+  ymax = Inf
+)
+
+i2_meta %>%
+  filter(time_day < 24 & time_day > 0) %>%
+  ggplot(aes(x = time_day)) +
+  geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
+  geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "gray", alpha = 0.2, inherit.aes = FALSE) +
+  geom_histogram(bins = 60) +
+  coord_polar(start = 0) +
+  labs(x = "Time of day") +
+  scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
+  theme_minimal() +
+  theme(text = element_text(size = 20),
+        axis.text.y = element_text(size = 14),
+        axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
 
 # i3
