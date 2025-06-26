@@ -157,7 +157,8 @@ out_i2 <- preds_i2 %>%
   pivot_longer(-c(y_test, eid)) %>%
   group_by(name) %>%
   nest() %>%
-  mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value)^2)) %>%
+  mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value)^2),
+         N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
   select(-data)
 
 i2_hist <- i2_meta %>%
@@ -210,7 +211,8 @@ out_i3 <- preds_i3 %>%
   pivot_longer(-c(y_test, eid)) %>%
   group_by(name) %>%
   nest() %>%
-  mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value)^2)) %>%
+  mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value)^2),
+         N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
   select(-data)
 
 i3_hist <- i3_meta %>%
@@ -240,7 +242,8 @@ p1 <- preds_i0_olink %>%
   pivot_longer(contains("pred")) %>%
   group_by(name) %>%
   nest() %>%
-  mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2)) %>%
+  mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2),
+         N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
   select(-data) %>%
   mutate(i = 0) %>%
   bind_rows(out_i2 %>% mutate(i = 2)) %>%
@@ -250,7 +253,7 @@ p1 <- preds_i0_olink %>%
   geom_col() +
   facet_wrap(~i) +
   labs(y = "R2", fill = "Model") +
-  facet_wrap(~paste0("i", i)) +
+  facet_wrap(~paste0("i", i) + paste0("N = ", N)) +
   scale_fill_viridis_d() +
   ggtitle("A - Proteomics") +
   theme_minimal() +
@@ -259,7 +262,8 @@ p1 <- preds_i0_olink %>%
         axis.title.x = element_blank(),
         legend.key.size = unit(1.2, "lines"),
         legend.text     = element_text(size = 16),
-        legend.title    = element_text(size = 18))
+        legend.title    = element_text(size = 18),
+        strip.text = element_text(hjust = 0))
 
 
 
@@ -363,7 +367,8 @@ out_i1 <- preds_i1 %>%
   pivot_longer(-c(y_test, eid)) %>%
   group_by(name) %>%
   nest() %>%
-  mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value, use = "complete.obs")^2)) %>%
+  mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value, use = "complete.obs")^2),
+         N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
   select(-data)
 
 
@@ -372,7 +377,8 @@ p2 <- preds_i0_nmr %>%
   pivot_longer(contains("pred")) %>%
   group_by(name) %>%
   nest() %>%
-  mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2)) %>%
+  mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2),
+         N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
   select(-data) %>%
   mutate(i = 0) %>%
   bind_rows(out_i1 %>% mutate(i = 1)) %>%
@@ -380,7 +386,7 @@ p2 <- preds_i0_nmr %>%
   ggplot(aes(x = name, y = r2, fill = name)) +
   geom_col() +
   labs(y = "R2", fill = "Model") +
-  facet_wrap(~paste0("i", i)) +
+  facet_wrap(~paste0("i", i) + paste0("N = ", N)) +
   scale_fill_viridis_d() +
   ggtitle("B - Metabolomics") +
   theme_minimal() +
@@ -389,7 +395,8 @@ p2 <- preds_i0_nmr %>%
         axis.title.x = element_blank(),
         legend.key.size = unit(1.2, "lines"),
         legend.text     = element_text(size = 16),
-        legend.title    = element_text(size = 18))
+        legend.title    = element_text(size = 18),
+        strip.text = element_text(hjust = 0))
 
 install.packages("cowplot")
 library(cowplot)
