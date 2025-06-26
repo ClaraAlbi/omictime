@@ -61,7 +61,7 @@ pl <- data_long %>%
   scale_x_continuous(breaks = c(10, 15, 20)) +
   scale_color_manual(values = c("gray", "#76B041", "#2374AB", "#E85F5C", "#8F3985")) +
   labs(y = "Predicted omic time", x = "Recorded time of day") +
-  theme(legend.position = "none", strip.text = element_text(size = 18, hjust = 0))
+  theme(legend.position = "none", strip.text = element_text(size = 16, hjust = 0))
 
 
 ggsave("plots/F3_pred.png", pl, width = 10, height = 4)
