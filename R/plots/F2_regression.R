@@ -27,7 +27,7 @@ r2s <- tibble(f = l[str_detect(l, "predictions")]) %>%
   group_by(type) %>%
   summarise(across(lgb:lassox2, ~mean(.x), .names = "{col}_mr2"),
             across(lgb:lassox2, ~sd(.x), .names = "{col}_sdr2"),
-            N = sum(N)) %>%
+            mean_N = mean(N)) %>%
   pivot_longer(
     cols = ends_with("mr2") | ends_with("sdr2"),
     names_to = c("model", "metric"),
@@ -36,33 +36,24 @@ r2s <- tibble(f = l[str_detect(l, "predictions")]) %>%
   ) %>%
   pivot_wider(names_from = metric, values_from = value)
 
-
-data_long <- data_ind %>%
+pl <- data_ind %>%
   filter(type %in% c("all", "olink", "NMR", "labs", "counts")) %>%
-  pivot_longer(cols = starts_with("pred_"),
-               names_to = "model",
-               values_to = "prediction") %>%
-  mutate(model = str_remove(model, "pred_"))
-
-best_m <- r2s %>%
-  group_by(type) %>%
-  slice_max(mr2, n = 1, with_ties = FALSE) %>%
-  select(type, best_model = model, top_R2 = mr2, Nt = N)
-
-pl <- data_long %>%
-  left_join(best_m, by = "type") %>%
-  filter(model == best_model) %>%
-  mutate(type = factor(type, levels = c("all", "olink", "NMR", "labs", "counts"),
-                       labels = c("All", "Proteomics", "Metabolomics", "Biochemistry", "Cell counts"))) %>%
-  ggplot(aes(x = time_day, y = prediction, color = type)) +
-  geom_point(alpha = 0.5, size = 0.8) +
-  facet_wrap(~type + paste0("N: ", Nt) + paste0("R2: ",round(top_R2, 2)), ncol = 5) +
-  theme_minimal(base_size = 14) +
+  mutate(type = factor(type, levels = c("all", "olink", "NMR", "labs", "counts"))) %>%
+  left_join(r2s %>% filter(model == "lgb")) %>%
+  ggplot(aes(x = time_day, y = pred_lgb, color = type)) +
+  geom_point() +
+  facet_wrap(~type , ncol = 5) +
+  facet_grid(~type + paste0("N: ", round(mean_N, 0)) + paste0("R2: ",round(mr2, 2), "(", round(sdr2, 2),")")) +
+  labs(y = "Predicted omic time", x = "Time day") +
+  theme_minimal() +
   scale_x_continuous(breaks = c(10, 15, 20)) +
   scale_color_manual(values = c("gray", "#76B041", "#2374AB", "#E85F5C", "#8F3985")) +
+<<<<<<< HEAD
   labs(y = "Predicted omic time", x = "Recorded time of day") +
   theme(legend.position = "none", strip.text = element_text(size = 16, hjust = 0))
+=======
+  theme(legend.position = "none")
+>>>>>>> parent of 704fa62 (figure 3)
 
-
-ggsave("plots/F3_pred.png", pl, width = 10, height = 4)
+ggsave("plot_lgb.png", pl, width = 14, height = 3)
 

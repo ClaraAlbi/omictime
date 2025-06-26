@@ -23,7 +23,7 @@ preds_i0_nmr <- tibble(f = l[str_detect(l, "predictions_NMR")]) %>%
 
 time_i0 <- readRDS("/mnt/project/biomarkers/time.rds")
 
-time_i1 <- data.table::fread("/mnt/project/blood_sampling_instance1.tsv") %>%
+time_i1 <- data.table::fread("blood_sampling_instance1.tsv") %>%
   filter(eid %in% preds_i0_nmr$eid) %>%
   mutate(max_time = pmax(`3166-1.0`,`3166-1.1`,`3166-1.2`,`3166-1.3`,`3166-1.4`, `3166-1.5`, na.rm = T)) %>%
   separate(max_time, into = c("date", "time"), sep = " ") %>%
@@ -109,7 +109,7 @@ ggsave("plots/plot_histogram_i1_olink.png", i1_hist, width = 8, height = 8)
 
 ###
 
-out_i0 <- preds_i0_olink %>%
+out_i0 <- preds_i0 %>%
   group_by(cv) %>%
   nest() %>%
   mutate(N = map_dbl(data, ~nrow(.x)),
@@ -120,10 +120,14 @@ out_i0 <- preds_i0_olink %>%
   select(-data)
 
 # MODELS OLINK
-lgb1 <- lightgbm::lgb.load("data_share/cv.i0_lightgbm_cv1.rds")
-xgb <- xgboost::xgb.load("data_share/cv.i0_xgb_cv1.rds")
-lasso <- readRDS("data_share/cv.i0_lasso_cv1.rds")
-lassox2 <- readRDS("data_share/cv.i0_lassox2_cv1.rds")
+lgb1 <- readRDS("/mnt/project/biomarkers_3/cv.i0_lightgbm_cv1.rds")
+xgb <- readRDS("/mnt/project/biomarkers_3/cv.i0_xgb_cv1.rds")
+lasso <- readRDS("/mnt/project/biomarkers_3/cv.i0_lasso_cv1.rds")
+lassox2 <- readRDS("/mnt/project/biomarkers_3/cv.i0_lassox2_cv1.rds")
+
+lightgbm::lgb.save(lgb1, "cv.i0_lightgbm_cv1.rds")
+xgboost::xgb.save(xgb, "cv.i0_xgb_cv1.rds")
+
 
 ### validation
 
@@ -147,8 +151,8 @@ i2_imp_x2 <- glmnet::makeX(i2_data %>% select(-eid) %>% mutate(across(where(is.n
 
 preds_i2 <- tibble(eid = i2_meta$eid[match(i2_data$eid, i2_meta$eid)],
                    y_test = i2_meta$time_day[match(i2_data$eid, i2_meta$eid)],
-                 pred_lgb = predict(lgb1, as.matrix(i2_data %>% select(-eid))),
-                 pred_xgb = predict(xgb, as.matrix(i2_data %>% select(-eid))),
+                 pred_lgb = predict(lgb.load("cv.i0_lightgbm_cv1.rds"), as.matrix(i2_data %>% select(-eid))),
+                 pred_xgb = predict(xgboost::xgb.load("cv.i0_xgb_cv1.rds"), as.matrix(i2_data %>% select(-eid))),
                  pred_lasso = predict(lasso, i2_imp)[,1],
                  pred_lassox2 = predict(lassox2, i2_imp_x2)[,1])
 
@@ -200,8 +204,8 @@ i3_imp_x2 <- glmnet::makeX(i3_data %>% select(-eid) %>% mutate(across(where(is.n
 
 preds_i3 <- tibble(eid = i3_meta$eid[match(i3_data$eid, i3_meta$eid)],
                    y_test = i3_meta$time_day[match(i3_data$eid, i3_meta$eid)],
-                pred_lgb = predict(lgb1, as.matrix(i3_data %>% select(-eid))),
-                pred_xgb = predict(xgb, as.matrix(i3_data %>% select(-eid))),
+                pred_lgb = predict(lgb.load("cv.i0_lightgbm_cv1.rds"), as.matrix(i3_data %>% select(-eid))),
+                pred_xgb = predict(xgboost::xgb.load("cv.i0_xgb_cv1.rds"), as.matrix(i3_data %>% select(-eid))),
                 pred_lasso = predict(lasso, i3_imp)[,1],
                 pred_lassox2 = predict(lassox2, i3_imp_x2)[,1])
 
@@ -229,10 +233,6 @@ i3_hist <- i3_meta %>%
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
 ggsave("plots/plot_histogram_i3.png", i3_hist, width = 8, height = 8)
-
-
-
-
 
 ## AGExSEX plots
 covs <- data.table::fread("/mnt/project/covariates.tsv") %>%
