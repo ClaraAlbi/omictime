@@ -232,6 +232,53 @@ i3_hist <- i3_meta %>%
 ggsave("plots/plot_histogram_i3.png", i3_hist, width = 8, height = 8)
 
 
+####
+
+
+p1 <- preds_i0_olink %>%
+  rename(pred_xgb = pred_xgboost) %>%
+  pivot_longer(contains("pred")) %>%
+  group_by(name) %>%
+  nest() %>%
+  mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2)) %>%
+  select(-data) %>%
+  mutate(i = 0) %>%
+  bind_rows(out_i2 %>% mutate(i = 2)) %>%
+  bind_rows(out_i3 %>% mutate(i = 3)) %>%
+  mutate(name = str_remove(name, "pred_")) %>%
+  ggplot(aes(x = name, y = r2, fill = name)) +
+  geom_col() +
+  facet_wrap(~i) +
+  labs(y = "R2", fill = "Model") +
+  facet_wrap(~paste0("i", i)) +
+  scale_fill_viridis_d() +
+  ggtitle("A - Proteomics") +
+  theme_minimal() +
+  theme(text = element_text(size = 18),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.key.size = unit(1.2, "lines"),
+        legend.text     = element_text(size = 16),
+        legend.title    = element_text(size = 18))
+
+
+
+
+preds_i0_olink %>% mutate(i = 0) %>%
+  left_join(preds_i2 %>% mutate(i = 2)) %>%
+  left_join(preds_i2 %>% mutate(i = 3)) %>%
+  pivot_longer(cols = starts_with("pred_"),
+               names_to = "model",
+               values_to = "prediction") %>%
+  mutate(model = str_remove(model, "pred_")) %>%
+  ggplot(aes(x = time_day, y = prediction, color = model)) +
+  geom_point(alpha = 0.5, size = 0.8) +
+  facet_wrap(~i)
+  theme_minimal(base_size = 12) +
+  scale_x_continuous(breaks = c(10, 15, 20)) +
+  scale_color_manual(values = c("gray", "#76B041", "#2374AB", "#E85F5C", "#8F3985")) +
+  labs(y = "Predicted omic time", x = "Recorded time of day") +
+  theme(legend.position = "none", strip.text = element_text(hjust = 0))
 
 
 
@@ -290,17 +337,15 @@ i2i3 %>% ggplot(aes(x = y_test.x, y = y_test.y, color = Sex)) +
 
 
 # MODELS NMR
-lgb1_nmr <- readRDS("/mnt/project/biomarkers_3/cv.NMR_lightgbm_cv1.rds")
-xgb_nmr <- readRDS("/mnt/project/biomarkers_3/cv.NMR_xgb_cv1.rds")
-lasso_nmr <- readRDS("/mnt/project/biomarkers_3/cv.NMR_lasso_cv1.rds")
-lassox2_nmr <- readRDS("/mnt/project/biomarkers_3/cv.NMR_lassox2_cv1.rds")
-
-lightgbm::lgb.save(lgb1_nmr, "cv.NMR_lightgbm_cv1.rds")
-xgboost::xgb.save(xgb_nmr, "cv.NMR_xgb_cv1.rds")
+lgb1_nmr <- lightgbm::lgb.load("data_share/cv.NMR_lightgbm_cv1.rds")
+xgb_nmr <- xgboost::xgb.load("data_share/cv.NMR_xgb_cv1.rds")
+lasso_nmr <- readRDS("data_share/cv.NMR_lasso_cv1.rds")
+lassox2_nmr <- readRDS("data_share/cv.NMR_lassox2_cv1.rds")
 
 summary(time_i1$y[!is.na(time_i1$time_day)])
 
-nmr_i1 <- data.table::fread("nmr_nightingale_i1.tsv") %>%
+
+nmr_i1 <- data.table::fread("/mnt/project/nmr_nightingale_i1.tsv") %>%
   filter(!is.na(`20280-1.0`)) %>%
   mutate(across(-eid, ~scale(.x)[,1]))
 
@@ -309,8 +354,8 @@ i1_imp_x2 <- glmnet::makeX(nmr_i1 %>% select(-eid) %>% mutate(across(where(is.nu
 
 preds_i1 <- tibble(eid = time_i1$eid[match(nmr_i1$eid, time_i1$eid)],
                    y_test = time_i1$time_day[match(nmr_i1$eid, time_i1$eid)],
-                   pred_lgb = predict(lgb.load("cv.NMR_lightgbm_cv1.rds"), as.matrix(nmr_i1 %>% select(-eid))),
-                   pred_xgb = predict(xgboost::xgb.load("cv.NMR_xgb_cv1.rds"), as.matrix(nmr_i1 %>% select(-eid))),
+                   pred_lgb = predict(lgb1_nmr, as.matrix(nmr_i1 %>% select(-eid))),
+                   pred_xgb = predict(xgb_nmr, as.matrix(nmr_i1 %>% select(-eid))),
                    pred_lasso = predict(lasso_nmr, i1_imp)[,1],
                    pred_lassox2 = predict(lassox2_nmr, i1_imp_x2)[,1])
 
@@ -320,3 +365,36 @@ out_i1 <- preds_i1 %>%
   nest() %>%
   mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value, use = "complete.obs")^2)) %>%
   select(-data)
+
+
+p2 <- preds_i0_nmr %>%
+  rename(pred_xgb = pred_xgboost) %>%
+  pivot_longer(contains("pred")) %>%
+  group_by(name) %>%
+  nest() %>%
+  mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2)) %>%
+  select(-data) %>%
+  mutate(i = 0) %>%
+  bind_rows(out_i1 %>% mutate(i = 1)) %>%
+  mutate(name = str_remove(name, "pred_")) %>%
+  ggplot(aes(x = name, y = r2, fill = name)) +
+  geom_col() +
+  labs(y = "R2", fill = "Model") +
+  facet_wrap(~paste0("i", i)) +
+  scale_fill_viridis_d() +
+  ggtitle("B - Metabolomics") +
+  theme_minimal() +
+  theme(text = element_text(size = 18),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.key.size = unit(1.2, "lines"),
+        legend.text     = element_text(size = 16),
+        legend.title    = element_text(size = 18))
+
+install.packages("cowplot")
+library(cowplot)
+
+plot_intval <- plot_grid(p1, p2, nrow = 2)
+
+ggsave("plots/F3_internal_validation.png", plot_intval, width = 12, height = 10)
+

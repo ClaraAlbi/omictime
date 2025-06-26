@@ -49,11 +49,11 @@ pl <- data_long %>%
   ggplot(aes(x = time_day, y = prediction, color = type)) +
   geom_point(alpha = 0.5, size = 0.8) +
   facet_wrap(~type + paste0("N: ", Nt) + paste0("R2: ",round(top_R2, 2)), ncol = 5) +
-  theme_minimal(base_size = 14) +
+  theme_minimal(base_size = 12) +
   scale_x_continuous(breaks = c(10, 15, 20)) +
   scale_color_manual(values = c("gray", "#76B041", "#2374AB", "#E85F5C", "#8F3985")) +
   labs(y = "Predicted omic time", x = "Recorded time of day") +
-  theme(legend.position = "none", strip.text = element_text(size = 16, hjust = 0))
+  theme(legend.position = "none", strip.text = element_text(hjust = 0))
 
 
 ggsave("plots/F3_pred.png", pl, width = 10, height = 4)
