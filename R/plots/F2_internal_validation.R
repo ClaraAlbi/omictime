@@ -9,7 +9,6 @@ install.packages("xgboost")
 install.packages("glmnet")
 
 
-
 l <- list.files("/mnt/project/biomarkers_3", full.names = T)
 
 preds_i0_olink <- tibble(f = l[str_detect(l, "predictions_i0")]) %>%
@@ -234,9 +233,7 @@ i3_hist <- i3_meta %>%
 ggsave("plots/plot_histogram_i3.png", i3_hist, width = 8, height = 8)
 
 
-####
-
-
+#### PLOT COMPARISON
 p1 <- preds_i0_olink %>%
   rename(pred_xgb = pred_xgboost) %>%
   pivot_longer(contains("pred")) %>%
@@ -266,23 +263,38 @@ p1 <- preds_i0_olink %>%
         strip.text = element_text(hjust = 0))
 
 
+# plot correlations
 
+df <- preds_i0_olink %>% mutate(i = 0, time = time_day) %>%
+  bind_rows(preds_i2 %>% mutate(i = 2, time = y_test)) %>%
+  bind_rows(preds_i3 %>% mutate(i = 3, time = y_test)) %>%
+  group_by(eid) %>% mutate(n = n()) %>%
+  filter(n == 3)
 
-preds_i0_olink %>% mutate(i = 0) %>%
-  left_join(preds_i2 %>% mutate(i = 2)) %>%
-  left_join(preds_i2 %>% mutate(i = 3)) %>%
-  pivot_longer(cols = starts_with("pred_"),
-               names_to = "model",
-               values_to = "prediction") %>%
-  mutate(model = str_remove(model, "pred_")) %>%
-  ggplot(aes(x = time_day, y = prediction, color = model)) +
-  geom_point(alpha = 0.5, size = 0.8) +
-  facet_wrap(~i)
-  theme_minimal(base_size = 12) +
-  scale_x_continuous(breaks = c(10, 15, 20)) +
-  scale_color_manual(values = c("gray", "#76B041", "#2374AB", "#E85F5C", "#8F3985")) +
-  labs(y = "Predicted omic time", x = "Recorded time of day") +
-  theme(legend.position = "none", strip.text = element_text(hjust = 0))
+cors <- df %>%
+  group_by(i) %>%
+  nest() %>%
+  mutate(cor_matrix = map_dbl(data, ~ cor(.x$time, .x$pred_lasso, use = "pairwise.complete.obs")^2))
+install.packages("cowplot")
+
+pp <- df %>%
+  left_join(cors) %>%
+  ggplot(aes(x = time, y = pred_lasso)) +
+  geom_point() +
+  facet_wrap(~paste0("i",i) + paste0("R2 = ",round(cor_matrix, 2))) +
+  labs(x = "Time of day", y = "Predicted time") +
+  theme_minimal() + theme(axis.title.x = element_blank())
+
+pv <- df %>%
+  ggplot(aes(y = as.factor(i), x = time)) +
+  geom_violin() +
+  facet_wrap(~i, scales = "free_y") +  # match facet exactly
+  labs(y = "Instance", x = "Time of day") +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(), strip.text.x = element_blank())
+
+pf <- cowplot::plot_grid(pp, pv, nrow = 2, rel_heights = c(1, 0.6), align = "v", axis = "lr")
 
 
 
@@ -398,10 +410,45 @@ p2 <- preds_i0_nmr %>%
         legend.title    = element_text(size = 18),
         strip.text = element_text(hjust = 0))
 
-install.packages("cowplot")
-library(cowplot)
 
 plot_intval <- plot_grid(p1, p2, nrow = 2)
 
 ggsave("plots/F3_internal_validation.png", plot_intval, width = 12, height = 10)
+
+### NMR INTERNAL
+
+
+
+df <- preds_i0_nmr %>% mutate(i = 0, time = time_day) %>%
+  bind_rows(preds_i1 %>% mutate(i = 1, time = y_test)) %>%
+  group_by(eid) %>% mutate(n = n()) %>%
+  filter(n == 2)
+
+cors <- df %>%
+  group_by(i) %>%
+  nest() %>%
+  mutate(cor_matrix = map_dbl(data, ~ cor(.x$time, .x$pred_lgb, use = "pairwise.complete.obs")^2))
+
+install.packages("cowplot")
+
+pp <- df %>%
+  left_join(cors) %>%
+  ggplot(aes(x = time, y = pred_lasso)) +
+  geom_point() +
+  facet_wrap(~paste0("i",i) + paste0("R2 = ",round(cor_matrix, 2))) +
+  labs(x = "Time of day", y = "Predicted time") +
+  theme_minimal() + theme(axis.title.x = element_blank())
+
+pv <- df %>%
+  ggplot(aes(y = as.factor(i), x = time)) +
+  geom_violin() +
+  facet_wrap(~i, scales = "free_y") +  # match facet exactly
+  labs(y = "Instance", x = "Time of day") +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(), strip.text.x = element_blank())
+
+pf <- cowplot::plot_grid(pp, pv, nrow = 2, rel_heights = c(1, 0.6), align = "v", axis = "lr")
+
+
 
