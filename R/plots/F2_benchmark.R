@@ -28,6 +28,7 @@ pbenchmark <- data %>%
   pivot_longer(c(-cv, -type, -samples, -N)) %>%
   group_by(type, name) %>%
   mutate(m_r2 = mean(value),
+         sd_r2 = sd(value),
          N_cv = round(mean(samples), 0)) %>%
 
   ggplot(aes(x = type, y = value, fill = name)) +
