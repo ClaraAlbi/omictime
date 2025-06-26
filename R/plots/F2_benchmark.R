@@ -18,27 +18,37 @@ data <- tibble(f = l[str_detect(l, "predictions")]) %>%
          lassox2 = map_dbl(d, ~cor(.x$time_day, .x$pred_lassox2)^2)) %>%
   select(-d, -f)
 
-saveRDS(data, "model_benchmark.rds")
+saveRDS(data, "data/model_benchmark.rds")
 
-
-data %>%
-  mutate(type = factor(type, levels = c("all", "olink", "NMR", "labs", "counts"))) %>%
+pbenchmark <- data %>%
+  group_by(type) %>%
+  mutate(samples = sum(N)) %>%
+  mutate(type = factor(type, levels = c("all", "olink", "NMR", "labs", "counts"), labels = c("All", "Proteomics", "Metabolomics", "Biochemistry", "Cell counts"))) %>%
   filter(!is.na(type)) %>%
-  pivot_longer(c(-cv, -type, -N)) %>%
+  pivot_longer(c(-cv, -type, -samples, -N)) %>%
   group_by(type, name) %>%
   mutate(m_r2 = mean(value),
-         N_cv = round(mean(N), 0)) %>%
+         N_cv = round(mean(samples), 0)) %>%
+
   ggplot(aes(x = type, y = value, fill = name)) +
   geom_col(aes(y = m_r2, fill = name),
-           position = position_dodge(width = 0.7),
-           width = 0.7, color = NA) +
-  geom_jitter(aes(fill = name), color = "black", shape = 21,
+          position = position_dodge(width = 0.7),
+          width = 0.7, color = NA) +
+  geom_jitter(color = "black", shape = 21,
               position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.7),
-              size = 1, alpha = 0.9) +
+              size = 2, alpha = 0.9) +
   scale_y_continuous(n.breaks = 8) +
   scale_x_discrete(expand = c(0.01, 0)) +
-  facet_grid(~type + N_cv, scales = "free") +
-  labs(y = "R2") +
+  facet_grid(~type + samples, scales = "free") +
+  scale_fill_viridis_d() +
+  labs(y = "R2", fill = "Model") +
   theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank())
+  theme(text = element_text(size = 18),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.key.size = unit(1.2, "lines"),
+        legend.text     = element_text(size = 16),
+        legend.title    = element_text(size = 18))
+
+ggsave("plots/F3_model_benchmark.png", pbenchmark, width = 10, height = 5)
+
