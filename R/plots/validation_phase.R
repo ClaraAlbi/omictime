@@ -67,6 +67,8 @@ df_pha <- readxl::read_xlsx("data/1-s2.0-S2352721823002401-mmc1.xlsx", skip = 1)
                               harmonic == "acro_1h" ~ "1h")
   )
 
+
+
 # 4) pick the single “closest” per Gene
 df_best <- df_pha %>%
   group_by(Gene) %>%
@@ -87,7 +89,7 @@ p_phase <- ggplot(df_best, aes(
 )) +
   geom_abline(linetype = "dashed", color = "grey50") +
   geom_point(size = 2) +
-  ggrepel::geom_text_repel(data = df_best[df_best$amplitude_24hfreq > 0.2 & df_best$p.value < 0.05*3000 & df_best$pr2 > 0.01,],
+  ggrepel::geom_text_repel(data = df_best[df_best$amplitude_24hfreq > 0.2 & df_best$p.value < 0.05/3000 & df_best$pr2 > 0.01,],
                            size = 5) +
   scale_y_continuous(
     "Acrophase from 24h data (h)",

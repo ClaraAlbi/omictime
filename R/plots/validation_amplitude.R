@@ -54,7 +54,7 @@ p_amp <- ggplot(df_cmp, aes(
 )) +
   geom_abline(linetype = "dashed", color = "grey50") +
   geom_point(size = 2) +
-  ggrepel::geom_text_repel(data = df_cmp[df_cmp$amplitude_24hfreq > 0.2 & df_cmp$p.value < 0.05*3000 & df_cmp$pr2 > 0.01,],
+  ggrepel::geom_text_repel(data = df_cmp[df_cmp$amplitude_24hfreq > 0.2 & df_cmp$p.value < 0.05/3000 & df_cmp$pr2 > 0.01,],
                            size = 5) +
   scale_y_continuous(
     "Amplitude 24h data"
