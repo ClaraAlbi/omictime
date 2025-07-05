@@ -269,7 +269,9 @@ df <- preds_i0_olink %>% mutate(i = 0, time = time_day) %>%
   bind_rows(preds_i2 %>% mutate(i = 2, time = y_test)) %>%
   bind_rows(preds_i3 %>% mutate(i = 3, time = y_test)) %>%
   group_by(eid) %>% mutate(n = n()) %>%
-  filter(n == 3)
+  filter(n == 3) %>%
+  mutate(gap = time - pred_lasso,
+         absgap = abs(gap))
 
 cors <- df %>%
   group_by(i) %>%
@@ -296,6 +298,31 @@ pv <- df %>%
 
 pf <- cowplot::plot_grid(pp, pv, nrow = 2, rel_heights = c(1, 0.6), align = "v", axis = "lr")
 
+### GAP differences
+
+df %>%
+  mutate(gap = time - pred_lasso) %>%
+  group_by(eid) %>%
+  summarise(m_gap = mean(abs(gap), na.rm = T),
+            m_time = mean(time, na.rm = T),
+            v_gap = var(abs(gap), na.rm = T),
+            v_time = var(time, na.rm = T),
+            n = n()) %>%
+  arrange(desc(v_time)) %>%
+  ggplot(aes(x = v_gap, y = v_time)) +
+  geom_point()
+
+d <- preds_i0_olink %>%
+  mutate(gap = time_day - pred_lasso)
+
+m <- lm(time_day ~ pred_lasso, data = d)
+d$res <- residuals(lm(time_day ~ pred_lasso, data = d))
+
+d %>%
+  mutate(gap = time_day - pred_lasso) %>%
+  ggplot(aes(x = time_day, y = res2)) +
+  geom_point() +
+  geom_smooth(method = "lm")
 
 
 ## AGExSEX plots
