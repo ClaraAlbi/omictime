@@ -1,3 +1,4 @@
+
 library(stringr)
 library(tidyr)
 library(dplyr)
@@ -21,17 +22,19 @@ preds_i0_nmr <- tibble(f = l[str_detect(l, "predictions_NMR")]) %>%
 
 ### HISTOGRAMS
 
-time_i0 <- readRDS("/mnt/project/biomarkers/time.rds")
+time_i0 <- readRDS("/mnt/project/biomarkers/time.rds") %>%
+  filter(y > 2006)
 
 time_i1 <- data.table::fread("/mnt/project/blood_sampling_instance1.tsv") %>%
-  filter(eid %in% preds_i0_nmr$eid) %>%
+  #filter(eid %in% preds_i0_nmr$eid) %>%
   mutate(max_time = pmax(`3166-1.0`,`3166-1.1`,`3166-1.2`,`3166-1.3`,`3166-1.4`, `3166-1.5`, na.rm = T)) %>%
   separate(max_time, into = c("date", "time"), sep = " ") %>%
   separate(time, into = c("h", "min", "s"), sep = ":") %>%
   separate(date, into = c("y", "m", "d"), sep = "-", remove = F) %>%
   mutate(across(y:s, as.numeric),
          time_day = h + min/60) %>%
-  filter(time_day >= 9 & time_day <= 20)
+  rename(date_bsampling = date) %>%
+  filter(y > 2006)
 
 light_band <- data.frame(
   xmin = 6,
@@ -47,10 +50,9 @@ night_band <- data.frame(
   ymax = Inf
 )
 
-
 i0_hist_olink <- time_i0 %>%
-  filter(eid %in% preds_i0_olink$eid)
-filter(time_day < 24 & time_day > 0) %>%
+  filter(eid %in% preds_i0_olink$eid) %>%
+  filter(time_day < 24 & time_day > 0) %>%
   ggplot(aes(x = time_day)) +
   geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
             fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
@@ -138,7 +140,7 @@ i2_meta <- data.table::fread("/mnt/project/blood_sampling_instance2.tsv") %>%
   separate(date, into = c("y", "m", "d"), sep = "-", remove = F) %>%
   mutate(across(y:s, as.numeric),
          time_day = h + min/60) %>%
-  filter(time_day >= 9 & time_day <= 20)
+  rename(date_bsampling = date)
 
 summary(i2_meta$y[!is.na(i2_meta$time_day)])
 
@@ -148,12 +150,13 @@ i2_imp_x2 <- glmnet::makeX(i2_data %>% select(-eid) %>% mutate(across(where(is.n
 preds_i2 <- tibble(eid = i2_meta$eid[match(i2_data$eid, i2_meta$eid)],
                    y_test = i2_meta$time_day[match(i2_data$eid, i2_meta$eid)],
                    pred_lgb = predict(lgb1, as.matrix(i2_data %>% select(-eid))),
-                   pred_xgb = predict(xgb, as.matrix(i2_data %>% select(-eid))),
+                   pred_xgboost = predict(xgb, as.matrix(i2_data %>% select(-eid))),
                    pred_lasso = predict(lasso, i2_imp)[,1],
-                   pred_lassox2 = predict(lassox2, i2_imp_x2)[,1])
+                   pred_lassox2 = predict(lassox2, i2_imp_x2)[,1]) %>%
+  left_join(i2_meta %>% select(eid, time_day, date_bsampling))
 
 out_i2 <- preds_i2 %>%
-  pivot_longer(-c(y_test, eid)) %>%
+  pivot_longer(-c(eid, y_test, time_day, date_bsampling)) %>%
   group_by(name) %>%
   nest() %>%
   mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value)^2),
@@ -192,7 +195,7 @@ i3_meta <- data.table::fread("/mnt/project/blood_sampling_instance3.tsv") %>%
   separate(date, into = c("y", "m", "d"), sep = "-", remove = F) %>%
   mutate(across(y:s, as.numeric),
          time_day = h + min/60) %>%
-  filter(time_day >= 9 & time_day <= 20)
+  rename(date_bsampling = date)
 
 summary(i3_meta$y[!is.na(i3_meta$time_day)])
 
@@ -202,17 +205,19 @@ i3_imp_x2 <- glmnet::makeX(i3_data %>% select(-eid) %>% mutate(across(where(is.n
 preds_i3 <- tibble(eid = i3_meta$eid[match(i3_data$eid, i3_meta$eid)],
                    y_test = i3_meta$time_day[match(i3_data$eid, i3_meta$eid)],
                    pred_lgb = predict(lgb1, as.matrix(i3_data %>% select(-eid))),
-                   pred_xgb = predict(xgb, as.matrix(i3_data %>% select(-eid))),
+                   pred_xgboost = predict(xgb, as.matrix(i3_data %>% select(-eid))),
                    pred_lasso = predict(lasso, i3_imp)[,1],
-                   pred_lassox2 = predict(lassox2, i3_imp_x2)[,1])
+                   pred_lassox2 = predict(lassox2, i3_imp_x2)[,1]) %>%
+  left_join(i3_meta %>% select(eid, time_day, date_bsampling))
 
 out_i3 <- preds_i3 %>%
-  pivot_longer(-c(y_test, eid)) %>%
+  pivot_longer(-c(eid, y_test, time_day, date_bsampling)) %>%
   group_by(name) %>%
   nest() %>%
   mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value)^2),
          N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
   select(-data)
+
 
 i3_hist <- i3_meta %>%
   filter(time_day < 24 & time_day > 0) %>%
@@ -232,19 +237,24 @@ i3_hist <- i3_meta %>%
 
 ggsave("plots/plot_histogram_i3.png", i3_hist, width = 8, height = 8)
 
+df <- preds_i0_olink %>% mutate(i = 0) %>%
+  left_join(time_i0 %>% select(eid, date_bsampling)) %>%
+  select(-f) %>%
+  bind_rows(preds_i2 %>% mutate(i = 2) %>% select(-y_test)) %>%
+  bind_rows(preds_i3 %>% mutate(i = 3)  %>% select(-y_test)) %>%
+  group_by(eid) %>% mutate(n = n()) #%>%
+filter(n == 3)
+
+saveRDS(df, "olink_int_replication.rds")
 
 #### PLOT COMPARISON
-p1 <- preds_i0_olink %>%
-  rename(pred_xgb = pred_xgboost) %>%
+p1 <- df %>%
   pivot_longer(contains("pred")) %>%
-  group_by(name) %>%
+  group_by(name, i) %>%
   nest() %>%
   mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2),
          N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
   select(-data) %>%
-  mutate(i = 0) %>%
-  bind_rows(out_i2 %>% mutate(i = 2)) %>%
-  bind_rows(out_i3 %>% mutate(i = 3)) %>%
   mutate(name = str_remove(name, "pred_")) %>%
   ggplot(aes(x = name, y = r2, fill = name)) +
   geom_col() +
@@ -263,130 +273,15 @@ p1 <- preds_i0_olink %>%
         strip.text = element_text(hjust = 0))
 
 
-# plot correlations
-
-df <- preds_i0_olink %>% mutate(i = 0, time = time_day) %>%
-  bind_rows(preds_i2 %>% mutate(i = 2, time = y_test)) %>%
-  bind_rows(preds_i3 %>% mutate(i = 3, time = y_test)) %>%
-  group_by(eid) %>% mutate(n = n()) %>%
-  filter(n == 3) %>%
-  mutate(gap = time - pred_lasso,
-         absgap = abs(gap))
-
-cors <- df %>%
-  group_by(i) %>%
-  nest() %>%
-  mutate(cor_matrix = map_dbl(data, ~ cor(.x$time, .x$pred_lasso, use = "pairwise.complete.obs")^2))
-install.packages("cowplot")
-
-pp <- df %>%
-  left_join(cors) %>%
-  ggplot(aes(x = time, y = pred_lasso)) +
-  geom_point() +
-  facet_wrap(~paste0("i",i) + paste0("R2 = ",round(cor_matrix, 2))) +
-  labs(x = "Time of day", y = "Predicted time") +
-  theme_minimal() + theme(axis.title.x = element_blank())
-
-pv <- df %>%
-  ggplot(aes(y = as.factor(i), x = time)) +
-  geom_violin() +
-  facet_wrap(~i, scales = "free_y") +  # match facet exactly
-  labs(y = "Instance", x = "Time of day") +
-  theme_minimal() +
-  theme(axis.title.y = element_blank(),
-        axis.text.y = element_blank(), strip.text.x = element_blank())
-
-pf <- cowplot::plot_grid(pp, pv, nrow = 2, rel_heights = c(1, 0.6), align = "v", axis = "lr")
-
-### GAP differences
-
-df %>%
-  mutate(gap = time - pred_lasso) %>%
-  group_by(eid) %>%
-  summarise(m_gap = mean(abs(gap), na.rm = T),
-            m_time = mean(time, na.rm = T),
-            v_gap = var(abs(gap), na.rm = T),
-            v_time = var(time, na.rm = T),
-            n = n()) %>%
-  arrange(desc(v_time)) %>%
-  ggplot(aes(x = v_gap, y = v_time)) +
-  geom_point()
-
-d <- preds_i0_olink %>%
-  mutate(gap = time_day - pred_lasso)
-
-m <- lm(time_day ~ pred_lasso, data = d)
-d$res <- residuals(lm(time_day ~ pred_lasso, data = d))
-
-d %>%
-  mutate(gap = time_day - pred_lasso) %>%
-  ggplot(aes(x = time_day, y = res2)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-## AGExSEX plots
-covs <- data.table::fread("/mnt/project/covariates.tsv") %>%
-  select(eid, `31-0.0`, `34-0.0`, `21022-0.0`)
-colnames(covs) <- c("eid", "Sex", "year_birth", "Age_baseline")
-
-#data_i0 <-
-preds_i0 %>%
-  left_join(covs) %>%
-  mutate(Age = Age_baseline, Sex = as.factor(Sex),
-         gap = time_day - pred_lasso,
-         absgap = abs(gap)) %>%
-  pivot_longer(c(gap, absgap)) %>%
-  #group_by(Age, Sex) %>% summarise(m_gap = mean(gap), n = n())
-  ggplot(aes(x = Age, y = value, color = Sex)) +
-  geom_smooth() +
-  facet_wrap(~name, scales = "free")
-
-covs_i2 <- preds_i2 %>%
-  left_join(i2_meta) %>%
-  left_join(covs) %>%
-  mutate(Age = y - year_birth, Sex = as.factor(Sex),
-         gap = y_test - pred_lasso,
-         absgap = abs(gap))
-covs_i2 %>%
-  pivot_longer(c(gap, absgap)) %>%
-  #group_by(Age, Sex) %>% summarise(m_gap = mean(gap), n = n())
-  ggplot(aes(x = Age, y = value, color = Sex)) +
-  geom_smooth() +
-  facet_wrap(~name, scales = "free")
-
-covs_i3 <- preds_i3 %>%
-  left_join(i3_meta) %>%
-  left_join(covs) %>%
-  mutate(Age = y - year_birth, Sex = as.factor(Sex),
-         gap = y_test - pred_lasso,
-         absgap = abs(gap))
-
-covs_i3 %>%
-  pivot_longer(c(gap, absgap)) %>%
-  #group_by(Age, Sex) %>% summarise(m_gap = mean(gap), n = n())
-  ggplot(aes(x = Age, y = value, color = Sex)) +
-  geom_smooth() +
-  facet_wrap(~name, scales = "free")
-
-
-i2i3 <- inner_join(covs_i3, covs_i2, by = c("eid", "Sex"))
-
-i2i3 %>% ggplot(aes(x = pred_lasso.x, y = pred_lasso.y, color = Sex)) +
-  geom_point()
-
-i2i3 %>% ggplot(aes(x = y_test.x, y = y_test.y, color = Sex)) +
-  geom_point()
-
-
 # MODELS NMR
+
+
 lgb1_nmr <- lightgbm::lgb.load("data_share/cv.NMR_lightgbm_cv1.rds")
 xgb_nmr <- xgboost::xgb.load("data_share/cv.NMR_xgb_cv1.rds")
 lasso_nmr <- readRDS("data_share/cv.NMR_lasso_cv1.rds")
 lassox2_nmr <- readRDS("data_share/cv.NMR_lassox2_cv1.rds")
 
 summary(time_i1$y[!is.na(time_i1$time_day)])
-
 
 nmr_i1 <- data.table::fread("/mnt/project/nmr_nightingale_i1.tsv") %>%
   filter(!is.na(`20280-1.0`)) %>%
@@ -398,12 +293,14 @@ i1_imp_x2 <- glmnet::makeX(nmr_i1 %>% select(-eid) %>% mutate(across(where(is.nu
 preds_i1 <- tibble(eid = time_i1$eid[match(nmr_i1$eid, time_i1$eid)],
                    y_test = time_i1$time_day[match(nmr_i1$eid, time_i1$eid)],
                    pred_lgb = predict(lgb1_nmr, as.matrix(nmr_i1 %>% select(-eid))),
-                   pred_xgb = predict(xgb_nmr, as.matrix(nmr_i1 %>% select(-eid))),
+                   pred_xgboost = predict(xgb_nmr, as.matrix(nmr_i1 %>% select(-eid))),
                    pred_lasso = predict(lasso_nmr, i1_imp)[,1],
-                   pred_lassox2 = predict(lassox2_nmr, i1_imp_x2)[,1])
+                   pred_lassox2 = predict(lassox2_nmr, i1_imp_x2)[,1]) %>%
+  filter(!is.na(eid)) %>%
+  left_join(time_i1 %>% select(eid, time_day, date_bsampling))
 
 out_i1 <- preds_i1 %>%
-  pivot_longer(-c(y_test, eid)) %>%
+  pivot_longer(-c(eid, y_test, time_day, date_bsampling)) %>%
   group_by(name) %>%
   nest() %>%
   mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value, use = "complete.obs")^2),
@@ -411,16 +308,25 @@ out_i1 <- preds_i1 %>%
   select(-data)
 
 
-p2 <- preds_i0_nmr %>%
-  rename(pred_xgb = pred_xgboost) %>%
+### NMR INTERNAL
+
+df_nmr <- preds_i0_nmr %>% mutate(i = 0, time = time_day) %>%
+  inner_join(time_i0 %>% select(eid, date_bsampling)) %>%
+  select(-f) %>%
+  bind_rows(preds_i1 %>% mutate(i = 1) %>% select(-y_test)) %>%
+  group_by(eid) %>% mutate(n = n()) #%>%
+filter(n == 2)
+
+saveRDS(df_nmr, "nmr_int_replication.rds")
+
+
+p2 <- df_nmr %>%
   pivot_longer(contains("pred")) %>%
-  group_by(name) %>%
+  group_by(name, i) %>%
   nest() %>%
   mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2),
          N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
   select(-data) %>%
-  mutate(i = 0) %>%
-  bind_rows(out_i1 %>% mutate(i = 1)) %>%
   mutate(name = str_remove(name, "pred_")) %>%
   ggplot(aes(x = name, y = r2, fill = name)) +
   geom_col() +
@@ -437,45 +343,9 @@ p2 <- preds_i0_nmr %>%
         legend.title    = element_text(size = 18),
         strip.text = element_text(hjust = 0))
 
-
+library(cowplot)
 plot_intval <- plot_grid(p1, p2, nrow = 2)
 
 ggsave("plots/F3_internal_validation.png", plot_intval, width = 12, height = 10)
-
-### NMR INTERNAL
-
-
-
-df <- preds_i0_nmr %>% mutate(i = 0, time = time_day) %>%
-  bind_rows(preds_i1 %>% mutate(i = 1, time = y_test)) %>%
-  group_by(eid) %>% mutate(n = n()) %>%
-  filter(n == 2)
-
-cors <- df %>%
-  group_by(i) %>%
-  nest() %>%
-  mutate(cor_matrix = map_dbl(data, ~ cor(.x$time, .x$pred_lgb, use = "pairwise.complete.obs")^2))
-
-install.packages("cowplot")
-
-pp <- df %>%
-  left_join(cors) %>%
-  ggplot(aes(x = time, y = pred_lasso)) +
-  geom_point() +
-  facet_wrap(~paste0("i",i) + paste0("R2 = ",round(cor_matrix, 2))) +
-  labs(x = "Time of day", y = "Predicted time") +
-  theme_minimal() + theme(axis.title.x = element_blank())
-
-pv <- df %>%
-  ggplot(aes(y = as.factor(i), x = time)) +
-  geom_violin() +
-  facet_wrap(~i, scales = "free_y") +  # match facet exactly
-  labs(y = "Instance", x = "Time of day") +
-  theme_minimal() +
-  theme(axis.title.y = element_blank(),
-        axis.text.y = element_blank(), strip.text.x = element_blank())
-
-pf <- cowplot::plot_grid(pp, pv, nrow = 2, rel_heights = c(1, 0.6), align = "v", axis = "lr")
-
 
 
