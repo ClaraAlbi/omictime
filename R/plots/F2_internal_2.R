@@ -1,15 +1,86 @@
-
 library(stringr)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(purrr)
 install.packages("cowplot")
+install.packages("ggpmisc")
+
+covs <- readRDS("/mnt/project/biomarkers/covs.rds")
 
 df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
-  mutate(gap = time_day - pred_lasso) %>%
-  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
+  left_join(covs) %>%
+  mutate(gap = pred_lasso - time_day) %>%
+  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) #%>%
+  #filter(time_day > 12 & time_day < 17) %>%
   filter(n == 3)
+
+df$res <- residuals(lm(pred_lasso ~ time_day, data = df))
+
+df %>% ggplot(aes(x = time_day, y = gap)) + geom_point()
+
+
+formula <- y ~ x
+
+df %>%
+  ggplot(aes(x = time_day, y = pred_lasso)) +
+  geom_point(alpha = 0.7, size = 1.5, color = "#003f7f") +
+  geom_smooth(method = "lm", color = "red", size = 1.2, se = FALSE, formula = formula) +
+  facet_grid(~paste0("i", i)) +
+  ggpmisc::stat_poly_eq(
+    aes(label = paste(after_stat(rr.label), sep = "*\", \"*")),
+    formula = formula,
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.95,
+    size = 4,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    aes(label = paste("italic(n) ==", after_stat(n))),
+    formula = formula,
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.85,
+    size = 4,
+    color = "black"
+  ) +
+  labs(
+    x = "Recorded Time",
+    y = "Predicted Time"
+  ) +
+  theme_classic(base_size = 14) +
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(face = "bold")
+  )
+
+hist(df2$max_drawdown)
+
+df2 <- df %>%
+  filter(n == 3) %>%
+  pivot_wider(id_cols = c(eid, sex), names_from = i, values_from = res, names_prefix = "i") %>%
+  rowwise() %>%
+  mutate(max_drawdown = max(c_across(starts_with("i"))) - min(c_across(starts_with("i")))) %>%
+  ungroup() %>%
+  pivot_longer(cols = starts_with("i"), names_to = "time", values_to = "residual")
+
+sum(df2$max_drawdown > 3)
+
+ggplot(df2, aes(x = time, y = residual, group = eid)) +
+  # first draw all “flat” subjects in light grey
+  geom_line(data = filter(df2, max_drawdown < 3),
+            colour = "grey80", alpha = 0.5) +
+  # then draw the big oscillators on top
+  geom_line(data = filter(df2, max_drawdown > 3),
+            aes(colour = max_drawdown), size = 0.5) +
+  facet_grid(~sex) +
+  scale_colour_viridis_c(option = "C", name = "max_drawdown") +
+  labs(x = "Instance", y = "Residual",
+       title = "Top Oscillators") +
+  theme_minimal(base_size = 14)
+
 
 cors <- df %>%
   group_by(i) %>%
@@ -68,12 +139,12 @@ i2_meta <- data.table::fread("/mnt/project/blood_sampling_instance2.tsv") %>%
 ### GAP differences
 
 df %>%
-  mutate(gap = time - pred_lasso) %>%
+  mutate(gap = time_day - pred_lasso) %>%
   group_by(eid) %>%
   summarise(m_gap = mean(abs(gap), na.rm = T),
-            m_time = mean(time, na.rm = T),
+            m_time = mean(time_day, na.rm = T),
             v_gap = var(abs(gap), na.rm = T),
-            v_time = var(time, na.rm = T),
+            v_time = var(time_day, na.rm = T),
             n = n()) %>%
   arrange(desc(v_time)) %>%
   ggplot(aes(x = v_gap, y = v_time)) +
