@@ -100,7 +100,7 @@ pl <- plot_data %>%
     color = "black"
   ) +
   ggpmisc::stat_poly_eq(
-    aes(label = paste("italic(n) ==", after_stat(n))),
+    mapping    = aes(label = paste("italic(n) ==", Nt)),
     formula = formula,
     parse = TRUE,
     label.x = 0.05,

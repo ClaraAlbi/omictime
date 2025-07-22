@@ -9,7 +9,6 @@ library(lightgbm)
 install.packages("xgboost")
 install.packages("glmnet")
 
-
 l <- list.files("/mnt/project/biomarkers_3", full.names = T)
 
 preds_i0_olink <- tibble(f = l[str_detect(l, "predictions_i0")]) %>%
@@ -50,8 +49,8 @@ night_band <- data.frame(
   ymax = Inf
 )
 
-i0_hist_olink <- time_i0 %>%
-  filter(eid %in% preds_i0_olink$eid) %>%
+i0_hist <- time_i0 %>%
+  #filter(eid %in% preds_i0_olink$eid) %>%
   filter(time_day < 24 & time_day > 0) %>%
   ggplot(aes(x = time_day)) +
   geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -61,13 +60,15 @@ i0_hist_olink <- time_i0 %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
+  ggtitle(paste0("n=", nrow(time_i0))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
+        title = element_text(size = 14),
         axis.text.y = element_text(size = 14),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
-ggsave("plots/plot_histogram_i0_olink.png", i0_hist_olink, width = 8, height = 8)
+ggsave("plots/plot_histogram_i0.png", i0_hist, width = 8, height = 8)
 
 
 i0_hist_nmr <- time_i0 %>%
@@ -99,14 +100,17 @@ i1_hist <- time_i1 %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
+  labs(x = "Time of day") +
+  ggtitle(paste0("n=", nrow(time_i1))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
+        title = element_text(size = 14),
         axis.text.y = element_text(size = 14),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
 
-ggsave("plots/plot_histogram_i1_olink.png", i1_hist, width = 8, height = 8)
+ggsave("plots/plot_histogram_i1.png", i1_hist, width = 8, height = 8)
 
 
 ###
@@ -173,9 +177,12 @@ i2_hist <- i2_meta %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
+  labs(x = "Time of day") +
+  ggtitle(paste0("n=", nrow(i2_meta))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
+        title = element_text(size = 14),
         axis.text.y = element_text(size = 14),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
@@ -229,9 +236,12 @@ i3_hist <- i3_meta %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
+  labs(x = "Time of day") +
+  ggtitle(paste0("n=", nrow(i3_meta))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
+        title = element_text(size = 14),
         axis.text.y = element_text(size = 14),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
@@ -242,35 +252,9 @@ df <- preds_i0_olink %>% mutate(i = 0) %>%
   select(-f) %>%
   bind_rows(preds_i2 %>% mutate(i = 2) %>% select(-y_test)) %>%
   bind_rows(preds_i3 %>% mutate(i = 3)  %>% select(-y_test)) %>%
-  group_by(eid) %>% mutate(n = n()) #%>%
-filter(n == 3)
+  group_by(eid) %>% mutate(n = n())
 
 saveRDS(df, "olink_int_replication.rds")
-
-#### PLOT COMPARISON
-p1 <- df %>%
-  pivot_longer(contains("pred")) %>%
-  group_by(name, i) %>%
-  nest() %>%
-  mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2),
-         N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
-  select(-data) %>%
-  mutate(name = str_remove(name, "pred_")) %>%
-  ggplot(aes(x = name, y = r2, fill = name)) +
-  geom_col() +
-  facet_wrap(~i) +
-  labs(y = "R2", fill = "Model") +
-  facet_wrap(~paste0("i", i) + paste0("N = ", N)) +
-  scale_fill_viridis_d() +
-  ggtitle("A - Proteomics") +
-  theme_minimal() +
-  theme(text = element_text(size = 18),
-        axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.key.size = unit(1.2, "lines"),
-        legend.text     = element_text(size = 16),
-        legend.title    = element_text(size = 18),
-        strip.text = element_text(hjust = 0))
 
 
 # MODELS NMR
@@ -314,38 +298,17 @@ df_nmr <- preds_i0_nmr %>% mutate(i = 0, time = time_day) %>%
   inner_join(time_i0 %>% select(eid, date_bsampling)) %>%
   select(-f) %>%
   bind_rows(preds_i1 %>% mutate(i = 1) %>% select(-y_test)) %>%
-  group_by(eid) %>% mutate(n = n()) #%>%
-filter(n == 2)
+  group_by(eid) %>% mutate(n = n())
 
 saveRDS(df_nmr, "nmr_int_replication.rds")
 
 
-p2 <- df_nmr %>%
-  pivot_longer(contains("pred")) %>%
-  group_by(name, i) %>%
-  nest() %>%
-  mutate(r2 = map_dbl(data, ~cor(.x$time_day, .x$value)^2),
-         N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
-  select(-data) %>%
-  mutate(name = str_remove(name, "pred_")) %>%
-  ggplot(aes(x = name, y = r2, fill = name)) +
-  geom_col() +
-  labs(y = "R2", fill = "Model") +
-  facet_wrap(~paste0("i", i) + paste0("N = ", N)) +
-  scale_fill_viridis_d() +
-  ggtitle("B - Metabolomics") +
-  theme_minimal() +
-  theme(text = element_text(size = 18),
-        axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.key.size = unit(1.2, "lines"),
-        legend.text     = element_text(size = 16),
-        legend.title    = element_text(size = 18),
-        strip.text = element_text(hjust = 0))
+
+### Histograms
 
 library(cowplot)
-plot_intval <- plot_grid(p1, p2, nrow = 2)
+plot_intval <- plot_grid(i0_hist, i1_hist, i2_hist, i3_hist, nrow = 1, labels = c("Initial assessment (2006-2010)",
+                                                                                  "First repeat assessment (2012-13)",
+                                                                                  "Imaging (2014+)", "First repeat imaging (2019+)"), label_size = 16,hjust = -0.1)
 
-ggsave("plots/F3_internal_validation.png", plot_intval, width = 12, height = 10)
-
-
+ggsave("plots/time_histograms.png", plot_intval, width = 20, height = 6)

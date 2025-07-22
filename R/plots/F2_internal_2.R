@@ -9,24 +9,24 @@ install.packages("ggpmisc")
 covs <- readRDS("/mnt/project/biomarkers/covs.rds")
 
 df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
-  left_join(covs) %>%
-  mutate(gap = pred_lasso - time_day) %>%
-  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) #%>%
-  #filter(time_day > 12 & time_day < 17) %>%
-  filter(n == 3)
+  mutate(gap = pred_lasso - time_day,
+         i = case_when(i == 0  ~ "Initial assessment \n(2006-2010)",
+                       i == 2  ~ "Imaging \n(2014+)",
+                       i == 3  ~ "First repeat imaging \n(2019+)"),
+         i = factor(i, levels = c("Initial assessment \n(2006-2010)", "Imaging \n(2014+)", "First repeat imaging \n(2019+)"))) %>%
+  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T)
 
 df$res <- residuals(lm(pred_lasso ~ time_day, data = df))
 
 df %>% ggplot(aes(x = time_day, y = gap)) + geom_point()
 
-
 formula <- y ~ x
 
-df %>%
+pr <- df %>%
   ggplot(aes(x = time_day, y = pred_lasso)) +
-  geom_point(alpha = 0.7, size = 1.5, color = "#003f7f") +
+  geom_point(alpha = 0.7, size = 1.5, color = "#76B041") +
   geom_smooth(method = "lm", color = "red", size = 1.2, se = FALSE, formula = formula) +
-  facet_grid(~paste0("i", i)) +
+  facet_grid(~i, ) +
   ggpmisc::stat_poly_eq(
     aes(label = paste(after_stat(rr.label), sep = "*\", \"*")),
     formula = formula,
@@ -46,15 +46,17 @@ df %>%
     color = "black"
   ) +
   labs(
-    x = "Recorded Time",
-    y = "Predicted Time"
+    x = "Recorded Time of day",
+    y = "Predicted Proteomic Time"
   ) +
-  theme_classic(base_size = 14) +
+  theme_classic(base_size = 11) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 12, face = "bold"),
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold")
   )
+
+ggsave("plots/F3_internal.png", pr, width = 6, height = 3)
 
 hist(df2$max_drawdown)
 
