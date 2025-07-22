@@ -46,7 +46,7 @@ data_ind <- tibble(file = files) %>%
 
 
 data_long <- data_ind %>%
-  filter(type %in% c("all","olink","NMR","labs","counts")) %>%
+  filter(type %in% c("all","olink","NMR", "labs", "counts")) %>%
   pivot_longer(
     cols      = starts_with("pred_"),
     names_to  = "model",
@@ -68,7 +68,7 @@ plot_data <- data_long %>%
   mutate(type = factor(
     type,
     levels = c("all","olink","NMR","labs","counts"),
-    labels = c("All","Proteomics","Metabolomics","Biochemistry","Cell counts")
+    labels = c("All","Proteomics","Metabolomics", "Biochemistry","Cell counts")
   ))
 
 # 2. Define the formula object

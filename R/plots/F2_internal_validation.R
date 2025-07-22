@@ -288,4 +288,4 @@ saveRDS(df_nmr, "nmr_int_replication.rds")
 library(cowplot)
 plot_intval <- plot_grid(i0_hist, i1_hist, i2_hist, i3_hist, nrow = 2)
 
-ggsave("plots/time_histograms.png", plot_intval, width = 10, height = 12)
+ggsave("plots/time_histograms.png", plot_intval, width = 12, height = 12)
