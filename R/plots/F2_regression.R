@@ -3,6 +3,7 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(purrr)
+library(scales)
 
 files <- list.files("/mnt/project/biomarkers_3",
                     pattern = "predictions", full.names = TRUE)
@@ -123,10 +124,60 @@ pl <- plot_data %>%
   theme_classic(base_size = 14) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 12, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold"), legend.position = "none"
   )
 
 
 ggsave("plots/F3_pred.png", pl, width = 10, height = 3)
 
+
+
+#### Correlations
+
+pred_wide <- plot_data %>%
+  select(eid, time_day, type, prediction) %>%
+  pivot_wider(
+    names_from  = type,
+    values_from = prediction
+  )
+
+# 2. Compute correlation matrix (pairwise complete.obs)
+corr_mat <- pred_wide %>%
+  select(-eid, -time_day) %>%
+  cor(use = "pairwise.complete.obs")
+
+# 3. Melt into long form for ggplot
+types <- colnames(corr_mat)
+corr_long <- corr_long %>%
+  mutate(
+    type1 = factor(type1, levels = types),
+    type2 = factor(type2, levels = types)
+  ) %>%
+  filter(as.numeric(type1) >= as.numeric(type2))
+
+# 5. Plot heatmap of just that half
+p_heat <- ggplot(corr_long, aes(x = type2, y = type1, fill = r)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", r)), size = 4) +
+  scale_fill_gradient2(
+    low      = muted("blue"),
+    mid      = "white",
+    high     = muted("red"),
+    midpoint = 0,
+    limits   = c(-1, 1),
+    name     = expression(r)
+  ) +
+  coord_fixed() +
+  labs(
+    x     = NULL, y = NULL
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x      = element_text(angle = 45, hjust = 1),
+    panel.grid       = element_blank(),
+    axis.ticks       = element_blank(), legend.position = "none"
+  )
+
+
+ggsave("plots/F2_heat.png", p_heat)

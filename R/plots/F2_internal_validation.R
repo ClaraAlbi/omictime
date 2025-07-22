@@ -231,7 +231,7 @@ df <- preds_i0_olink %>% mutate(i = 0) %>%
   select(-f) %>%
   bind_rows(preds_i2 %>% mutate(i = 2) %>% select(-y_test)) %>%
   bind_rows(preds_i3 %>% mutate(i = 3)  %>% select(-y_test)) %>%
-  group_by(eid) %>% mutate(n = n())
+  group_by(eid) %>% mutate(n = n())  %>% ungroup()
 
 saveRDS(df, "olink_int_replication.rds")
 
@@ -277,7 +277,7 @@ df_nmr <- preds_i0_nmr %>% mutate(i = 0, time = time_day) %>%
   inner_join(time_i0 %>% select(eid, date_bsampling)) %>%
   select(-f) %>%
   bind_rows(preds_i1 %>% mutate(i = 1) %>% select(-y_test)) %>%
-  group_by(eid) %>% mutate(n = n())
+  group_by(eid) %>% mutate(n = n()) %>% ungroup()
 
 saveRDS(df_nmr, "nmr_int_replication.rds")
 

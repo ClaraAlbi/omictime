@@ -57,6 +57,53 @@ pred <- out_finngen %>%
 
 saveRDS(pred, "prediction_olink_finngen.rds")
 
+### PLOT CORRELATION (lasso)
+
+formula <- y ~ x
+pl <- out_finngen %>%
+  ggplot(aes(x = y_test, y = pred_lasso)) +
+  geom_point(alpha = 0.5, size = 0.8, color = "#3C1EDB") +
+  # the overall regression line
+  geom_smooth(
+    method  = "lm",
+    formula = formula,
+    color   = "red",
+    size    = 1.2,
+    se      = FALSE
+  ) +
+  # add R²
+  ggpmisc::stat_poly_eq(
+    aes(label = paste(after_stat(rr.label), sep = "*\", \"*")),
+    formula = formula,
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.95,
+    size = 4,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping    = aes(label = paste("italic(n) ==", nrow(out_finngen))),
+    formula = formula,
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.85,
+    size = 4,
+    color = "black"
+  ) +
+  # scales & styling
+  labs(
+    x     = "Recorded time of day",
+    y     = "Predicted omic time") +
+  ggtitle("FinnGen") +
+  theme_classic(base_size = 14) +
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(size = 12, face = "bold", hjust = 0),
+    axis.title = element_text(face = "bold"), legend.position = "none"
+  )
+
+
+ggsave("plots/F3_external_finngen.png", pl, width = 4, height = 3)
 
 ### Plot time histogram
 
@@ -101,7 +148,7 @@ colnames(covs) <- c("eid", "Sex", "Age")
 
 data_c <- out_finngen %>%
   left_join(covs) %>%
-  mutate(gap = time_day - pred_lasso,
+  mutate(gap = pred_lasso - time_day,
          absgap = abs(gap), Sex = factor(
            Sex,
            levels = c(0, 1),

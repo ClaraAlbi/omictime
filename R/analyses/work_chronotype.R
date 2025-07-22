@@ -6,7 +6,7 @@ library(dplyr)
 library(ggplot2)
 library(purrr)
 
-
+covs <- readRDS("/mnt/project/biomarkers/covs.rds")
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   select(eid, h_sleep = `1160-0.0`,
@@ -16,7 +16,12 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   filter(chrono %in% 1:4)
 
 df %>% left_join(sleep) %>%
+  left_join(covs) %>%
   ggplot(aes(x = age_recruitment, y = res, color = factor(chrono))) + geom_smooth() +
   facet_grid(~sex)
 
-df %>% ggplot(aes(x = age_recruitment, y = res, color = factor(sex))) + geom_smooth()
+df %>% left_join(covs) %>% ggplot(aes(x = age_recruitment, y = res, color = factor(sex))) + geom_smooth()
+
+
+df %>% left_join(sleep) %>%
+  ggplot(aes(x = time_day, y = gap, color = factor(chrono))) + geom_smooth()
