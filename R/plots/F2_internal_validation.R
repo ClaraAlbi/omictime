@@ -64,8 +64,8 @@ i0_hist <- time_i0 %>%
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
-        title = element_text(size = 14),
-        axis.text.y = element_text(size = 14),
+        title = element_text(size = 18),
+        axis.text.y = element_text(size = 18),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
 ggsave("plots/plot_histogram_i0.png", i0_hist, width = 8, height = 8)
@@ -105,8 +105,8 @@ i1_hist <- time_i1 %>%
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
-        title = element_text(size = 14),
-        axis.text.y = element_text(size = 14),
+        title = element_text(size = 18),
+        axis.text.y = element_text(size = 18),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
 
@@ -182,8 +182,8 @@ i2_hist <- i2_meta %>%
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
-        title = element_text(size = 14),
-        axis.text.y = element_text(size = 14),
+        title = element_text(size = 18),
+        axis.text.y = element_text(size = 18),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
 ggsave("plots/plot_histogram_i2.png", i2_hist, width = 8, height = 8)
@@ -241,8 +241,8 @@ i3_hist <- i3_meta %>%
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
-        title = element_text(size = 14),
-        axis.text.y = element_text(size = 14),
+        title = element_text(size = 18),
+        axis.text.y = element_text(size = 18),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
 ggsave("plots/plot_histogram_i3.png", i3_hist, width = 8, height = 8)
@@ -307,8 +307,8 @@ saveRDS(df_nmr, "nmr_int_replication.rds")
 ### Histograms
 
 library(cowplot)
-plot_intval <- plot_grid(i0_hist, i1_hist, i2_hist, i3_hist, nrow = 1, labels = c("Initial assessment (2006-2010)",
+plot_intval <- plot_grid(i0_hist, i1_hist, i2_hist, i3_hist, nrow = 2, labels = c("Initial assessment (2006-2010)",
                                                                                   "First repeat assessment (2012-13)",
-                                                                                  "Imaging (2014+)", "First repeat imaging (2019+)"), label_size = 16,hjust = -0.1)
+                                                                                  "Imaging (2014+)", "First repeat imaging (2019+)"), label_size = 24, hjust = -0.1)
 
-ggsave("plots/time_histograms.png", plot_intval, width = 20, height = 6)
+ggsave("plots/time_histograms.png", plot_intval, width = 20, height = 22)
