@@ -60,7 +60,7 @@ i0_hist <- time_i0 %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
-  ggtitle(paste0("n=", nrow(time_i0))) +
+  ggtitle(label = "Initial assessment (2006-2010)", subtitle = paste0("n=", nrow(time_i0))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
@@ -70,25 +70,6 @@ i0_hist <- time_i0 %>%
 
 ggsave("plots/plot_histogram_i0.png", i0_hist, width = 8, height = 8)
 
-
-i0_hist_nmr <- time_i0 %>%
-  filter(eid %in% preds_i0_nmr$eid) %>%
-  filter(time_day < 24 & time_day > 0) %>%
-  ggplot(aes(x = time_day)) +
-  geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-            fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
-  geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-            fill = "gray", alpha = 0.2, inherit.aes = FALSE) +
-  geom_histogram(bins = 60) +
-  coord_polar(start = 0) +
-  labs(x = "Time of day") +
-  scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
-  theme_minimal() +
-  theme(text = element_text(size = 20),
-        axis.text.y = element_text(size = 14),
-        axis.title.y = element_blank(), panel.grid.minor = element_blank())
-
-ggsave("plots/plot_histogram_i0_nmr.png", i0_hist_nmr, width = 8, height = 8)
 
 i1_hist <- time_i1 %>%
   filter(time_day < 24 & time_day > 0) %>%
@@ -101,7 +82,7 @@ i1_hist <- time_i1 %>%
   coord_polar(start = 0) +
   labs(x = "Time of day") +
   labs(x = "Time of day") +
-  ggtitle(paste0("n=", nrow(time_i1))) +
+  ggtitle(label = "First repeat assessment (2012-13)", subtitle = paste0("n=", nrow(time_i1))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
@@ -177,8 +158,7 @@ i2_hist <- i2_meta %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
-  labs(x = "Time of day") +
-  ggtitle(paste0("n=", nrow(i2_meta))) +
+  ggtitle(label ="Imaging (2014+)" , subtitle = paste0("n=", nrow(i2_meta))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
@@ -236,8 +216,7 @@ i3_hist <- i3_meta %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
-  labs(x = "Time of day") +
-  ggtitle(paste0("n=", nrow(i3_meta))) +
+  ggtitle(label = "First repeat imaging (2019+)", subtitle = paste0("n=", nrow(i3_meta))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
@@ -307,8 +286,6 @@ saveRDS(df_nmr, "nmr_int_replication.rds")
 ### Histograms
 
 library(cowplot)
-plot_intval <- plot_grid(i0_hist, i1_hist, i2_hist, i3_hist, nrow = 2, labels = c("Initial assessment (2006-2010)",
-                                                                                  "First repeat assessment (2012-13)",
-                                                                                  "Imaging (2014+)", "First repeat imaging (2019+)"), label_size = 24, hjust = -0.1)
+plot_intval <- plot_grid(i0_hist, i1_hist, i2_hist, i3_hist, nrow = 2)
 
-ggsave("plots/time_histograms.png", plot_intval, width = 20, height = 22)
+ggsave("plots/time_histograms.png", plot_intval, width = 10, height = 12)
