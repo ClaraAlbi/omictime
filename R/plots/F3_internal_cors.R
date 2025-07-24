@@ -159,34 +159,34 @@ plot_demo2 <- data %>%
            xend = 3,    # right group
            y    = y_max + 0.05,
            yend = y_max + 0.05,
-           size = 0.8) +
+           size = 0.4) +
   annotate("text",
            x    = 2,                    # midpoint
            y    = y_max + 0.3,           # a bit above the bar
            label = "p = 7e-16",
-           size  = 3) +
+           size  = 2) +
   annotate("segment",
            x    = 1,    # left group
            xend = 4,    # right group
            y    = y_max + 0.65,
            yend = y_max + 0.65,
-           size = 0.8) +
+           size = 0.4) +
   annotate("text",
            x    = 2.5,                    # midpoint
            y    = y_max + 0.9,           # a bit above the bar
            label = "p = 2e-12",
-           size  = 3) +
+           size  = 2) +
   annotate("segment",
            x    = 1,    # left group
            xend = 5,    # right group
            y    = y_max + 1.2,
            yend = y_max + 1.2,
-           size = 0.8) +
+           size = 0.4) +
   annotate("text",
            x    = 3,                    # midpoint
            y    = y_max + 1.5,           # a bit above the bar
            label = "p = 1e-11",
-           size  = 3) +
+           size  = 2) +
   labs(
     x = "Self-reported ethnicity",
     y = "Acceleration"
@@ -244,7 +244,7 @@ make_pair_plot <- function(v1, v2){
       paste0("italic(r)[Acceleration] == ", round(r_acc,  2)),
       paste0("italic(r)[Time~day]       == ", round(r_time, 2))
     ),
-    col   = c("#2374AB", "#E85F5C")   # blue for t, red for r
+    col   = c("#2374AB", "#E85F5C")
   )
 
   # 3) draw!
@@ -259,18 +259,19 @@ make_pair_plot <- function(v1, v2){
       aes(x = x, y = y, label = label, color = col),
       parse       = TRUE,
       hjust       = 0,
-      size        = 4,
+      size        = 3.5,
       show.legend = FALSE
     ) +
     scale_x_continuous(limits = c(-4, 4)) +
     scale_y_continuous(limits = c(-4, 4)) +
+    scale_color_identity() +
 
     # zoom to –4…4 without dropping any data/text
 
     labs(
       title = paste0("i", v1, " vs i", v2),
-      x     = paste0("i", v1),
-      y     = paste0("i", v2)
+      x     = paste0("Acceleration ","i", v1),
+      y     = paste0("Acceleration ", "i", v2)
     ) +
     theme_classic(base_size = 14) +
     theme(
@@ -284,14 +285,7 @@ p1 <- make_pair_plot(0, 2)
 p2 <- make_pair_plot(0, 3)
 p3 <- make_pair_plot(2, 3)
 
-cowplot::plot_grid(p1, p2, p3, nrow = 1)
-
-
-
-final_plot <- cowplot::plot_grid(
-  p1, p2, p3,
-  nrow = 1
-) + ggtitle("E")
+final_plot <-  cowplot::plot_grid(p1, p2, p3, nrow = 1)
 
 
 title_grob <- cowplot::ggdraw() +

@@ -1,11 +1,11 @@
 #!/bin/bash
 
 project="blood_biomarkers - Jul 01, 2024"
-phenotypes="phenotypes_gap.txt"
+phenotypes="phenotypes.txt"
 
 COVARS="sex,age_recruitment,batch,PC1-PC20"
 
-for pheno in absgap_rint; do
+for pheno in res res_abs; do
   echo "==> Running GWAS for phenotype: $pheno"
 
   plink_command="plink2 \
