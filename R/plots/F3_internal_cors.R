@@ -135,7 +135,15 @@ plot_demo1 <- data %>%
         legend.title = element_text(face = "bold"),
         plot.title = element_text(size = 20, face  = "bold"))
 
-broom::tidy(lm(res ~ Sex*age_recruitment, data = data))
+broom::tidy(glm(res ~ age_recruitment, data = data %>% filter(Sex == "Male")))
+
+gam_mod <- mgcv::gam(
+  res ~ s(age_recruitment,         # a smooth function of age
+      k = 10       # you can tweak number of knots
+    ),
+  data = data %>% filter(Sex == "Female"),
+  method = "REML"
+)
 
 broom::tidy(lm(res ~ ancestry, data = data))
 
