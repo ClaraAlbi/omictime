@@ -5,6 +5,9 @@ library(ggplot2)
 library(lightgbm)
 library(xgboost)
 library(glmnet)
+library(purrr)
+library(ggpmisc)
+library(broom)
 
 lgb1 <- lightgbm::lgb.load("data_share/cv.olink_lightgbm_cv1.rds")
 xgb <- xgboost::xgb.load("data_share/cv.olink_xgb_cv1.rds")
@@ -57,42 +60,9 @@ pred <- out_ckb %>%
 
 saveRDS(pred, "prediction_olink_ckb.rds")
 
-
-### Plot time histogram
-
-light_band <- data.frame(
-  xmin = 6,
-  xmax = 20,
-  ymin = -Inf,
-  ymax = Inf
-)
-
-night_band <- data.frame(
-  xmin = c(0, 20),
-  xmax = c(6, 24),
-  ymin = -Inf,
-  ymax = Inf
-)
-
-p_hist <- time_day %>%
-  filter(time_day < 24 & time_day > 0) %>%
-  ggplot(aes(x = time_day)) +
-  geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-            fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
-  geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-            fill = "gray", alpha = 0.2, inherit.aes = FALSE) +
-  geom_histogram(bins = 60) +
-  coord_polar(start = 0) +
-  labs(x = "Time of day") +
-  scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
-  theme_minimal() +
-  theme(text = element_text(size = 20),
-        axis.text.y = element_text(size = 14),
-        axis.title.y = element_blank(), panel.grid.minor = element_blank())
-
-ggsave("plot_histogram_ckb.png", p_hist, width = 8, height = 8)
-
 ### PLOT CORRELATION (lasso)
+
+out_ckb$res <- residuals(lm(pred_lasso ~ y_test, data = out_ckb, na.action = "na.exclude"))
 
 formula <- y ~ x
 pl <- out_ckb %>%
@@ -117,7 +87,7 @@ pl <- out_ckb %>%
     color = "black"
   ) +
   ggpmisc::stat_poly_eq(
-    mapping    = aes(label = paste("italic(n) ==", nrow(out_finngen))),
+    mapping    = aes(label = paste("italic(n) ==", nrow(out_ckb))),
     formula = formula,
     parse = TRUE,
     label.x = 0.05,
@@ -137,7 +107,62 @@ pl <- out_ckb %>%
     axis.title = element_text(face = "bold"), legend.position = "none"
   )
 
-ggsave("plots/F3_external_ckb.png", pl, width = 4, height = 3)
+ggsave("regression_external_ckb.png", pl, width = 4, height = 3)
+
+
+p_hist_res <- out_ckb %>%
+  ggplot(aes(x = res, fill = res)) +
+  geom_histogram(
+    aes(fill = ..x..),   # map bin midpoint to fill
+    bins = 30,           # or whatever bin count you prefer
+    color = "white"      # optional: white borders between bins
+  ) +
+  labs(x = "Acceleration") +
+  #paletteer::scale_fill_paletteer_c("ggthemes::Orange-Blue Diverging", direction = -1) +
+  theme_classic(base_size = 14) +
+  theme(axis.title = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        plot.title = element_text(size = 20, face  = "bold"))
+
+ggsave("histogram_external_ckb.png", p_hist_res, width = 8, height = 6)
+
+
+### Plot time histogram
+
+light_band <- data.frame(
+  xmin = 6,
+  xmax = 20,
+  ymin = -Inf,
+  ymax = Inf
+)
+
+night_band <- data.frame(
+  xmin = c(0, 20),
+  xmax = c(6, 24),
+  ymin = -Inf,
+  ymax = Inf
+)
+
+#time histogram
+
+p_hist <- time_day %>%
+  filter(time_day < 24 & time_day > 0) %>%
+  ggplot(aes(x = time_day)) +
+  geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
+  geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "gray", alpha = 0.2, inherit.aes = FALSE) +
+  geom_histogram(bins = 60) +
+  coord_polar(start = 0) +
+  labs(x = "Time of day") +
+  scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
+  theme_minimal() +
+  theme(text = element_text(size = 20),
+        axis.text.y = element_text(size = 14),
+        axis.title.y = element_blank(), panel.grid.minor = element_blank())
+
+ggsave("time_histogram_ckb.png", p_hist, width = 8, height = 8)
+
 
 
 ### Age / sex distributions of circadian acceleration and dysregulation
@@ -146,54 +171,45 @@ covs <- data.table::fread("/mnt/project/covariates.tsv") %>%
   select(eid, `31-0.0`, `21022-0.0`)
 colnames(covs) <- c("eid", "Sex", "Age")
 
-data_c <- out_finngen %>%
+data_p <- out_ckb %>%
   left_join(covs) %>%
-  mutate(gap = pred_lasso - time_day ,
-         absgap = abs(gap), Sex = factor(
-           Sex,
-           levels = c(0, 1),
-           labels = c("Female", "Male")))
+  mutate(Sex = factor(Sex, labels = c("Female", "Male")))
 
-summary(data_c$Sex)
-summary(data_c$Age)
-
-plot_covs <- data_c %>%
-  pivot_longer(
-    cols      = c(gap, absgap),
-    names_to  = "variable",
-    values_to = "value"
-  ) %>%
-  mutate(
-    variable = recode(variable,
-                      gap    = "Acceleration",
-                      absgap = "Dysregulation"),
-    variable = factor(variable,
-                      levels = c("Acceleration", "Dysregulation"))
-  ) %>%
-  ggplot(aes(x = Age, y = value,
-           colour = Sex)) +
-  geom_smooth() +
-  facet_wrap(~ variable, scales = "free_y") +
-  theme_minimal(base_size = 12)
+plot_covs <- data_p %>%
+  ggplot(aes(x = Age, y = res, color = Sex)) + geom_smooth() +
+  theme_classic(base_size = 14) +
+  labs(x = "Age", y = "Acceleration", color = "Sex") +
+  #paletteer::scale_color_paletteer_d("nbapalettes::cavaliers_retro") +
+  theme(legend.position      = c(0.95, 0.95),
+        legend.justification = c("right", "top"),
+        axis.title = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        plot.title = element_text(size = 20, face  = "bold"))
 
 ggsave("plot_sexage_ckb.png", plot_covs, width = 12, height = 8)
+# Save as table
 
+mod_agesex <- broom::tidy(lm(res ~ Sex*Age, data = data_p))
+saveRDS(mod_agesex, "lm_res_agesex_ckb.rds")
 
 ### Validate chronotype associations if possible
 
-sleep <- data.table::fread("/mnt/project/chronotype2.tsv")
+sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
+  select(eid, chrono = `1180-0.0`)
 # The chronotype phenotypes follows 1: Definitely morning to 4: Definitely evening
 
-plot_chrono <- data_c %>%
-  left_join(sleep %>% select(eid, chrono = `1180-0.0`)) %>%
-  filter(chrono %in% 1:4) %>%
-  ggplot(aes(x = y_test, y = gap, color = as.factor(chrono))) +
-  geom_smooth(linewidth = 2) +
+mod_chrono <- broom::tidy(lm(res ~ chrono, data = data_p %>% left_join(sleep)))
+saveRDS(mod_chrono, "lm_res_chrono_ckb.rds")
+
+plot_chrono <- data_p %>% left_join(sleep) %>% filter(chrono %in% 1:4) %>%
+  ggplot(aes(x = y_test, y = res, color = as.factor(chrono))) +
+  geom_smooth() +
   labs(y = "Acceleration", color = "Chronotype \nMorning to Evening", x = "Recorded time") +
   scale_color_viridis_d(direction = -1) +
-  theme_minimal() +
-  theme(text = element_text(size = 20),
-        legend.position = "bottom"
+  theme_classic(base_size = 14) +
+  theme(legend.position = "bottom"
   )
 
-ggsave("chronotype_ckb_proteotime.png", plot_chrono, width = 10, height = 10)
+ggsave("chronotype_ckb_proteotime.png", plot_chrono, width = 6, height = 6)
+
+

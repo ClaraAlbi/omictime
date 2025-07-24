@@ -5,6 +5,9 @@ library(ggplot2)
 library(lightgbm)
 library(xgboost)
 library(glmnet)
+library(purrr)
+library(ggpmisc)
+library(broom)
 
 lgb1 <- lightgbm::lgb.load("data_share/cv.finngen_lightgbm_cv1.rds")
 xgb <- xgboost::xgb.load("data_share/cv.finngen_xgb_cv1.rds")
@@ -42,10 +45,10 @@ finngen_olink_imp_x2 <- glmnet::makeX(finngen_olink %>% select(-eid) %>% mutate(
 # Individual-lebel predictions
 out_finngen <- tibble(eid = time_day$eid[match(finngen_olink$eid, time_day$eid)],
                       y_test = time_day$time_day[match(finngen_olink$eid, time_day$eid)],
-                pred_lgb = predict(lgb1, as.matrix(finngen_olink %>% select(-eid))),
-                pred_xgb = predict(xgb, as.matrix(finngen_olink %>% select(-eid))),
-                pred_lasso = predict(lasso, finngen_olink_imp)[,1],
-                pred_lassox2 = predict(lassox2, finngen_olink_imp_x2)[,1])
+                      pred_lgb = predict(lgb1, as.matrix(finngen_olink %>% select(-eid))),
+                      pred_xgb = predict(xgb, as.matrix(finngen_olink %>% select(-eid))),
+                      pred_lasso = predict(lasso, finngen_olink_imp)[,1],
+                      pred_lassox2 = predict(lassox2, finngen_olink_imp_x2)[,1])
 
 # Prediction accuracy estimation
 pred <- out_finngen %>%
@@ -58,6 +61,8 @@ pred <- out_finngen %>%
 saveRDS(pred, "prediction_olink_finngen.rds")
 
 ### PLOT CORRELATION (lasso)
+
+out_finngen$res <- residuals(lm(pred_lasso ~ y_test, data = out_finngen, na.action = "na.exclude"))
 
 formula <- y ~ x
 pl <- out_finngen %>%
@@ -103,7 +108,24 @@ pl <- out_finngen %>%
   )
 
 
-ggsave("plots/F3_external_finngen.png", pl, width = 4, height = 3)
+ggsave("regression_external_finngen.png", pl, width = 4, height = 3)
+
+p_hist_res <- out_finngen %>%
+  ggplot(aes(x = res, fill = res)) +
+  geom_histogram(
+    aes(fill = ..x..),   # map bin midpoint to fill
+    bins = 30,           # or whatever bin count you prefer
+    color = "white"      # optional: white borders between bins
+  ) +
+  labs(x = "Acceleration") +
+  #paletteer::scale_fill_paletteer_c("ggthemes::Orange-Blue Diverging", direction = -1) +
+  theme_classic(base_size = 14) +
+  theme(axis.title = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        plot.title = element_text(size = 20, face  = "bold"))
+
+ggsave("histogram_external_finngen.png", p_hist_res, width = 8, height = 6)
+
 
 ### Plot time histogram
 
@@ -137,7 +159,7 @@ p_hist <- time_day %>%
         axis.text.y = element_text(size = 14),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
-ggsave("plot_histogram_fingen.png", p_hist, width = 8, height = 8)
+ggsave("time_histogram_fingen.png", p_hist, width = 8, height = 8)
 
 
 ### Age / sex distributions of circadian acceleration and dysregulation
@@ -146,54 +168,43 @@ covs <- data.table::fread("/mnt/project/covariates.tsv") %>%
   select(eid, `31-0.0`, `21022-0.0`)
 colnames(covs) <- c("eid", "Sex", "Age")
 
-data_c <- out_finngen %>%
+data_p <- out_finngen %>%
   left_join(covs) %>%
-  mutate(gap = pred_lasso - time_day,
-         absgap = abs(gap), Sex = factor(
-           Sex,
-           levels = c(0, 1),
-           labels = c("Female", "Male")))
+  mutate(Sex = factor(Sex, labels = c("Female", "Male")))
 
-summary(data_c$Sex)
-summary(data_c$Age)
+plot_covs <- data_p %>%
+  ggplot(aes(x = Age, y = res, color = Sex)) + geom_smooth() +
+  theme_classic(base_size = 14) +
+  labs(x = "Age", y = "Acceleration", color = "Sex") +
+  #paletteer::scale_color_paletteer_d("nbapalettes::cavaliers_retro") +
+  theme(legend.position      = c(0.95, 0.95),
+        legend.justification = c("right", "top"),
+        axis.title = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        plot.title = element_text(size = 20, face  = "bold"))
 
-plot_covs <- data_c %>%
-  pivot_longer(
-    cols      = c(gap, absgap),
-    names_to  = "variable",
-    values_to = "value"
-  ) %>%
-  mutate(
-    variable = recode(variable,
-                      gap    = "Acceleration",
-                      absgap = "Dysregulation"),
-    variable = factor(variable,
-                      levels = c("Acceleration", "Dysregulation"))
-  ) %>%
-  ggplot(aes(x = Age, y = value,
-             colour = Sex)) +
-  geom_smooth() +
-  facet_wrap(~ variable, scales = "free_y") +
-  theme_minimal(base_size = 12)
+ggsave("plot_sexage_finngen.png", plot_covs, width = 12, height = 8)
+# Save as table
 
-ggsave("plot_sexage_fingen.png", plot_covs, width = 12, height = 8)
-
+mod_agesex <- broom::tidy(lm(res ~ Sex*Age, data = data_p))
+saveRDS(mod_agesex, "lm_res_agesex_finngen.rds")
 
 ### Validate chronotype associations if possible
 
-sleep <- data.table::fread("/mnt/project/chronotype2.tsv")
+sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
+  select(eid, chrono = `1180-0.0`)
 # The chronotype phenotypes follows 1: Definitely morning to 4: Definitely evening
 
-plot_chrono <- data_c %>%
-  left_join(sleep %>% select(eid, chrono = `1180-0.0`)) %>%
-  filter(chrono %in% 1:4) %>%
-  ggplot(aes(x = y_test, y = gap, color = as.factor(chrono))) +
-  geom_smooth(linewidth = 2) +
+mod_chrono <- broom::tidy(lm(res ~ chrono, data = data_p %>% left_join(sleep)))
+saveRDS(mod_chrono, "lm_res_chrono_finngen.rds")
+
+plot_chrono <- data_p %>% left_join(sleep) %>% filter(chrono %in% 1:4) %>%
+  ggplot(aes(x = y_test, y = res, color = as.factor(chrono))) +
+  geom_smooth() +
   labs(y = "Acceleration", color = "Chronotype \nMorning to Evening", x = "Recorded time") +
   scale_color_viridis_d(direction = -1) +
-  theme_minimal() +
-  theme(text = element_text(size = 20),
-        legend.position = "bottom"
+  theme_classic(base_size = 14) +
+  theme(legend.position = "bottom"
   )
 
-ggsave("chronotype_finngen_proteotime.png", plot_chrono, width = 10, height = 10)
+ggsave("chronotype_finngen_proteotime.png", plot_chrono, width = 6, height = 6)
