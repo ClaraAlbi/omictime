@@ -13,7 +13,7 @@ for pheno in res res_abs; do
     --pheno-name ${pheno} \
     --pheno $phenotypes  \
     --covar-name ${COVARS} \
-    --covar $phenotypes  \
+    --covar covariates.txt  \
     --no-input-missing-phenotype \
     --glm hide-covar \
     --covar-variance-standardize \
@@ -22,6 +22,7 @@ for pheno in res res_abs; do
 
   dx run swiss-army-knife \
     -iin="${phenotypes}" \
+    -iin=covariates.txt \
     -icmd="${plink_command}" \
     --instance-type="mem1_ssd1_v2_x36" \
     --destination="${project}:/gwas/" \
