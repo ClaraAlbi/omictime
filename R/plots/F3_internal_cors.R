@@ -1,11 +1,18 @@
-
-library(paletteer)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(purrr)
+library(ggplot2)
 install.packages("ggpubr")
 install.packages("ggrepel")
 install.packages("paletteer")
+install.packages("forcats")
+install.packages("cowplot")
+install.packages("broom")
+install.packages("ggdraw")
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds")
-ancestry <- data.table::fread("covariates.csv")
+ancestry <- data.table::fread("/mnt/project/clara/covariates.csv")
 
 l <- list.files("/mnt/project/biomarkers_3", full.names = T)
 
@@ -57,7 +64,7 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
   ggrepel::geom_label_repel(
     data = top2,
     aes(x = time_day, y = pred_lasso,
-        label = paste0("res=", round(.resid, 2))),
+        label = paste0("res=", round(.resid, 2), "h")),
     nudge_x    = 0.5,       # move right
     nudge_y    = 0,         # no vertical shift
     hjust      = 0,         # left-align text so it extends rightward
@@ -102,10 +109,21 @@ part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.5, 1))
 
 data <- preds_olink %>%
   left_join(covs) %>%
-  left_join(ancestry)
+  left_join(ancestry) %>%
+  mutate(Sex = factor(sex, labels = c("Female", "Male"))) %>%
+  group_by(p21000_i0) %>%
+  mutate(n = n()) %>% filter(n > 200) %>%
+  mutate(
+    ancestry = factor(
+      p21000_i0,
+      levels = c("British",  "Any other white background","African",
+                 "Caribbean", "Indian", "Irish")
+    ), ancestry = forcats::fct_recode(ancestry,"Other white" = "Any other white background")
+  )
+
+
 
 plot_demo1 <- data %>%
-  mutate(Sex = factor(sex, labels = c("Female", "Male"))) %>%
   ggplot(aes(x = age_recruitment, y = res, color = Sex)) + geom_smooth() +
   theme_classic(base_size = 14) +
   labs(x = "Age", y = "Acceleration", color = "Sex") +
@@ -117,30 +135,79 @@ plot_demo1 <- data %>%
         legend.title = element_text(face = "bold"),
         plot.title = element_text(size = 20, face  = "bold"))
 
+broom::tidy(lm(res ~ Sex*age_recruitment, data = data))
+
+broom::tidy(lm(res ~ ancestry, data = data))
+
 data %>%
   mutate(bmi = weight / (height/100)^2) %>%
   ggplot(aes(x = bmi, y = res)) + geom_smooth()
 
+y_max <- data %>%
+  filter(!is.na(ancestry)) %>%
+  pull(res) %>%
+  max(na.rm = TRUE)
+
 plot_demo2 <- data %>%
-  group_by(p21000_i0) %>%
-  mutate(n = n()) %>% filter(n > 200) %>%
-  ggplot(aes(x = p21000_i0, y = res, fill = p21000_i0)) + geom_violin() +
+  filter(!is.na(ancestry)) %>%
+  ggplot(aes(x = ancestry, y = res, fill = ancestry)) +
+  geom_violin() +
   geom_hline(yintercept = 0, linetype = 2) +
-  labs(x = "Self-reported ethnicity", y = "Acceleration") +
+  # manual significance bar between x = 1 and x = 2
+  annotate("segment",
+           x    = 1,    # left group
+           xend = 3,    # right group
+           y    = y_max + 0.05,
+           yend = y_max + 0.05,
+           size = 0.8) +
+  annotate("text",
+           x    = 2,                    # midpoint
+           y    = y_max + 0.3,           # a bit above the bar
+           label = "p = 7e-16",
+           size  = 3) +
+  annotate("segment",
+           x    = 1,    # left group
+           xend = 4,    # right group
+           y    = y_max + 0.65,
+           yend = y_max + 0.65,
+           size = 0.8) +
+  annotate("text",
+           x    = 2.5,                    # midpoint
+           y    = y_max + 0.9,           # a bit above the bar
+           label = "p = 2e-12",
+           size  = 3) +
+  annotate("segment",
+           x    = 1,    # left group
+           xend = 5,    # right group
+           y    = y_max + 1.2,
+           yend = y_max + 1.2,
+           size = 0.8) +
+  annotate("text",
+           x    = 3,                    # midpoint
+           y    = y_max + 1.5,           # a bit above the bar
+           label = "p = 1e-11",
+           size  = 3) +
+  labs(
+    x = "Self-reported ethnicity",
+    y = "Acceleration"
+  ) +
   ggtitle("D") +
   paletteer::scale_fill_paletteer_d("rcartocolor::Earth", direction = -1) +
   theme_classic(base_size = 14) +
-  theme(axis.text = element_text(angle = 45, hjust = 1), legend.position = "none",
-        axis.title = element_text(face = "bold"),
-        legend.title = element_text(face = "bold"),
-        plot.title = element_text(size = 20, face  = "bold"))
+  theme(
+    axis.text       = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    axis.title      = element_text(face = "bold"),
+    plot.title      = element_text(size = 20, face = "bold")
+  )
+
 
 part2 <- cowplot::plot_grid(plot_demo1, plot_demo2, ncol = 2)
 
 
 ###
 
-df <- readRDS("olink_int_replication.rds") %>%
+df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   mutate(gap = pred_lasso - time_day) %>%
   separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
   filter(n == 3)
@@ -150,87 +217,85 @@ df <- df %>% group_by(i) %>%
   mutate(res = map(data, ~residuals(lm(pred_lasso ~ time_day, data = .x)))) %>%
   unnest()
 
-a <- df %>%
-  filter(n == 3) %>%
-  mutate(y = as.numeric(y)) %>%
-  pivot_wider(id_cols = c(eid), names_from = i, values_from = c(res, y), names_prefix = "i") %>%
-  rowwise() %>%
-  mutate(mean_i03 = mean(c(res_i0, res_i2, res_i3)),
-         period = max(c_across(starts_with("y"))) - min(c_across(starts_with("y")))) %>%
-  ungroup() %>%
-  pivot_longer(
-    cols       = c(res_i0, res_i2, res_i3, y_i0, y_i2, y_i3),
-    names_to   = c(".value", "i"),
-    names_pattern = "(.*)_i(.*)"
-  )
-
-ggplot(a, aes(x = mean_i03)) + geom_histogram()
-
-a %>%
-  pivot_wider(id_cols = c(eid), names_from = i, values_from = res, names_prefix = "i") %>%
-  ggplot(aes(x = i0)) + geom_histogram()
-
-hist(a$mean_i03)
-
-
-ggplot(df, aes(x = time_day, y = res, color = i)) + geom_point()
-
 res_wide <- df %>%
   pivot_wider(id_cols = eid,
     names_from  = i,
-    values_from = res,
+    values_from = c(res, time_day),
     names_prefix = "i"
   )
 
-make_pair_plot <- function(xvar, yvar, xlab, ylab) {
-  ggplot(res_wide, aes_string(x = xvar, y = yvar)) +
-    geom_point(alpha = 0.6, size = 1) +
-    geom_smooth(method = "lm", se = FALSE, color = "red") +
-    ggpubr::stat_cor(
-      aes(label = paste0("italic(r) == ", round(..r.., 2))),
-      method = "pearson",
-      size = 4
+
+make_pair_plot <- function(v1, v2){
+  # column names
+  x_res  <- paste0("res_i",      v1)
+  y_res  <- paste0("res_i",      v2)
+  x_time <- paste0("time_day_i", v1)
+  y_time <- paste0("time_day_i", v2)
+
+  # 1) compute the two correlations
+  r_acc  <- cor(res_wide[[x_res]],  res_wide[[y_res]],  use = "pairwise.complete.obs")
+  r_time <- cor(res_wide[[x_time]], res_wide[[y_time]], use = "pairwise.complete.obs")
+
+  # 2) build a little data frame for the two text labels
+  label_df <- tibble(
+    x     = c(-3.5, -3.5),            # both start at x = –3.5
+    y     = c( 3.8,  3.4),            # one at y=3.8, one at y=3.4
+    label = c(
+      paste0("italic(r)[Acceleration] == ", round(r_acc,  2)),
+      paste0("italic(r)[Time~day]       == ", round(r_time, 2))
+    ),
+    col   = c("#2374AB", "#E85F5C")   # blue for t, red for r
+  )
+
+  # 3) draw!
+  ggplot(res_wide, aes_string(x = x_res, y = y_res)) +
+    # residuals
+    geom_point(color = "#2374AB", alpha = 0.6) +
+    geom_smooth(method = "lm", se = FALSE, color = "#2374AB") +
+
+    # the two text labels
+    geom_text(
+      data        = label_df,
+      aes(x = x, y = y, label = label, color = col),
+      parse       = TRUE,
+      hjust       = 0,
+      size        = 4,
+      show.legend = FALSE
     ) +
-    ggtitle(paste(xlab, " vs. ", ylab)) +
     scale_x_continuous(limits = c(-4, 4)) +
     scale_y_continuous(limits = c(-4, 4)) +
-    labs(x = xlab, y = ylab) +
-    theme_classic(base_size = 14) +
-    theme(axis.title = element_text(face = "bold"),
-          legend.title = element_text(face = "bold"),
-          plot.title = element_text(size = 20, face  = "bold"))
 
+    # zoom to –4…4 without dropping any data/text
+
+    labs(
+      title = paste0("i", v1, " vs i", v2),
+      x     = paste0("i", v1),
+      y     = paste0("i", v2)
+    ) +
+    theme_classic(base_size = 14) +
+    theme(
+      plot.title   = element_text(face = "bold", size = 16),
+      axis.title   = element_text(face = "bold")
+    )
 }
 
+# rebuild your three panels
+p1 <- make_pair_plot(0, 2)
+p2 <- make_pair_plot(0, 3)
+p3 <- make_pair_plot(2, 3)
 
-p1 <- make_pair_plot(
-  "i0",
-  "i2",
-  "i0",
-  "i2"
-)
+cowplot::plot_grid(p1, p2, p3, nrow = 1)
 
-p2 <- make_pair_plot(
-  "i0",
-  "i3",
-  "i0",
-  "i3"
-)
-p3 <- make_pair_plot(
-  "i2",
-  "i3",
-  "i2",
-  "i3"
-)
 
-final_plot <- plot_grid(
+
+final_plot <- cowplot::plot_grid(
   p1, p2, p3,
   nrow = 1
 ) + ggtitle("E")
 
 
-title_grob <- ggdraw() +
-  draw_label(
+title_grob <- cowplot::ggdraw() +
+  cowplot::draw_label(
     "E",
     fontface = "bold",
     x        = 0,        # left-align
@@ -244,7 +309,7 @@ title_grob <- ggdraw() +
   )
 
 # 2. Stack title + plot
-titled_plot <- plot_grid(
+titled_plot <- cowplot::plot_grid(
   title_grob,
   final_plot,
   ncol        = 1,
@@ -286,3 +351,27 @@ ggplot(df2, aes(x = y, y = res, group = eid)) +
 
 
 
+a <- df %>%
+  filter(n == 3) %>%
+  mutate(y = as.numeric(y)) %>%
+  pivot_wider(id_cols = c(eid), names_from = i, values_from = c(res, y), names_prefix = "i") %>%
+  rowwise() %>%
+  mutate(mean_i03 = mean(c(res_i0, res_i2, res_i3)),
+         period = max(c_across(starts_with("y"))) - min(c_across(starts_with("y")))) %>%
+  ungroup() %>%
+  pivot_longer(
+    cols       = c(res_i0, res_i2, res_i3, y_i0, y_i2, y_i3),
+    names_to   = c(".value", "i"),
+    names_pattern = "(.*)_i(.*)"
+  )
+
+ggplot(a, aes(x = mean_i03)) + geom_histogram()
+
+a %>%
+  pivot_wider(id_cols = c(eid), names_from = i, values_from = res, names_prefix = "i") %>%
+  ggplot(aes(x = i0)) + geom_histogram()
+
+hist(a$mean_i03)
+
+
+ggplot(df, aes(x = time_day, y = res, color = i)) + geom_point()
