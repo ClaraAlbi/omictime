@@ -56,6 +56,8 @@ data_b %>% mutate(FID = eid, res_abs = rint(abs(res))) %>%
 
 
 
+### snps pQTLS
+
 
 ### NMR
 
