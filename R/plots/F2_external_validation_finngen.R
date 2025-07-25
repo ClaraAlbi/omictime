@@ -19,13 +19,16 @@ time_file <- data.table::fread("/mnt/project/blood_sampling.tsv")
 
 # Raw proteomics file
 olink_raw_file <- data.table::fread("/mnt/project/olink_instance_0.csv")
+
 # Order of proteins in model
-prot_order <- data.table::fread("/mnt/project/biomarkers_3/2025-04-04_FinnGen_Olink_ProteinList.txt")
+#prot_order <- data.table::fread("/mnt/project/biomarkers_3/2025-04-04_FinnGen_Olink_ProteinList.txt")
+
+# Order proteins according to training model
+features_model <- lasso$glmnet.fit$beta@Dimnames[[1]]
 
 # Order dataset and scale all raw values
 finngen_olink <- olink_raw_file %>%
-  select(-glipr1) %>% # Remove this protein because it had too few values in UKB
-  select(eid, any_of(tolower(prot_order$Assay))) %>%
+  select(eid, any_of(tolower(features_model))) %>%
   mutate(across(-eid, ~scale(.x)[,1]))
 
 # The UKB has 6 available times, each for a blood sample replicate. I just pick the latest one because the empty value is "1900-01-01"
