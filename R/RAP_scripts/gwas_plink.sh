@@ -1,7 +1,7 @@
 #!/bin/bash
 
 project="blood_biomarkers - Jul 01, 2024"
-phenotypes="phenotypes.txt"
+phenotypes="phenotypes_NMR.txt"
 
 COVARS="sex,age_recruitment,batch,PC1-PC20"
 
