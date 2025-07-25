@@ -2,8 +2,9 @@
 
 
 # Generate merge list (RAP-local)
-MERGE_LIST="merge_list.txt"
-CMD="ls /mnt/project/data/ukbi_chr*_qc.pgen | sed 's/\.pgen//' > ${MERGE_LIST}"
+MERGE_LIST="merge_list_2.txt"
+
+CMD="ls /mnt/project/data/ukb_all_chr*_qc.pgen | sed 's/\.pgen//' > ${MERGE_LIST}"
 #
 # dx run swiss-army-knife \
 #   -icmd="${CMD}" \
@@ -11,7 +12,7 @@ CMD="ls /mnt/project/data/ukbi_chr*_qc.pgen | sed 's/\.pgen//' > ${MERGE_LIST}"
 #   --destination="${project}:/data/" \
 #   --priority high \
 #   --brief --yes
-
+#
 
 plink_step1="
 
@@ -20,7 +21,7 @@ plink2 \
   --set-all-var-ids @:#:\\\$r:\\\$a \
   --new-id-max-allele-len 662 \
   --make-bed \
-  --out ukbi_v3_qc
+  --out ukb_all_v3_qc
 "
 
 dx run swiss-army-knife \
