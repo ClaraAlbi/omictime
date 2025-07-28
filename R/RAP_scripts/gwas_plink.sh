@@ -9,7 +9,7 @@ for pheno in res res_abs; do
   echo "==> Running GWAS for phenotype: $pheno"
 
   plink_command="plink2 \
-    --pfile /mnt/project/data/ukbi_v3_qc \
+    --pfile /mnt/project/data/ukb_all_v3_qc \
     --pheno-name ${pheno} \
     --pheno $phenotypes  \
     --covar-name ${COVARS} \
@@ -18,7 +18,7 @@ for pheno in res res_abs; do
     --glm hide-covar \
     --covar-variance-standardize \
     --threads 16   \
-    --out gwas_${pheno}"
+    --out gwas_${pheno}_NMR"
 
   dx run swiss-army-knife \
     -iin="${phenotypes}" \

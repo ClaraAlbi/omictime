@@ -26,7 +26,7 @@ plink2 \
 
 dx run swiss-army-knife \
   -icmd="${plink_step1}" \
-  --instance-type="mem1_ssd1_v2_x72" \
+  --instance-type="mem2_ssd1_v2_x64" \
   --destination="${project}:/data/" \
   --priority high \
   --brief --yes
