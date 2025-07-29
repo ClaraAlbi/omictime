@@ -49,6 +49,19 @@ data_b %>% mutate(FID = eid) %>%
   rename(IID = eid) %>%
   data.table::fwrite(., "covariates.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
+### COVARIATES COJO SNPS pQTLS
+
+snps <- data.table::fread("/mnt/project/snps/subset_cojo_pqtls.raw") %>%
+  mutate(across(contains(":"), ~round(.x,0)))
+
+data_b %>% mutate(FID = eid) %>%
+  select(FID, eid, sex, age_recruitment, batch, contains("PC")) %>%
+  mutate(across(c(sex, batch), as.factor)) %>%
+  left_join(snps %>% select(FID, contains(":")) %>% rename(eid = FID)) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "covariates_cojo.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+
 data_b %>% mutate(FID = eid, res_abs = rint(abs(res))) %>%
   select(FID, eid, res, res_abs) %>%
   rename(IID = eid) %>%

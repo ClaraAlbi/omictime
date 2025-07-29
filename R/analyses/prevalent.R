@@ -16,8 +16,9 @@ data_b <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   filter(i == 0) %>%
   left_join(covs) %>% left_join(gen_covs)
 data_b$res <- residuals(lm(pred_lasso ~ time_day, data = data_b))
-
-fields <- data.table::fread("field.tsv")
+data_b$res_abs <- abs(data_b$res)
+data_b$ares_q <- ntile(data_b$res_abs, 5)
+data_b$ares_q <- factor(data_b$ares_q, levels = c(1:5))
 
 outcomes <- tribble(~field_id, ~phen,
                     "130894", "Depressive_episode",
@@ -55,7 +56,12 @@ Absgap <- dis2 %>%
                       filter(!is.na(value)) %>%
                       filter(if_all(where(is.factor), ~ . %in% names(which(table(.) >= 50)))) %>%
                       mutate(across(where(is.factor), droplevels))),
-         mod = map(data, ~broom::tidy(glm(value ~ abs_res, data = .x %>% mutate(abs_res = abs(res)), family = "binomial"), conf.int = FALSE)),
+         mod = map(data, ~broom::tidy(glm(value ~ ares_q, data = .x, family = "binomial"), conf.int = FALSE)),
          n = map_dbl(data, ~sum(.x$value == 1, na.rm = T))) %>%
   select(field_id, phen, mod, n) %>%
   unnest(mod)
+
+
+Absgap %>%
+  ggplot(aes(x = exp(estimate), y = term, color = phen)) +
+  geom_point()
