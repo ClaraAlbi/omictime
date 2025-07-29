@@ -1,9 +1,7 @@
 library(tidyverse)
 
-gwas <- data.table::fread("~/Downloads/gwas_res_abs.res_abs.glm.linear.gz") %>%
+gwas <- data.table::fread("~/Downloads/gwas_res.res.glm.linear.gz") %>%
   filter(TEST == "ADD")
-
-time <-  data.table::fread("~/Downloads/gwas_time_day.time_day.glm.linear")
 
 circadian_genes <- data.table::fread("~/Downloads/merged_final_collected_CR_geneset_space_removed_annotated_with_gene_name_add_Science_46tissues_baboon_paper_mouse_SCN_related.txt") %>%
   filter(label == "GOCRpath_human_NA")
