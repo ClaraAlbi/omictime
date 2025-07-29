@@ -1,6 +1,6 @@
 library(tidyverse)
 
-gwas <- data.table::fread("~/Downloads/gwas_res.res.glm.linear.gz") %>%
+gwas <- data.table::fread("~/Downloads/gwas_res_abs.res_abs.glm.linear.gz") %>%
   filter(TEST == "ADD")
 
 time <-  data.table::fread("~/Downloads/gwas_time_day.time_day.glm.linear")
