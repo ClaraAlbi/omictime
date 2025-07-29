@@ -28,10 +28,10 @@ df2 <- broom::augment(mod, data = preds_olink)
 # Identify the two biggest |residuals|
 top2 <- df2 %>%
   filter(eid %in% c(5723240, 1218408))
-  filter(time_day == 12  | time_day == 18) %>%
-  mutate(absres = abs(.resid)) %>%
-  slice_max(absres, n = 4, with_ties = FALSE) %>%
-  slice_sample(n = 2)
+  # filter(time_day == 12  | time_day == 18) %>%
+  # mutate(absres = abs(.resid)) %>%
+  # slice_max(absres, n = 4, with_ties = FALSE) %>%
+  # slice_sample(n = 2)
 
 p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
   geom_point() +

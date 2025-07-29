@@ -1,13 +1,13 @@
 #!/bin/bash
 
 project="blood_biomarkers - Jul 01, 2024"
-snpfile="snps_top_res.txt"
+snpfile="cojo_pqtls.txt"
 
 plink_command="plink2 \
     --pfile /mnt/project/data/ukbi_v3_qc \
     --extract ${snpfile} \
     --recodeA \
-    --out"
+    --out "
 
 dx run swiss-army-knife \
   -iin="${snpfile}" \
