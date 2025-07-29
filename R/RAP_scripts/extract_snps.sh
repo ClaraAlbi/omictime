@@ -6,7 +6,7 @@ snpfile="cojo_pqtls.txt"
 plink_command="plink2 \
     --pfile /mnt/project/data/ukbi_v3_qc \
     --extract ${snpfile} \
-    --recodeA \
+    --recode A \
     --out subset_cojo_pqtls"
 
 dx run swiss-army-knife \
