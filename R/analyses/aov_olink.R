@@ -23,8 +23,7 @@ batch <- data.table::fread("/mnt/project/Bulk/Protein biomarkers/Olink/helper_fi
 panel <- data.table::fread("/mnt/project/Bulk/Protein biomarkers/Olink/helper_files/olink_assay.dat") %>%
   mutate(prot = tolower(Assay), Panel = str_remove(Panel, " ")) %>% select(prot, Panel)
 
-#metadata <- data.table::fread("/mnt/project/clara/olink_i0_meta.csv") %>%
-metadata <- data.table::fread("olink_i0_meta.csv") %>%
+metadata <- data.table::fread("/mnt/project/clara/olink_i0_meta.csv") %>%
   rename(num_prots = p30900_i0,
          PlateID = p30901_i0,
          well_id = p30902_i0,
