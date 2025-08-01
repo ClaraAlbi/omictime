@@ -1,4 +1,5 @@
 library(purrr)
+library(tidyr)
 
 ### LASSO res
 
@@ -24,7 +25,6 @@ genes <- data.table::fread("genes.txt") %>%
 genes[genes %in% colnames(data_nmr)]
 
 l <- list.files("/mnt/project/biomarkers_3", full.names = T)
-
 
 y_pred_lasso <- predict(lasso_model, s = best_lambda, newx = xtest_imp)[,1]
 
