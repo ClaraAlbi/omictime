@@ -4,10 +4,9 @@ library(tidyr)
 library(purrr)
 library(survival)
 install.packages("broom")
-#install.packages("survminer")
+install.packages("survminer")
 library(broom)
 library(survminer)
-library(gridExtra)
 
 # --- 0. Prep: cohort, biomarkers & covariates, diseases ----------------
 
