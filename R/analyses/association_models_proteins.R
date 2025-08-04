@@ -1,3 +1,4 @@
+
 library(data.table)
 library(dplyr)
 library(tidyr)
@@ -8,6 +9,7 @@ install.packages("survminer")
 library(broom)
 library(survminer)
 library(glue)
+library(stringr)
 
 rint <- function(x) {
   ranks <- rank(x, ties.method = "average")
@@ -20,6 +22,25 @@ rint <- function(x) {
 args <- commandArgs(trailingOnly = TRUE)
 exposure <- args[1]
 y_win <- as.numeric(args[2])
+
+
+### Load proteins
+
+l <- list.files("/mnt/project/biomarkers_3", full.names = T)
+
+lasso_top <- tibble(f = l[str_detect(l, "coefs_olink_")]) %>%
+  mutate(lasso_mod = map(f, readRDS)) %>%
+  unnest(lasso_mod) %>%
+  filter(model == "LASSO") %>%
+  group_by(features) %>%
+  summarise(n = n(), m_w = mean(weights)) %>%
+  filter(n == 5) %>%
+  slice_max(order_by = abs(m_w), n = 21) %>%
+  pull(features) %>% unique()
+
+ps <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_olink.rds") %>%
+  mutate(across(-eid, ~scale(.x)[,1])) %>%
+  select(eid, any_of(lasso_top))
 
 # --- 0. Prep: cohort, biomarkers & covariates, diseases ----------------
 
@@ -66,7 +87,8 @@ bio_covs <- readRDS("/mnt/project/olink_int_replication.rds") %>%
     smoking       = factor(smoking),
     age_recruitment = age_recruitment,
     BMI           = weight/((height/100)^2)
-  ) %>% select(-date_bsampling) %>% filter(fasting < 24)
+  ) %>% select(-date_bsampling) %>% filter(fasting < 24)  %>%
+  left_join(ps)
 
 # diagnosis table
 dis2 <- readRDS("/mnt/project/diseases_circadian.rds")
@@ -93,7 +115,7 @@ run_all_models <- function(disease_field) {
 
   # ----- Covariate setup -----
   base_covars   <- c("age_recruitment", paste0("PC", 1:20))
-  extra_covars  <- c("BMI", "smoking", "fasting")
+  extra_covars  <- c("BMI", "smoking", "fasting", colnames(ps)[-1])
   if (disease_field != "date_breast") {
     base_covars <- c("sex", base_covars)
   }
@@ -106,35 +128,15 @@ run_all_models <- function(disease_field) {
 
   results <- list()
 
-  # ----- Prevalent Model 1 -----
-  df_prev <- df %>% filter(!is.na(prev_case))
-  if (sum(df_prev$prev_case, na.rm = TRUE) > 0) {
-    m_prev1 <- glm(f_prev1, data = df_prev, family = binomial)
-    res_prev1 <- broom::tidy(m_prev1, exponentiate = TRUE, conf.int = TRUE) %>%
-      filter(term == exposure) %>%
-      transmute(
-        disease = disease_field,
-        model   = "Model1",
-        type    = "logistic",
-        term,
-        effect  = estimate,
-        lo95    = conf.low,
-        hi95    = conf.high,
-        p.value,
-        cases   = sum(df_prev$prev_case == 1, na.rm = TRUE),
-        n       = nrow(df_prev)
-      )
-    results <- append(results, list(res_prev1))
-  }
-
   # ----- Prevalent Model 2 -----
+  df_prev <- df %>% filter(!is.na(prev_case))
   if (sum(df_prev$prev_case, na.rm = TRUE) > 0) {
     m_prev2 <- glm(f_prev2, data = df_prev, family = binomial)
     res_prev2 <- broom::tidy(m_prev2, exponentiate = TRUE, conf.int = TRUE) %>%
       filter(term == exposure) %>%
       transmute(
         disease = disease_field,
-        model   = "Model2",
+        model   = "Model3",
         type    = "logistic",
         term,
         effect  = estimate,
@@ -147,40 +149,19 @@ run_all_models <- function(disease_field) {
     results <- append(results, list(res_prev2))
   }
 
-  # ----- Incident Model 1 (Cox) -----
+
+  # ----- Incident Model 2 (Cox fully adjusted) -----
   df_cox <- df %>%
     filter(is.na(death_date) | death_date > date_bsampling) %>%
     filter(is.na(diag_date)  | diag_date  > date_bsampling) %>%
-    filter(time_yrs > y_win) %>%
-    filter(sex == 0)
-
-  if (sum(df_cox$event, na.rm = TRUE) > 0) {
-    m_cox1 <- survival::coxph(f_cox1, data = df_cox, x = FALSE, y = FALSE)
-    res_cox1 <- broom::tidy(m_cox1, exponentiate = TRUE, conf.int = TRUE) %>%
-      filter(term == exposure) %>%
-      transmute(
-        disease = disease_field,
-        model   = "Model1",
-        type    = "cox",
-        term,
-        effect  = estimate,
-        lo95    = conf.low,
-        hi95    = conf.high,
-        p.value,
-        cases   = sum(df_cox$event == 1, na.rm = TRUE),
-        n       = nrow(df_cox)
-      )
-    results <- append(results, list(res_cox1))
-  }
-
-  # ----- Incident Model 2 (Cox fully adjusted) -----
+    filter(time_yrs > y_win)
   if (sum(df_cox$event, na.rm = TRUE) > 0) {
     m_cox2 <- survival::coxph(f_cox2, data = df_cox, x = FALSE, y = FALSE)
     res_cox2 <- broom::tidy(m_cox2, exponentiate = TRUE, conf.int = TRUE) %>%
       filter(term == exposure) %>%
       transmute(
         disease = disease_field,
-        model   = "Model2",
+        model   = "Model3",
         type    = "cox",
         term,
         effect  = estimate,
@@ -201,4 +182,4 @@ disease_cols <- setdiff(names(dis2), "eid")
 
 all_results <- purrr::map_dfr(disease_cols, run_all_models)
 
-saveRDS(all_results, glue("results_{exposure}_diseases_{y_win}y.rds"))
+saveRDS(all_results, glue("results_{exposure}_proteins_diseases_{y_win}y.rds"))

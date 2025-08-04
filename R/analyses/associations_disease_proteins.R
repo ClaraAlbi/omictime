@@ -19,8 +19,10 @@ lasso_top <- tibble(f = l[str_detect(l, "coefs_olink_")]) %>%
   mutate(lasso_mod = map(f, readRDS)) %>%
   unnest(lasso_mod) %>%
   filter(model == "LASSO") %>%
-  group_by(f) %>%
-  slice_max(abs(weights), n = 20) %>%
+  group_by(features) %>%
+  summarise(n = n(), m_w = mean(weights)) %>%
+  filter(n == 5) %>%
+  slice_max(order_by = abs(m_w), n = 21) %>%
   pull(features) %>% unique()
 
 ps <- olink_res %>% select(eid, any_of(lasso_top))
