@@ -36,9 +36,10 @@ plot_assoc <- data %>%
                 position = position_dodge(width = 0.5)) +
   geom_text(data = subset(data, model == "Model2"), position = position_dodge(width = 0.5),
             color = "black", hjust = 0, size = 5,
-            aes(x = hi95 + 0.05)) +
+            aes(x = hi95 + 0.03)) +
   geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_continuous(limits = c(0.5, 1.7), n.breaks = 4) +
+  scale_x_continuous(n.breaks = 3) +
+  coord_cartesian(xlim = c(0.6, 1.6), clip = "off") +
   labs(x = "OR / HR", color = "") +
   guides(
     color = guide_legend(
@@ -54,6 +55,8 @@ plot_assoc <- data %>%
                                            colour = "black",
                                            size   = 0.5),
     legend.position = "bottom",
+    legend.justification = "left",
+    legend.box.just    = "left",
     axis.title.y = element_blank(),
     axis.line.y = element_line(colour = "black"),
     strip.text.y = element_text(angle = 0), strip.text.y.right = element_text(angle = 270),
