@@ -151,8 +151,7 @@ run_all_models <- function(disease_field) {
   df_cox <- df %>%
     filter(is.na(death_date) | death_date > date_bsampling) %>%
     filter(is.na(diag_date)  | diag_date  > date_bsampling) %>%
-    filter(time_yrs > y_win) %>%
-    filter(sex == 0)
+    filter(time_yrs > y_win)
 
   if (sum(df_cox$event, na.rm = TRUE) > 0) {
     m_cox1 <- survival::coxph(f_cox1, data = df_cox, x = FALSE, y = FALSE)
