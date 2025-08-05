@@ -1,5 +1,8 @@
 library(lubridate)
 library(stringr)
+library(dplyr)
+library(dplyr)
+
 
 olink <- readRDS("/mnt/project/olink_int_replication.rds") %>% filter(i == 0)
 time <- readRDS("/mnt/project/biomarkers/time.rds")
@@ -102,4 +105,12 @@ cs_pi <- total_df %>%
         fields$title[paste0("p", fields$field_id) == x][1] %||% x }}))
 
 saveRDS(cs_pi, "counts_diseases_circadian.rds")
+
+
+cs_pi <- readRDS("/mnt/project/counts_diseases_circadian.rds") %>%
+  left_join(list_diseases, by = c("disease" = "p")) %>%
+  select(disease, names, type, class, total, prevalent, incident)
+
+library(data.table)
+fwrite(cs_pi, "data_share/variables_diseases_circadian.csv")
 

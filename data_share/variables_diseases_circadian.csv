@@ -1,0 +1,26 @@
+disease,names,type,class,total,prevalent,incident
+p130896,Recurrent depression,Date F33 first reported (recurrent depressive disorder),1. Neuro-psychiatric,427,288,139
+p130894,Depressive episode,Date F32 first reported (depressive episode),1. Neuro-psychiatric,6979,4542,2436
+p130892,Bipolar disorder,Date F31 first reported (bipolar affective disorder),1. Neuro-psychiatric,298,211,87
+p130906,Anxiety,Date F41 first reported (other anxiety disorders),1. Neuro-psychiatric,4721,2058,2663
+p131060,Sleep - G47,Date G47 first reported (sleep disorders),1. Neuro-psychiatric,2443,1077,1366
+p131052,Migraine,Date G43 first reported (migraine),1. Neuro-psychiatric,2991,2304,687
+p131048,Epilepsy,Date G40 first reported (epilepsy),1. Neuro-psychiatric,1068,640,428
+p130842,Dementia,Date F03 first reported (unspecified dementia),1. Neuro-psychiatric,918,41,877
+p130836,Alzheimer's disease (dementia),Date F00 first reported (dementia in alzheimer's disease),1. Neuro-psychiatric,541,1,540
+p131022,Parksinson's disease,Date G20 first reported (parkinson's disease),1. Neuro-psychiatric,962,153,809
+p131286,Hypertension,Date I10 first reported (essential (primary) hypertension),2. Cardiometabolic,22236,14760,7473
+p131298,Acute Myocardial Infarction,Date I21 first reported (acute myocardial infarction),2. Cardiometabolic,2947,1393,1554
+p131380,Atherosclerosis,Date I70 first reported (atherosclerosis),2. Cardiometabolic,521,97,424
+p131306,Chronic ischaemic heart disease,Date I25 first reported (chronic ischaemic heart disease),2. Cardiometabolic,6405,1949,4456
+p130708,Type 2 Diabetes,Date E11 first reported (non-insulin-dependent diabetes mellitus),2. Cardiometabolic,5224,1591,3633
+p130792,Obesity,Date E66 first reported (obesity),2. Cardiometabolic,5795,1562,4230
+p130814,Disorders of lipoprotein metabolism,Date E78 first reported (disorders of lipoprotein metabolism and other lipidaemias),2. Cardiometabolic,14223,8378,5841
+p131848,Rheumatoid arthritis,Date M05 first reported (seropositive rheumatoid arthritis),3. Immune,168,50,118
+p131494,Asthma,Date J45 first reported (asthma),3. Immune,7859,6261,1596
+p131626,Crohns's disease,Date K50 first reported (crohn's disease [regional enteritis]),3. Immune,399,246,153
+p131628,Ulcerative colitis,Date K51 first reported (ulcerative colitis),3. Immune,725,471,254
+p131742,Psoriasis,Date L40 first reported (psoriasis),3. Immune,1769,1234,535
+date_breast,Breast cancer,date_breast,4. Cancer,1864,862,1002
+date_lung,Lung cancer,date_lung,4. Cancer,583,44,539
+date_melanoma,Melanoma,date_melanoma,4. Cancer,564,196,367
