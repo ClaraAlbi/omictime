@@ -5,22 +5,26 @@ library(dplyr)
 library(ggplot2)
 library(stringr)
 install.packages("paletteer")
+install.packages("ggpubr")
 library(paletteer)
+library(g)
 
 
-data <- bind_rows(readRDS("results_gap_abs_diseases_1y.rds"),
-                  readRDS("results_gap_diseases_1y.rds"),
-                  readRDS("results_gap_abs_proteins_diseases_1y.rds"),
-                  readRDS("results_gap_proteins_diseases_1y.rds")) %>%
+data <- bind_rows(readRDS("/mnt/project/associations/results_gap_abs_diseases_1y.rds"),
+                  readRDS("/mnt/project/associations/results_gap_diseases_1y.rds"),
+                  readRDS("/mnt/project/associations/results_gap_abs_proteins_diseases_1y.rds"),
+                  readRDS("/mnt/project/associations/results_gap_proteins_diseases_1y.rds")) %>%
   left_join(list_diseases, by = c("disease" = "p")) %>%
   mutate(type = case_when(type == "logistic" ~ "Prevalent",
                           type == "cox" ~ "Incident"),
          type = factor(type, levels = c("Prevalent", "Incident")),
          term = case_when(str_detect(term, "abs") ~ "Dysregulation",
                           TRUE ~ "Acceleration"),
-         p_val = p.adjust(p.value, method = "fdr", n = max(27, n())),
+         p_val = p.adjust(p.value, method = "fdr"),
          sig = case_when(p_val < 0.05 ~ "*",
                          TRUE ~ ""))
+
+data.table::fwrite(data, "data_share/results_associations.csv")
 
 plot_assoc <- data %>%
   filter(cases > 40) %>%
@@ -50,7 +54,7 @@ plot_assoc <- data %>%
     )) +
   scale_color_manual(values = c("#8BA6A9", "#A7CECB")) +
   facet_grid(class ~  term + type, scales = "free", space = "free") +
-  theme_pubclean() +
+  ggpubr::theme_pubclean() +
   theme(strip.background    = element_rect(fill   = "white",
                                            colour = "black",
                                            size   = 0.5),
@@ -64,6 +68,8 @@ plot_assoc <- data %>%
   )
 
 ggsave("plots/associations_diseases.png", plot_assoc, width = 8, height = 8)
+
+
 
 prots <- readRDS("/mnt/project/results_proteins_disease.rds") %>%
   left_join(list_diseases, by = c("disease" = "p"))
