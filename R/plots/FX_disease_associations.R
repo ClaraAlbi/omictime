@@ -9,6 +9,11 @@ install.packages("ggpubr")
 library(paletteer)
 library(g)
 
+t <- readRDS("results_time_diseases.rds") %>%
+  left_join(list_diseases, by = c("disease" = "p")) %>%
+  mutate(p_val = p.adjust(p.value, method = "fdr"))
+
+write.table(t, "data_share/results_associations_time.csv")
 
 data <- bind_rows(readRDS("/mnt/project/associations/results_gap_abs_diseases_1y.rds"),
                   readRDS("/mnt/project/associations/results_gap_diseases_1y.rds"),

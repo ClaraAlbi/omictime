@@ -19,11 +19,13 @@ l <- list.files("/mnt/project/biomarkers_3", full.names = T)
 preds_olink <- tibble(f = l[str_detect(l, "predictions_olink")]) %>%
     mutate(d = map(f, readRDS)) %>%
     unnest(d)
-preds_olink$res <- residuals(lm(pred_lasso ~ time_day, data = preds_olink))
 
+#preds_olink$res <- residuals(lm(pred_lasso ~ time_day, data = preds_olink))
+preds_olink$res <- preds_olink$pred_lasso - preds_olink$time_day
 mod <- lm(pred_lasso ~ time_day, data = preds_olink)
 
 df2 <- broom::augment(mod, data = preds_olink)
+df2$res <- df2$pred_lasso - df2$time_day
 
 # Identify the two biggest |residuals|
 top2 <- df2 %>%
@@ -218,12 +220,15 @@ part2 <- cowplot::plot_grid(plot_demo1, plot_demo2, ncol = 2)
 df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   mutate(gap = pred_lasso - time_day) %>%
   separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
-  filter(n == 3)
+  filter(n == 3) #%>%
+  mutate(res = gap)
 
-df <- df %>% group_by(i) %>%
-  nest() %>%
-  mutate(res = map(data, ~residuals(lm(pred_lasso ~ time_day, data = .x)))) %>%
-  unnest()
+ggplot(df, aes(x = time_day, y = gap)) + geom_point()
+
+# df <- df %>% group_by(i) %>%
+#   nest() %>%
+#   mutate(res = map(data, ~residuals(lm(pred_lasso ~ time_day, data = .x)))) %>%
+#   unnest()
 
 res_wide <- df %>%
   pivot_wider(id_cols = eid,
