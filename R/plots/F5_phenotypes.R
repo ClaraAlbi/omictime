@@ -3,8 +3,9 @@ library(dplyr)
 library(stringr)
 library(purrr)
 library(ggplot2)
-install.packages("ggstatsplot")
-library(ggstatsplot)
+install.packages("forcats")
+#install.packages("ggstatsplot")
+#library(ggstatsplot)
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds")
 l <- list.files("/mnt/project/biomarkers_3", full.names = T)
@@ -36,7 +37,7 @@ plot_demo1 <- data %>%
   theme_classic(base_size = 14) +
   labs(x = "Age", y = "Acceleration", color = "Sex") +
   ggtitle("C") +
-  paletteer::scale_color_paletteer_d("nbapalettes::cavaliers_retro") +
+  #paletteer::scale_color_paletteer_d("nbapalettes::cavaliers_retro") +
   theme(legend.position      = c(0.95, 0.95),
         legend.justification = c("right", "top"),
         axis.title = element_text(face = "bold"),
@@ -59,10 +60,6 @@ summary(gam_mod)
 broom::tidy(lm(res ~ ancestry, data = data))
 
 # ANCESTRY
-
-
-ggbetweenstats(data %>% slice(1:1000), gap, p21000_i0)
-
 
 plot_demo2 <- data %>%
   filter(!is.na(ancestry)) %>%
@@ -121,10 +118,66 @@ plot_demo2 <- data %>%
 part2 <- cowplot::plot_grid(plot_demo1, plot_demo2, ncol = 2)
 
 
+## well being
 
-### Acceleration
+fields <- data.table::fread("/mnt/project/Showcase metadata/field.tsv")
 
-acc <- data.table::fread("/mnt/project/accelerometer.csv")
+mh <- data.table::fread("/mnt/project/psychosocial_MH.csv")
+phy <- data.table::fread("physical_activity.csv")
+sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
+  select(eid, h_sleep = `1160-0.0`,
+         chrono = `1180-0.0`,
+         ever_insomnia = `1200-0.0`,
+         wakeup = `1170-0.0`) %>%
+  filter(chrono %in% 1:4) %>%
+  mutate(super_sleep = case_when(h_sleep > 1 ~ 1,
+                                 TRUE ~0))
+wb <- data %>%
+  left_join(sleep)
 
-data %>%
-  left_join(acc) %>% mutate(a = sum(p40030_i0 != "")) %>% summarise(a)
+
+summary(lm(gap ~ super_sleep, data = wb))
+
+a <- fields[fields$field_id %in% as.numeric(str_remove(str_remove(colnames(wb), "p"), "_i0")),]
+
+
+wb %>%
+  group_by(p4548_i0) %>%
+  summarise(m_gap = mean(gap))
+  ggplot(aes(x = p4548_i0, y = gap)) + geom_violin()
+
+health <- wb  %>%
+  filter(p4548_i0 != "") %>%
+  mutate(score = case_when(
+    p4548_i0 == "Extremely happy"   ~  3,
+    p4548_i0 == "Very happy" ~ 2,
+    p4548_i0 == "Moderately happy"                    ~  1,
+
+    p4548_i0 == "Moderately unhappy"                  ~ -1,
+    p4548_i0 == "Very unhappy" ~ -2,
+    p4548_i0 == "Extremely unhappy" ~ -3,
+    TRUE                                              ~  NA_integer_   # covers "" / “Do not know” / “Prefer not to answer”
+)) #%>% group_by(score) %>%
+  summarise(m_gap = mean(gap), sd_gap = sd(gap), n = n())
+
+summary(lm(gap ~ score, data = health))
+
+summary(lm(score ~ abs(res) + sex + factor(assessment_centre) + p22189, data = health))
+
+wb %>%
+  group_by(p20127_i0) %>%
+  summarise(m_gap = mean(gap), sd_gap = sd(gap))
+
+
+hist(wb$p22189)
+
+wb %>%
+  group_by(p4548_i0) %>%
+  summarise(m_gap = mean(gap), sd_gap = sd(gap))
+
+ggplot(wb, aes(x = p22189, y = gap)) + geom_smooth()
+
+cor.test(wb$gap, wb$p22189, use = "complete.obs")
+
+
+
