@@ -2,9 +2,7 @@ library(tidyr)
 library(dplyr)
 library(stringr)
 library(purrr)
-library(ggplot2)
-install.packages("ggpubr")
-install.packages("ggrepel")
+#install.packages("ggpubr")
 install.packages("paletteer")
 install.packages("forcats")
 install.packages("cowplot")
@@ -12,20 +10,19 @@ install.packages("broom")
 install.packages("ggdraw")
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds")
-ancestry <- data.table::fread("/mnt/project/clara/covariates.csv")
 
 l <- list.files("/mnt/project/biomarkers_3", full.names = T)
 
 preds_olink <- tibble(f = l[str_detect(l, "predictions_olink")]) %>%
     mutate(d = map(f, readRDS)) %>%
-    unnest(d)
+    unnest(d) %>%
+  mutate(gap = pred_lasso - time_day)
 
-#preds_olink$res <- residuals(lm(pred_lasso ~ time_day, data = preds_olink))
-preds_olink$res <- preds_olink$pred_lasso - preds_olink$time_day
 mod <- lm(pred_lasso ~ time_day, data = preds_olink)
+preds_olink$res <- residuals(lm(pred_lasso ~ time_day, data = preds_olink))
 
 df2 <- broom::augment(mod, data = preds_olink)
-df2$res <- df2$pred_lasso - df2$time_day
+df2$gap <- df2$pred_lasso - df2$time_day
 
 # Identify the two biggest |residuals|
 top2 <- df2 %>%
@@ -34,6 +31,7 @@ top2 <- df2 %>%
   # mutate(absres = abs(.resid)) %>%
   # slice_max(absres, n = 4, with_ties = FALSE) %>%
   # slice_sample(n = 2)
+
 
 p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
   geom_point() +
@@ -66,7 +64,7 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
   ggrepel::geom_label_repel(
     data = top2,
     aes(x = time_day, y = pred_lasso,
-        label = paste0("res=", round(.resid, 2), "h")),
+        label = paste0(round(.resid, 1), "h")),
     nudge_x    = 0.5,       # move right
     nudge_y    = 0,         # no vertical shift
     hjust      = 0,         # left-align text so it extends rightward
@@ -81,15 +79,28 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
     x     = "Recorded time of day",
     y     = "Predicted proteomic time", color = "Acceleration"
   ) +
-  paletteer::scale_color_paletteer_c("ggthemes::Orange-Blue Diverging", direction = -1, limits = c(-4, 4),
-                                     oob    = scales::squish) +
+  paletteer::scale_color_paletteer_c("ggthemes::Orange-Blue Diverging",
+                                     direction = -1,
+                                     limits = c(-5, 5)) +
+  guides(
+    colour = guide_colourbar(
+      title.position = "top",
+      title.hjust    = 0.5,
+      barwidth       = 14,
+      barheight      = 1.5,
+      reverse = TRUE
+    )
+  ) +
   theme_classic(base_size = 14) +
-  theme(legend.position = "right",
+  theme(legend.position   = "top",
         axis.title = element_text(face = "bold"),
-        legend.title = element_text(face = "bold"), plot.title = element_text(size = 20, face  = "bold"))
+        legend.title = element_text(face = "bold", size = 12),
+        legend.text = element_text(size = 10), legend.margin = margin(0,0,0,0),
+        plot.title = element_text(size = 20, face  = "bold"))
+
 
 p_hist <- preds_olink %>%
-  ggplot(aes(x = res, fill = res)) +
+  ggplot(aes(x = gap, fill = gap)) +
   geom_histogram(
     aes(fill = ..x..),   # map bin midpoint to fill
     bins = 30,           # or whatever bin count you prefer
@@ -105,114 +116,7 @@ p_hist <- preds_olink %>%
         plot.title = element_text(size = 20, face  = "bold"))
 
 
-part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.5, 1))
-
-### COVARIATES
-
-data <- preds_olink %>%
-  left_join(covs) %>%
-  left_join(ancestry) %>%
-  mutate(Sex = factor(sex, labels = c("Female", "Male"))) %>%
-  group_by(p21000_i0) %>%
-  mutate(n = n()) %>% filter(n > 200) %>%
-  mutate(
-    ancestry = factor(
-      p21000_i0,
-      levels = c("British",  "Any other white background","African",
-                 "Caribbean", "Indian", "Irish")
-    ), ancestry = forcats::fct_recode(ancestry,"Other white" = "Any other white background")
-  )
-
-
-
-plot_demo1 <- data %>%
-  ggplot(aes(x = age_recruitment, y = res, color = Sex)) + geom_smooth() +
-  theme_classic(base_size = 14) +
-  labs(x = "Age", y = "Acceleration", color = "Sex") +
-  ggtitle("C") +
-  paletteer::scale_color_paletteer_d("nbapalettes::cavaliers_retro") +
-  theme(legend.position      = c(0.95, 0.95),
-        legend.justification = c("right", "top"),
-        axis.title = element_text(face = "bold"),
-        legend.title = element_text(face = "bold"),
-        plot.title = element_text(size = 20, face  = "bold"))
-
-broom::tidy(glm(res ~ age_recruitment, data = data %>% filter(Sex == "Male")))
-
-gam_mod <- mgcv::gam(
-  res ~ s(age_recruitment,         # a smooth function of age
-      k = 10       # you can tweak number of knots
-    ),
-  data = data %>% filter(Sex == "Female"),
-  method = "REML"
-)
-
-broom::tidy(lm(res ~ ancestry, data = data))
-
-data %>%
-  mutate(bmi = weight / (height/100)^2) %>%
-  ggplot(aes(x = bmi, y = res)) + geom_smooth()
-
-y_max <- data %>%
-  filter(!is.na(ancestry)) %>%
-  pull(res) %>%
-  max(na.rm = TRUE)
-
-plot_demo2 <- data %>%
-  filter(!is.na(ancestry)) %>%
-  ggplot(aes(x = ancestry, y = res, fill = ancestry)) +
-  geom_violin() +
-  geom_hline(yintercept = 0, linetype = 2) +
-  # manual significance bar between x = 1 and x = 2
-  annotate("segment",
-           x    = 1,    # left group
-           xend = 3,    # right group
-           y    = y_max + 0.05,
-           yend = y_max + 0.05,
-           size = 0.4) +
-  annotate("text",
-           x    = 2,                    # midpoint
-           y    = y_max + 0.3,           # a bit above the bar
-           label = "p = 7e-16",
-           size  = 2) +
-  annotate("segment",
-           x    = 1,    # left group
-           xend = 4,    # right group
-           y    = y_max + 0.65,
-           yend = y_max + 0.65,
-           size = 0.4) +
-  annotate("text",
-           x    = 2.5,                    # midpoint
-           y    = y_max + 0.9,           # a bit above the bar
-           label = "p = 2e-12",
-           size  = 2) +
-  annotate("segment",
-           x    = 1,    # left group
-           xend = 5,    # right group
-           y    = y_max + 1.2,
-           yend = y_max + 1.2,
-           size = 0.4) +
-  annotate("text",
-           x    = 3,                    # midpoint
-           y    = y_max + 1.5,           # a bit above the bar
-           label = "p = 1e-11",
-           size  = 2) +
-  labs(
-    x = "Self-reported ethnicity",
-    y = "Acceleration"
-  ) +
-  ggtitle("D") +
-  paletteer::scale_fill_paletteer_d("rcartocolor::Earth", direction = -1) +
-  theme_classic(base_size = 14) +
-  theme(
-    axis.text       = element_text(angle = 45, hjust = 1),
-    legend.position = "none",
-    axis.title      = element_text(face = "bold"),
-    plot.title      = element_text(size = 20, face = "bold")
-  )
-
-
-part2 <- cowplot::plot_grid(plot_demo1, plot_demo2, ncol = 2)
+part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.2, 1))
 
 
 ###
@@ -220,48 +124,40 @@ part2 <- cowplot::plot_grid(plot_demo1, plot_demo2, ncol = 2)
 df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   mutate(gap = pred_lasso - time_day) %>%
   separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
-  filter(n == 3) #%>%
-  mutate(res = gap)
-
-ggplot(df, aes(x = time_day, y = gap)) + geom_point()
-
-# df <- df %>% group_by(i) %>%
-#   nest() %>%
-#   mutate(res = map(data, ~residuals(lm(pred_lasso ~ time_day, data = .x)))) %>%
-#   unnest()
+  filter(n == 3)
 
 res_wide <- df %>%
   pivot_wider(id_cols = eid,
     names_from  = i,
-    values_from = c(res, time_day),
+    values_from = c(gap, time_day),
     names_prefix = "i"
   )
 
 
 make_pair_plot <- function(v1, v2){
   # column names
-  x_res  <- paste0("res_i",      v1)
-  y_res  <- paste0("res_i",      v2)
+  x_gap  <- paste0("gap_i",      v1)
+  y_gap  <- paste0("gap_i",      v2)
   x_time <- paste0("time_day_i", v1)
   y_time <- paste0("time_day_i", v2)
 
   # 1) compute the two correlations
-  r_acc  <- cor(res_wide[[x_res]],  res_wide[[y_res]],  use = "pairwise.complete.obs")
+  r_acc  <- cor(res_wide[[x_gap]],  res_wide[[y_gap]],  use = "pairwise.complete.obs")
   r_time <- cor(res_wide[[x_time]], res_wide[[y_time]], use = "pairwise.complete.obs")
 
   # 2) build a little data frame for the two text labels
   label_df <- tibble(
-    x     = c(-3.5, -3.5),            # both start at x = –3.5
-    y     = c( 3.8,  3.4),            # one at y=3.8, one at y=3.4
+    x     = c(-5, -5),            # both start at x = –3.5
+    y     = c( 6,  5.3),            # one at y=3.8, one at y=3.4
     label = c(
       paste0("italic(r)[Acceleration] == ", round(r_acc,  2)),
       paste0("italic(r)[Time~day]       == ", round(r_time, 2))
     ),
-    col   = c("#2374AB", "#E85F5C")
+    col   = c("black", "darkgreen")
   )
 
   # 3) draw!
-  ggplot(res_wide, aes_string(x = x_res, y = y_res)) +
+  ggplot(res_wide, aes_string(x = x_gap, y = y_gap)) +
     # residuals
     geom_point(color = "#2374AB", alpha = 0.6) +
     geom_smooth(method = "lm", se = FALSE, color = "#2374AB") +
@@ -272,11 +168,11 @@ make_pair_plot <- function(v1, v2){
       aes(x = x, y = y, label = label, color = col),
       parse       = TRUE,
       hjust       = 0,
-      size        = 3.5,
+      size        = 5,
       show.legend = FALSE
     ) +
-    scale_x_continuous(limits = c(-4, 4)) +
-    scale_y_continuous(limits = c(-4, 4)) +
+    scale_x_continuous(limits = c(-5, 5)) +
+    scale_y_continuous(limits = c(-5, 6)) +
     scale_color_identity() +
 
     # zoom to –4…4 without dropping any data/text
@@ -303,16 +199,11 @@ final_plot <-  cowplot::plot_grid(p1, p2, p3, nrow = 1)
 
 title_grob <- cowplot::ggdraw() +
   cowplot::draw_label(
-    "E",
+    "C",
     fontface = "bold",
     x        = 0,        # left-align
     hjust    = -1.5,        # left justification
     size     = 22
-  ) +
-  theme(
-    # strip away any background color
-    plot.background  = element_rect(color = "white"),
-    panel.background = element_rect(color = "white")
   )
 
 # 2. Stack title + plot
@@ -324,10 +215,15 @@ titled_plot <- cowplot::plot_grid(
 )
 
 
-full <- cowplot::plot_grid(part1, part2, titled_plot, nrow = 3)
+full <- cowplot::plot_grid(part1,  titled_plot, nrow = 2)
 
-ggsave("plots/F4_combined.png", full, width = 10, height = 12)
+ggsave("plots/F4_combined.png", full, width = 8, height = 8)
 
+
+
+
+
+# CURRENTLY UNUSED
 
 df2 <- df %>%
   filter(n == 3) %>%
