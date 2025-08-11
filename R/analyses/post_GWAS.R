@@ -1,6 +1,6 @@
 library(tidyverse)
 
-gwas <- data.table::fread("~/Downloads/gwas_res.res.glm.linear.gz") %>%
+gwas <- data.table::fread("~/Downloads/gwas_gap_pQTL.gap.glm.linear") %>%
   filter(TEST == "ADD")
 
 circadian_genes <- data.table::fread("~/Downloads/merged_final_collected_CR_geneset_space_removed_annotated_with_gene_name_add_Science_46tissues_baboon_paper_mouse_SCN_related.txt") %>%
@@ -29,7 +29,7 @@ for (i in 1:nrow(sig)) {
   snp_id  <- sig$ID[i]
 
   if (!snp_id %in% result$ID) {
-    snp_chr <- sig$`CHROM`[i]
+    snp_chr <- sig$`#CHROM`[i]
     snp_pos <- sig$POS[i]
 
     genes_on_chr <- gene_seq[as.numeric(gene_seq$V1) == snp_chr, ]
@@ -62,7 +62,8 @@ closest_gene <- genes_on_chr[which.min(genes_on_chr$distance), ]
 ########################################################################
 
 sig <- gwas %>%
-  filter(P < 1e-4)
+  filter(P < 1e-4) %>%
+  rename(CHROM = "#CHROM")
 
 
 # Compute cumulative BP position
