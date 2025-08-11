@@ -14,8 +14,9 @@ rint <- function(x) {
   qnorm((ranks - 0.5) / n)
 }
 
-time <- readRDS("/mnt/project/clara/time.rds")
-covs <- readRDS("/mnt/project/clara/covs.rds")
+time <- readRDS("/mnt/project/biomarkers/time.rds")
+covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
+  mutate(bmi = weight / (height/100)^2)
 gen_covs <- readRDS("/mnt/project/clara/gencovs.rds")
 
 olink_times <- data.table::fread("/mnt/project/Bulk/Protein biomarkers/Olink/helper_files/olink_processing_start_date.dat")
@@ -23,7 +24,7 @@ batch <- data.table::fread("/mnt/project/Bulk/Protein biomarkers/Olink/helper_fi
 panel <- data.table::fread("/mnt/project/Bulk/Protein biomarkers/Olink/helper_files/olink_assay.dat") %>%
   mutate(prot = tolower(Assay), Panel = str_remove(Panel, " ")) %>% select(prot, Panel)
 
-metadata <- data.table::fread("/mnt/project/clara/olink_i0_meta.csv") %>%
+metadata <- data.table::fread("/mnt/project/olink_instance_0_meta.csv") %>%
   rename(num_prots = p30900_i0,
          PlateID = p30901_i0,
          well_id = p30902_i0,
@@ -34,12 +35,10 @@ metadata <- data.table::fread("/mnt/project/clara/olink_i0_meta.csv") %>%
   mutate(ppp_sel = case_when(ppp_sel == "Yes" ~ 1,
                              TRUE ~ 0)) %>%
   rename_all(~str_remove(.x, " ")) %>%
-  mutate(across(Cardiometabolic:OncologyII , factor)) %>%
-  filter(Batch != 0)
+  mutate(across(Cardiometabolic:OncologyII , factor))
 
 
-prots <- data.table::fread("/mnt/project/clara/olink_i0.csv") %>%
-  select(-glipr1)
+prots <- readRDS("/mnt/project/olink_instance_0_QC.rds")
 
 
 for (b in seq(2, ncol(prots), 100)){
@@ -66,7 +65,9 @@ for (b in seq(2, ncol(prots), 100)){
       left_join(covs_c) %>%
       filter(time_day > 0) %>%
       filter(fasting < 24) %>%
-      mutate(across(c(assessment_centre, Batch, ppp_sel, sex, age_recruitment, smoking), as.factor),
+      mutate(smoking = case_when(smoking == -3 ~ NA_integer_,
+                                 TRUE ~ smoking),
+             across(c(assessment_centre, Batch, ppp_sel, sex, month_attending, age_recruitment, smoking), as.factor),
              rint_b = rint(raw)) %>%
       select(eid,
              raw,

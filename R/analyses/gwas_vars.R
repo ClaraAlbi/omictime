@@ -1,7 +1,7 @@
 library(tidyr)
 library(dplyr)
 library(stringr)
-library(purrr)
+library(pur)
 
 rint <- function(x) {
   ranks <- rank(x, ties.method = "average")
@@ -66,10 +66,8 @@ data_b %>% mutate(FID = eid) %>%
   data.table::fwrite(., "covariates_cojo.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 
-data_b %>% mutate(FID = eid, res_abs = rint(abs(res)),
-                  gap = pred_lasso_olink - time_day,
-                  abs_gap = abs(gap)) %>%
-  select(FID, eid, res, res_abs, gap, abs_gap) %>%
+data_b %>% mutate(FID = eid, res_abs = rint(abs(res))) %>%
+  select(FID, eid, res, res_abs) %>%
   rename(IID = eid) %>%
   data.table::fwrite(., "phenotypes.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
