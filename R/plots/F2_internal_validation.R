@@ -22,10 +22,9 @@ preds_i0_nmr <- tibble(f = l[str_detect(l, "predictions_NMR")]) %>%
 ### HISTOGRAMS
 
 time_i0 <- readRDS("/mnt/project/biomarkers/time.rds") %>%
-  filter(y > 2006)
+  filter(time_day > 9 & time_day < 20)
 
 time_i1 <- data.table::fread("/mnt/project/blood_sampling_instance1.tsv") %>%
-  #filter(eid %in% preds_i0_nmr$eid) %>%
   mutate(max_time = pmax(`3166-1.0`,`3166-1.1`,`3166-1.2`,`3166-1.3`,`3166-1.4`, `3166-1.5`, na.rm = T)) %>%
   separate(max_time, into = c("date", "time"), sep = " ") %>%
   separate(time, into = c("h", "min", "s"), sep = ":") %>%
@@ -36,21 +35,20 @@ time_i1 <- data.table::fread("/mnt/project/blood_sampling_instance1.tsv") %>%
   filter(y > 2006)
 
 light_band <- data.frame(
-  xmin = 6,
-  xmax = 20,
+  xmin = 5.4,
+  xmax = 20.5,
   ymin = -Inf,
   ymax = Inf
 )
 
 night_band <- data.frame(
-  xmin = c(0, 20),
-  xmax = c(6, 24),
+  xmin = c(0, 20.5),
+  xmax = c(5.4, 24),
   ymin = -Inf,
   ymax = Inf
 )
 
 i0_hist <- time_i0 %>%
-  #filter(eid %in% preds_i0_olink$eid) %>%
   filter(time_day < 24 & time_day > 0) %>%
   ggplot(aes(x = time_day)) +
   geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -284,7 +282,7 @@ saveRDS(df_nmr, "nmr_int_replication.rds")
 
 
 ### Histograms
-
+install.packages("cowplot")
 library(cowplot)
 plot_intval <- plot_grid(i0_hist, i1_hist, i2_hist, i3_hist, nrow = 2)
 
