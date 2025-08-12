@@ -22,15 +22,15 @@ labes <- df_effects %>%
   filter(pr2 > 0.01)
 
 light_band <- data.frame(
-  xmin = 6,
-  xmax = 20,
+  xmin = 5.4,
+  xmax = 20.5,
   ymin = -Inf,
   ymax = Inf
 )
 
 night_band <- data.frame(
-  xmin = c(0, 20),
-  xmax = c(6, 24),
+  xmin = c(0, 20.5),
+  xmax = c(5.4, 24),
   ymin = -Inf,
   ymax = Inf
 )
