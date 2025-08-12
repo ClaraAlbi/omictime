@@ -21,6 +21,8 @@ labes <- df_effects %>%
   full_join(df_r2, by = c("phen", "color_var", "type_clean", "title")) %>%
   filter(pr2 > 0.01)
 
+data.table::fwrite(labes, "data/resulting_phases.txt")
+
 light_band <- data.frame(
   xmin = 5.4,
   xmax = 20.5,
