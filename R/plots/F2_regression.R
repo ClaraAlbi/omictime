@@ -5,8 +5,11 @@ library(ggplot2)
 library(purrr)
 library(scales)
 
-files <- list.files("/mnt/project/biomarkers_3",
-                    pattern = "predictions", full.names = TRUE)
+files <- c(list.files("/mnt/project/biomarkers_3",
+                    pattern = "predictions", full.names = TRUE)[-c(31:35)],
+           list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
+                    pattern = "predictions", full.names = TRUE))
+
 
 # 2. Compute per‐type R² summaries (r2s)
 r2s <- tibble(file = files) %>%
