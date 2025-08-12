@@ -7,32 +7,12 @@ library(paletteer)
 
 fields <- data.table::fread("data/field.tsv")
 
-df_r2 <- bind_rows(readRDS("data/aov_labs.rds") %>% mutate(type = "Biochemistry") %>%
-                     left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
-                   readRDS("data/aov_counts.rds") %>% mutate(type = "Cell_counts") %>%
-                     left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
-                   readRDS("data/aov_nmr.rds") %>% mutate(type = "Metabolomics-NMR") %>%
-                     left_join(fields %>% select(field_id, title), by = c("phen" = "field_id"))) %>%
-  mutate(phen = as.character(phen)) %>%
-  bind_rows(readRDS("data/aov_olink.rds") %>% mutate(type = "Proteomics-Olink") %>%
-              mutate(title = phen)
-  ) %>%
-  mutate(color_var = case_when(type == "Proteomics-Olink" ~ "#76B041",
-                               type == "Metabolomics-NMR" ~ "#2374AB",
-                               type == "Cell_counts" ~ "#8F3985",
-                               type == "Biochemistry" ~ "#E85F5C")) %>%
-  mutate(title = case_when(title == "White blood cell (leukocyte) count" ~ "Leukocyte count",
-                           title == "Phospholipids to Total Lipids in Small HDL percentage" ~ "Phosphlipid ratio SHDL",
-                           title == "Cholesterol to Total Lipids in Very Large HDL percentage" ~ "Cholesterol ratio VLHDL",
-                           title == "Phospholipids to Total Lipids in Very Large HDL percentage" ~ "Phospholipids ratio VLHDL",
-                           title == "Cholesterol to Total Lipids in Small HDL percentage" ~ "Cholesterol ratio SHLD",
-                           title == "Spectrometer-corrected alanine" ~ "Alanine",
-                           TRUE ~ title))
+df_r2 <- readRDS("data/combined_variance.rds")
 
 df_top <- df_r2 %>%
-  group_by(type, phen) %>%
-  filter(any(term == "time_day" & p.value < 0.05)) %>%
-  ungroup() %>%
+  filter(term == "time_day") %>%
+  mutate(pval = p.adjust(p.value)) %>%
+  filter(pval < 0.05) %>%
   distinct(phen, .keep_all = TRUE) %>%
   arrange(desc(pr2)) %>%
   slice_head(n = 30) %>%
@@ -58,7 +38,16 @@ facet_levels <- df_top %>%
   mutate(f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title)) %>%
   pull(f_html)
 
-plot_bars_v <- df_top %>%
+
+time_lookup <- df_top %>%
+  filter(model == "time_day") %>%
+  group_by(phen) %>%
+  slice_max(t_r2, n = 1, with_ties = FALSE) %>%   # or slice_head(n = 1)
+  ungroup() %>%
+  transmute(phen, time_var = round(t_r2, 3)*100)
+
+#plot_bars_v <-
+df_plot <- df_top %>%
   mutate(
     f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title),
     facet_html = factor(f_html, levels = facet_levels),
@@ -74,9 +63,28 @@ plot_bars_v <- df_top %>%
       levels = c("Fasting", "BMI", "Smoking", "Sex", "Age", "Technical",  "Time of day")
     )
   ) %>%
+  left_join(time_lookup)
 
-  ggplot(aes(y = title, x = t_r2, fill = model)) +
+df_lab <- df_plot %>%
+  group_by(facet_html, title) %>%
+  summarise(
+    x_end    = sum(t_r2, na.rm = TRUE),
+    time_var = dplyr::first(time_var),    # common per bar
+    .groups  = "drop"
+  ) %>%
+  filter(!is.na(time_var)) %>%
+  mutate(
+    label = paste0(scales::number(time_var, accuracy = 1), "%"),
+    x_lab =  0.01                   # nudge to the right (2%)
+  )
+plot_bars_v <- ggplot(df_plot, aes(y = title, x = t_r2, fill = model)) +
   geom_col(width = 1) +
+  geom_text(
+    data = df_lab,
+    aes(x = x_lab, y = title, label = label),
+    inherit.aes = FALSE,
+    hjust = 0, size = 3.3
+  ) +
   facet_wrap(~facet_html, scales = "free_y", nrow = 20, ncol = 2) +
   scale_fill_paletteer_d("rcartocolor::Temps") +
   labs(fill = "Covariate", y = "", x = "R2") +
@@ -84,15 +92,15 @@ plot_bars_v <- df_top %>%
   theme_minimal() +
   theme(legend.position = "bottom",
         axis.text.y = element_blank(),
-        axis.text.x = element_text(size = 8),
+        axis.text.x = element_text(size = 10),
         strip.background = element_blank(),
-        strip.text  = element_markdown(size = 10, hjust = 0),
+        strip.text  = element_markdown(size = 14, hjust = 0),
         strip.placement = "inside",
         panel.spacing = unit(0, "lines"),
         panel.spacing.x = unit(0.5, "lines"),
         legend.key.size = unit(0.3, "cm"),
-        legend.text = element_text(size = 11),
-        legend.title = element_text(size = 12)
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14)
   )
 
 
@@ -105,5 +113,5 @@ plot_bars_v <- df_top %>%
 #
 # ggsave("plot_1.png", plot_final, width = 5.2, height = 5.2)
 
-ggsave("plots/plot_vars_h.png", plot_bars_v, width = 4, height = 7)
+ggsave("plots/plot_vars_h.png", plot_bars_v, width = 6, height = 10)
 

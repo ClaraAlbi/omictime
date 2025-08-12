@@ -2,41 +2,24 @@ library(tidyverse)
 library(cowplot)
 library(ggpubr)
 
-fields <- data.table::fread("data/field.tsv")
+df_effects <- readRDS("data/combined_effects.rds") %>%
+  mutate(pval_h = p.adjust(pvalue_h)) %>%
+  filter(pval_h < 0.05)
 
-df_effects <- bind_rows(readRDS("data/effects_labs.rds") %>% mutate(type = "Biochemistry") %>%
-                          left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
-                        readRDS("data/effects_counts.rds") %>% mutate(type = "Cell_counts") %>%
-                          left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
-                        readRDS("data/effects_nmr.rds") %>% mutate(type = "Metabolomics-NMR") %>%
-                          left_join(fields %>% select(field_id, title), by = c("phen" = "field_id"))) %>%
-  mutate(phen = as.character(phen)) %>%
-  bind_rows(readRDS("data/effects_olink.rds") %>% mutate(type = "Proteomics-Olink") %>%
-              mutate(title = phen)
-  ) %>%
-  mutate(color_var = case_when(type == "Proteomics-Olink" ~ "#76B041",
-                               type == "Metabolomics-NMR" ~ "#2374AB",
-                               type == "Cell_counts" ~ "#8F3985",
-                               type == "Biochemistry" ~ "#E85F5C"),
-         term = case_when(term == "(Intercept)" ~ "mesor",
-                          term == "cos(2 * pi * time_day/24)" ~ "beta_cos1",
-                          term == "sin(2 * pi * time_day/24)" ~ "beta_sin1")) %>%
-  pivot_wider(id_cols = c(phen, color_var, type, title), values_from = c(estimate, p.value, std.error), names_from = term) %>%
-  mutate(amplitude_24hfreq = sqrt(estimate_beta_cos1^2 + estimate_beta_sin1^2),
-         acrophase_24hfreq = (atan2(estimate_beta_sin1, estimate_beta_cos1) / (2 * pi) * 24 + 24) %% 24,
-         q = as.integer(round(acrophase_24hfreq, 0)))
+df_r2 <- readRDS("data/combined_variance.rds") %>%
+  filter(term == "time_day") %>%
+  mutate(pval = p.adjust(p.value)) %>%
+  filter(pval < 0.05)
 
+df_r2 %>%
+  distinct(phen, .keep_all = TRUE) %>%
+  arrange(desc(pr2)) %>%
+  slice_head(n = 20) %>%
+  pull(title) %>% paste0(collapse = ", ")
 
-df_r2 <- bind_rows(readRDS("data/aov_labs.rds") %>% mutate(type = "Biochemistry") %>%
-                     left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
-                   readRDS("data/aov_counts.rds") %>% mutate(type = "Cell_counts") %>%
-                     left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
-                   readRDS("data/aov_nmr.rds") %>% mutate(type = "Metabolomics-NMR") %>%
-                     left_join(fields %>% select(field_id, title), by = c("phen" = "field_id"))) %>%
-  mutate(phen = as.character(phen)) %>%
-  bind_rows(readRDS("data/aov_olink.rds") %>% mutate(type = "Proteomics-Olink") %>%
-              mutate(title = phen))
-
+labes <- df_effects %>%
+  full_join(df_r2, by = c("phen", "color_var", "type_clean", "title")) %>%
+  filter(pr2 > 0.01)
 
 light_band <- data.frame(
   xmin = 6,
@@ -52,36 +35,22 @@ night_band <- data.frame(
   ymax = Inf
 )
 
-df_top <- df_r2 %>%
-  group_by(type, phen) %>%
-  filter(any(term == "time_day" & p.value < 0.05)) %>%
-  ungroup() %>%
-  distinct(phen, .keep_all = TRUE) %>%
-  arrange(desc(pr2)) %>%
-  slice_head(n = 20) %>%
-  select(phen)
 
-labes <- full_join(df_effects[df_effects$amplitude_24hfreq > 0.4,], df_effects[df_effects$phen %in% df_top$phen,]) %>%
-  mutate(title = case_when(title == "White blood cell (leukocyte) count" ~ "Leukocyte count",
-                           title == "Phospholipids to Total Lipids in Small HDL percentage" ~ "Phosphlipid ratio",
-                           title == "Cholesterol to Total Lipids in Very Large HDL percentage" ~ "Cholesterol ratio",
-                           TRUE ~ title))
-
-plot_round <- df_effects %>%
-  filter(phen %in% df_r2$phen[df_r2$term == "time_day" & df_r2$pr2 > 0.01]) %>%
-  ggplot(aes(x = acrophase_24hfreq, y = amplitude_24hfreq, color = type, label = title)) +
+plot_round <- labes %>%
+  ggplot(aes(x = acrophase_24hfreq, y = amplitude_24hfreq, color = type_clean, label = title)) +
   geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
             fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
   geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-            fill = "gray", alpha = 0.2, inherit.aes = FALSE) +
+            fill = "lightblue", alpha = 0.2, inherit.aes = FALSE) +
+  geom_hline(yintercept = 0.3, linetype = 2, color = "darkgray") +
   #geom_col(aes(fill = type.x), alpha = 0.2) +
-  geom_point(size = 0.5) +
+  geom_point(size = 1.5, alpha = 0.8) +
   ggrepel::geom_label_repel(min.segment.length = 0,
-    data        = labes,
-    aes(label   = title, color = type),
-    fill        = alpha("white", 0.5),  # only the box is 50% transparent
+    data        = subset(labes, amplitude_24hfreq > 0.3),
+    aes(label   = title, color = type_clean),
+    fill        = alpha("white", 0.3),  # only the box is 50% transparent
     size        = 3,
-    label.size  = 0.2,
+    label.size  = 0.1,
     show.legend = FALSE,
     max.overlaps = 20
   ) +
@@ -89,11 +58,11 @@ plot_round <- df_effects %>%
   labs(x = "Acrophase", y = "Amplitude") +
   scale_x_continuous(limits = c(0, 24), breaks = 0:23) +
   scale_color_manual(
-    name   = "Omic type",
+    name   = "Data type",
     values = c(
-      "Proteomics-Olink"  = "#76B041",
-      "Metabolomics-NMR"  = "#2374AB",
-      "Cell_counts"       = "#8F3985",
+      "Proteins"  = "#76B041",
+      "Metabolites"  = "#2374AB",
+      "Cell counts"       = "#8F3985",
       "Biochemistry"      = "#E85F5C"
     )
   ) +
@@ -101,15 +70,16 @@ plot_round <- df_effects %>%
     color = guide_legend(
       override.aes = list(
         shape = 15,
-        size  = 6
-      ), nrow = 2, byrow = TRUE
+        size  = 8
+      ), nrow = 1, byrow = TRUE,
     )
   ) +
   theme_minimal() +
-  theme(legend.position = "bottom", legend.direction = "horizontal",
-        text = element_text(size = 10))
+  theme(legend.position = "bottom", legend.direction = "horizontal", legend.title = element_blank(),
+        text = element_text(size = 12))
 
-ggsave("plots/plot_harmonic.png", plot_round  + theme(legend.position = "none"), width = 4, height = 4)
+ggsave("plots/plot_harmonic.png", plot_round, width = 6, height = 7)
+
 
 legend_grob <- get_legend(plot_round)
 

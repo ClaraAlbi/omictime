@@ -10,8 +10,7 @@ df_effects <- bind_rows(readRDS("data/effects_labs.rds") %>% mutate(type = "Bioc
                           left_join(fields %>% select(field_id, title), by = c("phen" = "field_id"))) %>%
   mutate(phen = as.character(phen)) %>%
   bind_rows(readRDS("data/effects_olink.rds") %>% mutate(type = "Proteomics-Olink") %>%
-              mutate(title = phen)
-  ) %>%
+              mutate(title = phen)) %>%
   mutate(color_var = case_when(type == "Proteomics-Olink" ~ "#76B041",
                                type == "Metabolomics-NMR" ~ "#2374AB",
                                type == "Cell_counts" ~ "#8F3985",
@@ -22,7 +21,9 @@ df_effects <- bind_rows(readRDS("data/effects_labs.rds") %>% mutate(type = "Bioc
   pivot_wider(id_cols = c(phen, color_var, type, title), values_from = c(estimate, p.value, std.error), names_from = term) %>%
   mutate(amplitude_24hfreq = sqrt(estimate_beta_cos1^2 + estimate_beta_sin1^2),
          acrophase_24hfreq = (atan2(estimate_beta_sin1, estimate_beta_cos1) / (2 * pi) * 24 + 24) %% 24,
-         q = as.integer(round(acrophase_24hfreq, 0)))
+         q = as.integer(round(acrophase_24hfreq, 0)),
+         p.val_joined = min(p.value_beta_sin1, p.value_beta_cos1),
+         p.val_fdr = p.adjust(p.val_joined))
 
 df_r2 <- bind_rows(readRDS("data/aov_labs.rds") %>% mutate(type = "Biochemistry") %>%
                      left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
@@ -62,9 +63,9 @@ df_pha <- readxl::read_xlsx("data/1-s2.0-S2352721823002401-mmc1.xlsx", skip = 1)
   mutate(
     # circular distance to 1‐harmonic fit
     dist24 = circ_diff24(acro2h, acrophase_24hfreq),
-    best_harmonic = case_when(harmonic == "acro_fund" ~ "2h-fundamental",
-                              harmonic == "acro_1st" ~ "2h-1st",
-                              harmonic == "acro_1h" ~ "1h")
+    best_harmonic = case_when(harmonic == "acro_fund" ~ "2har-fundamental",
+                              harmonic == "acro_1st" ~ "2har-1st",
+                              harmonic == "acro_1h" ~ "1har")
   )
 
 
@@ -107,12 +108,12 @@ p_phase <- ggplot(df_best, aes(
   scale_color_manual(
     "Category / Closest harmonic",
     values = c(
-      "circadian / 1h"   = "#D73027",
-      "circadian / 2h-1st"= "#FC8D59",
-      "circadian / 2h-fundamental"= "darkred",
-      "diurnal / 1h"   = "#4575B4",
-      "diurnal / 2h-1st"= "#91BFDB",
-      "diurnal / 2h-fundamental"= "darkblue"
+      "circadian / 1har"   = "#D73027",
+      "circadian / 2har-1st"= "#FC8D59",
+      "circadian / 2har-fundamental"= "darkred",
+      "diurnal / 1har"   = "#4575B4",
+      "diurnal / 2har-1st"= "#91BFDB",
+      "diurnal / 2har-fundamental"= "darkblue"
     ),
     guide = guide_legend(
       override.aes = list(
@@ -127,4 +128,67 @@ p_phase <- ggplot(df_best, aes(
     panel.grid.minor = element_blank()
   )
 
-ggsave("plots/validation_harmonic_FS2.png",p_phase, width = 10, height = 7)
+ggsave("plots/validation_harmonic_FS2.png", p_phase, width = 10, height = 7)
+
+
+
+### Calculate correlation
+
+to_rad <- function(x, period = 24) (x %% period) / period * 2*pi
+
+circ_mean <- function(theta) atan2(mean(sin(theta)), mean(cos(theta)))
+
+rho_js <- function(th1, th2) {
+  stopifnot(length(th1) == length(th2))
+  mu1 <- circ_mean(th1); mu2 <- circ_mean(th2)
+  s1 <- sin(th1 - mu1); s2 <- sin(th2 - mu2)
+  num <- sum(s1 * s2)
+  den <- sqrt(sum(s1^2) * sum(s2^2))
+  if (den == 0) return(NA_real_)
+  num / den
+}
+
+
+# Permutation p-value for any statistic (JS or FL)
+perm_pval <- function(th1, th2, stat_fun = rho_js, B = 2000L, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  obs <- stat_fun(th1, th2)
+  cnt <- 0L
+  for (b in 1:B) {
+    th2p <- sample(th2, replace = FALSE)
+    if (abs(stat_fun(th1, th2p)) >= abs(obs)) cnt <- cnt + 1L
+  }
+  list(stat = obs, p = (cnt + 1) / (B + 1))
+}
+
+
+d_wide <- df_best %>%
+  filter(`Rhythmic Category` == "circadian")
+
+# Example: hours → radians
+t1 <- to_rad(d_wide$acrophase_24hfreq); t2 <- to_rad(d_wide$acro2h)
+t1 <- to_rad(df_best$acrophase_24hfreq); t2 <- to_rad(df_best$acro2h)
+perm_pval(t1, t2, stat_fun = rho_js, B = 5000)
+
+
+# How many repeated
+rep <- df_pha %>%
+  group_by(`Sequence ID (Somalogic reference)`,
+           Gene,
+           `Rhythmic Category`) %>%
+  count() %>% arrange(desc(n)) %>%
+  ungroup()
+
+gene_flags <- rep %>%
+  count(Gene, `Rhythmic Category`, name = "n_rows") %>%
+  pivot_wider(names_from = `Rhythmic Category`,
+              values_from = n_rows,
+              values_fill = 0) %>%           # make indicators
+  mutate(
+    circadian = as.integer(circadian > 0),
+    diurnal   = as.integer(diurnal   > 0),
+    both      = circadian & diurnal
+  )
+
+n_genes_both <- sum(gene_flags$both)
+genes_both   <- gene_flags %>% filter(both == 1) %>% pull(Gene)

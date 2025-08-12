@@ -160,7 +160,7 @@ system.time({
 
     # ===================== PREDICT ======================
     # LightGBM / XGBoost
-    y_pred_lgb <- predict(lgb_model, X_test, rawscore = FALSE)
+    y_pred_lgb <- predict(lgb_model, X_test, raw = FALSE)
     y_pred_xgb <- predict(xgb_model, xgb.DMatrix(X_test))
 
     # LASSO
