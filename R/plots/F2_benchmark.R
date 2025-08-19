@@ -7,18 +7,40 @@ library(purrr)
 
 l <- list.files("/mnt/project/biomarkers_3", full.names = T)
 
-data <- tibble(f = l[str_detect(l, "predictions")]) %>%
-  mutate(d = map(f, readRDS)) %>%
-  mutate(type = stringr::str_extract(f, "(?<=predictions_)([^_]+)"),
-         cv = stringr::str_extract(f, "(?<=cv)\\d+"),
-         N = map_dbl(d, ~sum(!is.na(.x$pred_lasso))),
-         lgb = map_dbl(d, ~cor(.x$time_day, .x$pred_lgb)^2),
-         xgboost = map_dbl(d, ~cor(.x$time_day, .x$pred_xgboost)^2),
-         lasso = map_dbl(d, ~cor(.x$time_day, .x$pred_lasso)^2),
-         lassox2 = map_dbl(d, ~cor(.x$time_day, .x$pred_lassox2)^2)) %>%
-  select(-d, -f)
 
-saveRDS(data, "data/model_benchmark.rds")
+files <- c(list.files("/mnt/project/biomarkers_3",
+                      pattern = "predictions", full.names = TRUE)[-c(1:5,31:35)],
+           list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
+                      pattern = "predictions", full.names = TRUE))
+
+data <- tibble(file = files) %>%
+  mutate(
+    data = map(file, readRDS),
+    type = str_extract(file, "(?<=predictions_)[^_]+"),
+    cv   = str_extract(file, "(?<=cv)\\d+"),
+    N    = map_dbl(data, ~ sum(!is.na(.x[[4]]))),
+    lgb   = map_dbl(data, ~ cor(.x$time_day, .x$pred_lgb)^2),
+    xgboost = map_dbl(data, ~ cor(.x$time_day, .x$pred_xgboost)^2),
+    lasso   = map_dbl(data, ~ cor(.x$time_day, .x$pred_lasso)^2),
+    lassox2 = map_dbl(data, ~ cor(.x$time_day, .x$pred_lassox2)^2)
+  ) %>%
+  select(-data, -file)
+
+
+
+  group_by(type, cv) %>%
+  summarise(
+    across(lgb:lassox2, ~ mean(.x), .names = "{col}_mr2"),
+    N = sum(N),
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = ends_with("mr2"),
+    names_to  = "model",
+    names_pattern = "(.*)_mr2",
+    values_to = "mr2"
+  )
+
 
 pbenchmark <- data %>%
   group_by(type) %>%
@@ -30,14 +52,13 @@ pbenchmark <- data %>%
   mutate(m_r2 = mean(value),
          sd_r2 = sd(value),
          N_cv = round(mean(samples), 0)) %>%
-
   ggplot(aes(x = type, y = value, fill = name)) +
   geom_col(aes(y = m_r2, fill = name),
           position = position_dodge(width = 0.7),
-          width = 0.7, color = NA) +
+          width = 0.7, alpha = 0.2) +
   geom_jitter(color = "black", shape = 21,
               position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.7),
-              size = 2, alpha = 0.9) +
+              size = 2) +
   scale_y_continuous(n.breaks = 8) +
   scale_x_discrete(expand = c(0.01, 0)) +
   facet_grid(~type + samples, scales = "free") +
