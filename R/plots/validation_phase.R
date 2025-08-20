@@ -79,7 +79,8 @@ df_best <- df_pha %>%
   mutate(
     combo = paste0(`Rhythmic Category`, " / ", best_harmonic)
   ) %>%
-  left_join(df_r2)
+  left_join(df_r2) %>%
+  left_join(df_effects)
 
 
 p_phase <- ggplot(df_best, aes(
@@ -90,16 +91,16 @@ p_phase <- ggplot(df_best, aes(
 )) +
   geom_abline(linetype = "dashed", color = "grey50") +
   geom_point(size = 2) +
-  ggrepel::geom_text_repel(data = df_best[df_best$amplitude_24hfreq > 0.2 & df_best$p.value < 0.05/3000 & df_best$pr2 > 0.01,],
+  ggrepel::geom_text_repel(data = df_best[df_best$amplitude_24hfreq > 0.2 & df_best$p.val_fdr < 0.05 & df_best$pr2 > 0.01,],
                            size = 5) +
   scale_y_continuous(
-    "Acrophase from 24h data (h)",
+    "Acrophase from 24h data (h). SomaScan/Specht",
     breaks = seq(0, 24, by = 4),
     limits = c(0, 24),
     expand = c(0, 0)
   ) +
   scale_x_continuous(
-    "Acrophase from 12h data (h)",
+    "Acrophase from 12h data (h). Olink/UKB",
     breaks = seq(0, 24, by = 4),
     limits = c(0, 24),
     expand = c(0, 0)
@@ -130,6 +131,62 @@ p_phase <- ggplot(df_best, aes(
 
 ggsave("plots/validation_harmonic_FS2.png", p_phase, width = 10, height = 7)
 
+
+
+
+### Rebecca
+
+ref <- data.table::fread("~/OneDrive - Nexus365/projects/circadian/clara_results_top19.csv")
+
+
+p_olink <- df_best %>%
+  inner_join(ref, by = c("Gene" ="Assay")) %>%
+  ggplot(aes(
+    x     = acrophase_24hfreq,
+    y     = acrophase_hr,
+    label = Gene
+  )) +
+  geom_abline(linetype = "dashed", color = "grey50") +
+  geom_point(size = 2) +
+  ggrepel::geom_text_repel(size = 5) +
+  scale_y_continuous(
+    "Acrophase from 24h data (h). Olink/Rebecca",
+    breaks = seq(0, 24, by = 4),
+    limits = c(0, 24),
+    expand = c(0, 0)
+  ) +
+  scale_x_continuous(
+    "Acrophase from 12h data (h). Olink/UKB",
+    breaks = seq(0, 24, by = 4),
+    limits = c(0, 24),
+    expand = c(0, 0)
+  ) +
+  coord_fixed() +
+  scale_color_manual(
+    "Category / Closest harmonic",
+    values = c(
+      "circadian / 1har"   = "#D73027",
+      "circadian / 2har-1st"= "#FC8D59",
+      "circadian / 2har-fundamental"= "darkred",
+      "diurnal / 1har"   = "#4575B4",
+      "diurnal / 2har-1st"= "#91BFDB",
+      "diurnal / 2har-fundamental"= "darkblue"
+    ),
+    guide = guide_legend(
+      override.aes = list(
+        shape = 15,    # solid square
+        size  = 6      # enlarge the square
+      )
+    )
+  ) +
+  theme_minimal(base_size = 18) +
+  theme(
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+  )
+
+
+ggsave("plots/validation_harmonic_olink.png", p_olink, width = 10, height = 7)
 
 
 ### Calculate correlation
