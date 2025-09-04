@@ -13,7 +13,7 @@ type <- "i0"
 # ---- load data
 
 ### FILTER ONLY FOUR PANELS
-panels_in <- readRDS("olink_panels_1to4.rds")
+panels_in <- readRDS("/mnt/project/olink_panels_1to4.rds")
 
 # DO NOT scale across full data (leakage). We'll scale inside each train fold.
 data_all <- readRDS("/mnt/project/biomarkers_3/covariate_res/OLINK/res_olink.rds") %>%
