@@ -53,6 +53,8 @@ saveRDS(prots_out, "olink_instance_0_QC.rds")
 
 panels_14 <- panel$prot[panel$Panel %in% c("Cardiometabolic", "Inflammation", "Neurology", "Oncology")]
 
+saveRDS(panels_14, "olink_panels_1to4.rds")
+
 prots_14 <- data.table::fread("/mnt/project/olink_instance_0.csv") %>% as_tibble() %>%
   select(eid, any_of(panels_14))
 

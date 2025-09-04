@@ -4,12 +4,12 @@ library(dplyr)
 library(ggplot2)
 library(purrr)
 library(scales)
+install.packages("ggpmisc")
 
 files <- c(list.files("/mnt/project/biomarkers_3",
-                    pattern = "predictions", full.names = TRUE)[-c(31:35)],
+                      pattern = "predictions", full.names = TRUE)[-c(31:35, 1:5)],
            list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
-                    pattern = "predictions", full.names = TRUE))
-
+                      pattern = "predictions", full.names = TRUE))
 
 # 2. Compute per‐type R² summaries (r2s)
 r2s <- tibble(file = files) %>%
@@ -79,7 +79,6 @@ formula <- y ~ x
 
 # 3. Build the plot, layering on the eq‐labels
 pl <- plot_data %>%
-  slice(rdunif(100000, nrow(plot_data))) %>%
   ggplot(aes(x = time_day, y = prediction)) +
   # your raw points
   geom_point(aes(color = type), alpha = 0.5, size = 0.8) +
@@ -152,12 +151,16 @@ corr_mat <- pred_wide %>%
 
 # 3. Melt into long form for ggplot
 types <- colnames(corr_mat)
-corr_long <- corr_long %>%
+
+corr_long <- corr_mat %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("type1") %>%
+  pivot_longer(-type1, names_to = "type2", values_to = "r") %>%
   mutate(
     type1 = factor(type1, levels = types),
     type2 = factor(type2, levels = types)
   ) %>%
-  filter(as.numeric(type1) >= as.numeric(type2))
+  filter(as.integer(type1) >= as.integer(type2))
 
 # 5. Plot heatmap of just that half
 p_heat <- ggplot(corr_long, aes(x = type2, y = type1, fill = r)) +

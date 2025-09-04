@@ -6,7 +6,7 @@ library(stringr)
 library(glue)
 library(broom)
 
-type <- "olink"
+type <- "i0"
 
 # Rank-based inverse normal transform
 rint <- function(x) {
@@ -50,7 +50,7 @@ metadata <- data.table::fread("/mnt/project/olink_instance_0_meta.csv") %>%
   rename_with(~ str_remove(.x, " ")) %>%
   mutate(across(Cardiometabolic:OncologyII, factor), .keep = "all")
 
-prots <- readRDS("/mnt/project/olink_instance_0_QC.rds")
+prots <- readRDS("/mnt/project/olink_instance_0_QC_panels14.rds")
 
 stopifnot("eid" %in% names(prots))
 

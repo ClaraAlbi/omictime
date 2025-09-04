@@ -11,6 +11,11 @@ install.packages("glmnet")
 
 l <- list.files("/mnt/project/biomarkers_3", full.names = T)
 
+l <- c(list.files("/mnt/project/biomarkers_3",
+                      pattern = "predictions", full.names = TRUE)[-c(31:35, 1:5)],
+           list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
+                      pattern = "predictions", full.names = TRUE))
+
 preds_i0_olink <- tibble(f = l[str_detect(l, "predictions_i0")]) %>%
   mutate(d = map(f, readRDS)) %>%
   unnest(d)
