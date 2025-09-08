@@ -9,10 +9,10 @@ library(lightgbm)
 install.packages("xgboost")
 install.packages("glmnet")
 
-l <- list.files("/mnt/project/biomarkers_3", full.names = T)
+#l <- list.files("/mnt/project/biomarkers_3", full.names = T)
 
 l <- c(list.files("/mnt/project/biomarkers_3",
-                      pattern = "predictions", full.names = TRUE)[-c(31:35, 1:5)],
+                      pattern = "predictions", full.names = TRUE)[-c(31:35, 1:5, 16:20)],
            list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
                       pattern = "predictions", full.names = TRUE))
 
@@ -110,6 +110,18 @@ out_i0 <- preds_i0_olink %>%
   select(-data)
 
 # MODELS OLINK
+
+# m1 <- readRDS("/mnt/project/biomarkers_3/covariate_res/MODELS/cv.i0_lightgbm_cv1.rds")
+# lgb.save(booster = m1, filename = "data_share/cv.i0_lightgbm_cv1.rds")
+#
+# m2 <- readRDS("/mnt/project/biomarkers_3/covariate_res/MODELS/cv.i0_xgb_cv1.rds")
+# xgboost::xgb.save(model = m2, fname = "data_share/cv.i0_xgb_cv1.rds")
+#
+# m3 <- readRDS("/mnt/project/biomarkers_3/covariate_res/MODELS/cv.i0_lasso_cv1.rds")
+# saveRDS(m3, "data_share/cv.i0_lasso_cv1.rds")
+# m4 <- readRDS("/mnt/project/biomarkers_3/covariate_res/MODELS/cv.i0_lassox2_cv1.rds")
+# saveRDS(m4, "data_share/cv.i0_lassox2_cv1.rds")
+
 lgb1 <- lightgbm::lgb.load("data_share/cv.i0_lightgbm_cv1.rds")
 xgb <- xgboost::xgb.load("data_share/cv.i0_xgb_cv1.rds")
 lasso <- readRDS("data_share/cv.i0_lasso_cv1.rds")
@@ -118,6 +130,7 @@ lassox2 <- readRDS("data_share/cv.i0_lassox2_cv1.rds")
 ### validation
 
 i2_data <- data.table::fread("/mnt/project/OLINK_i2.tsv") %>%
+  select(eid, any_of(readRDS("data_share/olink_panels_1to4_over.rds"))) %>%
   mutate(across(-eid, ~scale(.x)[,1]))
 i2_meta <- data.table::fread("/mnt/project/blood_sampling_instance2.tsv") %>%
   filter(!is.na(`3166-2.0`)) %>%
@@ -175,6 +188,7 @@ ggsave("plots/plot_histogram_i2.png", i2_hist, width = 8, height = 8)
 
 # i3
 i3_data <- data.table::fread("/mnt/project/OLINK_i3.tsv") %>%
+  select(eid, any_of(readRDS("data_share/olink_panels_1to4_over.rds"))) %>%
   mutate(across(-eid, ~scale(.x)[,1]))
 i3_meta <- data.table::fread("/mnt/project/blood_sampling_instance3.tsv") %>%
   filter(!is.na(`3166-3.0`)) %>%

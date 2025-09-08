@@ -19,7 +19,7 @@ panels_in <- readRDS("/mnt/project/olink_panels_1to4.rds")
 data_all <- readRDS("/mnt/project/biomarkers_3/covariate_res/OLINK/res_olink.rds") %>%
   select(eid, any_of(panels_in))
 stopifnot(all(c("eid") %in% names(data_all)))
-
+#saveRDS(colnames(data_all)[-1], "data_share/olink_panels_1to4_over.rds")
 
 time <- readRDS("/mnt/project/biomarkers/time.rds") %>%
   select(eid, time_day)
