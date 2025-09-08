@@ -132,6 +132,10 @@ lassox2 <- readRDS("data_share/cv.i0_lassox2_cv1.rds")
 i2_data <- data.table::fread("/mnt/project/OLINK_i2.tsv") %>%
   select(eid, any_of(readRDS("data_share/olink_panels_1to4_over.rds"))) %>%
   mutate(across(-eid, ~scale(.x)[,1]))
+
+row_na_counts <- rowSums(is.na(i2_data))
+i2_data <- i2_data[row_na_counts < ncol(i2_data)/3,]
+
 i2_meta <- data.table::fread("/mnt/project/blood_sampling_instance2.tsv") %>%
   filter(!is.na(`3166-2.0`)) %>%
   filter(eid %in% i2_data$eid) %>%
@@ -190,9 +194,13 @@ ggsave("plots/plot_histogram_i2.png", i2_hist, width = 8, height = 8)
 i3_data <- data.table::fread("/mnt/project/OLINK_i3.tsv") %>%
   select(eid, any_of(readRDS("data_share/olink_panels_1to4_over.rds"))) %>%
   mutate(across(-eid, ~scale(.x)[,1]))
+
+row_na_counts <- rowSums(is.na(i3_data))
+i3_data <- i3_data[row_na_counts < ncol(i3_data)/3,]
+
 i3_meta <- data.table::fread("/mnt/project/blood_sampling_instance3.tsv") %>%
   filter(!is.na(`3166-3.0`)) %>%
-  filter(eid %in% i3_data$eid) %>%
+  #filter(eid %in% i3_data$eid) %>%
   mutate(max_time = pmax(`3166-3.0`,`3166-3.1`,`3166-3.2`,`3166-3.3`,`3166-3.4`, `3166-3.5`, na.rm = T)) %>%
   separate(max_time, into = c("date", "time"), sep = " ") %>%
   separate(time, into = c("h", "min", "s"), sep = ":") %>%

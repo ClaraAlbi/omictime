@@ -7,19 +7,16 @@ install.packages("paletteer")
 install.packages("forcats")
 install.packages("cowplot")
 install.packages("broom")
-install.packages("ggdraw")
+#install.packages("ggdraw")
+install.packages("ggrepel")
+library(ggplot2)
 
-covs <- readRDS("/mnt/project/biomarkers/covs.rds")
-
-l <- list.files("/mnt/project/biomarkers_3", full.names = T)
-
-preds_olink <- tibble(f = l[str_detect(l, "predictions_olink")]) %>%
-    mutate(d = map(f, readRDS)) %>%
-    unnest(d) %>%
+preds_olink <- readRDS("olink_int_replication.rds") %>%
+  filter(i == 0) %>%
   mutate(gap = pred_lasso - time_day)
 
-mod <- lm(pred_lasso ~ time_day, data = preds_olink)
 preds_olink$res <- residuals(lm(pred_lasso ~ time_day, data = preds_olink))
+mod <- lm(pred_lasso ~ time_day, data = preds_olink)
 
 df2 <- broom::augment(mod, data = preds_olink)
 df2$gap <- df2$pred_lasso - df2$time_day
@@ -27,10 +24,6 @@ df2$gap <- df2$pred_lasso - df2$time_day
 # Identify the two biggest |residuals|
 top2 <- df2 %>%
   filter(eid %in% c(5723240, 1218408))
-  # filter(time_day == 12  | time_day == 18) %>%
-  # mutate(absres = abs(.resid)) %>%
-  # slice_max(absres, n = 4, with_ties = FALSE) %>%
-  # slice_sample(n = 2)
 
 
 p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
@@ -64,7 +57,7 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
   ggrepel::geom_label_repel(
     data = top2,
     aes(x = time_day, y = pred_lasso,
-        label = paste0(round(.resid, 1), "h")),
+        label = paste0(round(gap, 1), "h")),
     nudge_x    = 0.5,       # move right
     nudge_y    = 0,         # no vertical shift
     hjust      = 0,         # left-align text so it extends rightward
@@ -121,10 +114,12 @@ part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.2, 1))
 
 ###
 
-df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
+df <- readRDS("olink_int_replication.rds") %>%
   mutate(gap = pred_lasso - time_day) %>%
-  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
+  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) #%>%
   filter(n == 3)
+
+df$res <- residuals(lm(pred_lasso ~ time_day, data = df))
 
 res_wide <- df %>%
   pivot_wider(id_cols = eid,
@@ -144,12 +139,13 @@ make_pair_plot <- function(v1, v2){
   # 1) compute the two correlations
   r_acc  <- cor(res_wide[[x_gap]],  res_wide[[y_gap]],  use = "pairwise.complete.obs")
   r_time <- cor(res_wide[[x_time]], res_wide[[y_time]], use = "pairwise.complete.obs")
+  n <- res_wide %>% filter(!is.na(res_wide[[y_gap]]) & !is.na(res_wide[[x_gap]]))
 
   # 2) build a little data frame for the two text labels
   label_df <- tibble(
     x     = c(-5, -5),            # both start at x = –3.5
     y     = c( 6,  5.3),            # one at y=3.8, one at y=3.4
-    label = c(
+    label = c(paste0("N == ", n),
       paste0("italic(r)[Acceleration] == ", round(r_acc,  2)),
       paste0("italic(r)[Time~day]       == ", round(r_time, 2))
     ),

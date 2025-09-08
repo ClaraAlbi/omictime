@@ -6,7 +6,7 @@ library(purrr)
 install.packages("cowplot")
 install.packages("ggpmisc")
 
-df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
+df <- readRDS("olink_int_replication.rds") %>%
   mutate(i = case_when(i == 0  ~ "Initial assessment \n(2006-2010)",
                        i == 2  ~ "Imaging \n(2014+)",
                        i == 3  ~ "First repeat imaging \n(2019+)"),
