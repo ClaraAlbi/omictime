@@ -103,6 +103,7 @@ p_hist <- preds_olink %>%
   labs(x = "Acceleration") +
   ggtitle("B") +
   paletteer::scale_fill_paletteer_c("ggthemes::Orange-Blue Diverging", direction = -1) +
+  scale_x_continuous(limits = c(-7,7)) +
   theme_classic(base_size = 14) +
   theme(legend.position = "none",
         axis.title = element_text(face = "bold"),
