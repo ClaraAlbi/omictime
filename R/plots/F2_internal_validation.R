@@ -20,6 +20,7 @@ preds_i0_olink <- tibble(f = l[str_detect(l, "predictions_i0")]) %>%
   mutate(d = map(f, readRDS)) %>%
   unnest(d)
 
+### NMR
 preds_i0_nmr <- tibble(f = l[str_detect(l, "predictions_NMR")]) %>%
   mutate(d = map(f, readRDS)) %>%
   unnest(d)
@@ -126,6 +127,38 @@ lgb1 <- lightgbm::lgb.load("data_share/cv.i0_lightgbm_cv1.rds")
 xgb <- xgboost::xgb.load("data_share/cv.i0_xgb_cv1.rds")
 lasso <- readRDS("data_share/cv.i0_lasso_cv1.rds")
 lassox2 <- readRDS("data_share/cv.i0_lassox2_cv1.rds")
+
+
+
+## Not included in i0 (because of missingness)
+
+prots <- data.table::fread("/mnt/project/olink_instance_0.csv") %>% as_tibble()
+
+row_na_counts <- rowSums(is.na(prots))
+prots_f <- prots[row_na_counts > ncol(prots)/3,] %>%
+  select(eid, any_of(readRDS("data_share/olink_panels_1to4_over.rds"))) %>%
+  mutate(across(-eid, ~scale(.x)[,1]))
+
+prots_f_imp <- glmnet::makeX(prots_f %>% select(-eid), na.impute = T)
+prots_f_imp_x2 <- glmnet::makeX(prots_f %>% select(-eid) %>% mutate(across(where(is.numeric), list(sq = ~ .^2), .names = "{.col}_sq")), na.impute = T)
+
+preds_protsf <- tibble(eid = time_i0$eid[match(prots_f$eid, time_i0$eid)],
+                       y_test = time_i0$time_day[match(prots_f$eid, time_i0$eid)],
+                       pred_lgb = predict(lgb1, as.matrix(prots_f %>% select(-eid))),
+                       pred_xgboost = predict(xgb, as.matrix(prots_f %>% select(-eid))),
+                       pred_lasso = predict(lasso, prots_f_imp)[,1],
+                       pred_lassox2 = predict(lassox2, prots_f_imp_x2)[,1]) %>%
+  left_join(time_i0 %>% select(eid, time_day, date_bsampling))
+
+out_i0_2 <- preds_protsf %>%
+  pivot_longer(-c(eid, y_test, time_day, date_bsampling)) %>%
+  group_by(name) %>%
+  nest() %>%
+  mutate(r2 = map_dbl(data, ~cor(.x$y_test, .x$value, use = "complete.obs")^2),
+         N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
+  select(-data)
+
+preds_i0 <- bind_rows(preds_i0_olink, preds_protsf)
 
 ### validation
 
@@ -251,7 +284,7 @@ i3_hist <- i3_meta %>%
 
 ggsave("plots/plot_histogram_i3.png", i3_hist, width = 8, height = 8)
 
-df <- preds_i0_olink %>% mutate(i = 0) %>%
+df <- preds_i0 %>% mutate(i = 0) %>%
   left_join(time_i0 %>% select(eid, date_bsampling)) %>%
   select(-f) %>%
   bind_rows(preds_i2 %>% mutate(i = 2) %>% select(-y_test)) %>%

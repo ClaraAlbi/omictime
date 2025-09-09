@@ -4,7 +4,7 @@ library(stringr)
 library(purrr)
 #install.packages("ggpubr")
 install.packages("paletteer")
-install.packages("forcats")
+#install.packages("forcats")
 install.packages("cowplot")
 install.packages("broom")
 #install.packages("ggdraw")
@@ -13,7 +13,8 @@ library(ggplot2)
 
 preds_olink <- readRDS("olink_int_replication.rds") %>%
   filter(i == 0) %>%
-  mutate(gap = pred_lasso - time_day)
+  mutate(gap = pred_lasso - time_day) %>%
+  filter(!is.na(time_day))
 
 preds_olink$res <- residuals(lm(pred_lasso ~ time_day, data = preds_olink))
 mod <- lm(pred_lasso ~ time_day, data = preds_olink)
@@ -116,6 +117,7 @@ part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.2, 1))
 
 df <- readRDS("olink_int_replication.rds") %>%
   mutate(gap = pred_lasso - time_day) %>%
+  filter(!is.na(time_day)) %>%
   separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) #%>%
   filter(n == 3)
 
@@ -139,13 +141,13 @@ make_pair_plot <- function(v1, v2){
   # 1) compute the two correlations
   r_acc  <- cor(res_wide[[x_gap]],  res_wide[[y_gap]],  use = "pairwise.complete.obs")
   r_time <- cor(res_wide[[x_time]], res_wide[[y_time]], use = "pairwise.complete.obs")
-  n <- res_wide %>% filter(!is.na(res_wide[[y_gap]]) & !is.na(res_wide[[x_gap]]))
+  n <- res_wide %>% filter(!is.na(res_wide[[y_gap]]) & !is.na(res_wide[[x_gap]])) %>% nrow()
 
   # 2) build a little data frame for the two text labels
   label_df <- tibble(
-    x     = c(-5, -5),            # both start at x = –3.5
-    y     = c( 6,  5.3),            # one at y=3.8, one at y=3.4
-    label = c(paste0("N == ", n),
+    x     = c(-5, -5),
+    y     = c( 6,  5.3),
+    label = c(#paste0("N == ", n),
       paste0("italic(r)[Acceleration] == ", round(r_acc,  2)),
       paste0("italic(r)[Time~day]       == ", round(r_time, 2))
     ),
