@@ -8,19 +8,19 @@ install.packages("forcats")
 #library(ggstatsplot)
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds")
-l <- list.files("/mnt/project/biomarkers_3", full.names = T)
-preds_olink <- tibble(f = l[str_detect(l, "predictions_olink")]) %>%
-  mutate(d = map(f, readRDS)) %>%
-  unnest(d) %>%
-  mutate(gap = pred_lasso - time_day)
-preds_olink$res <- residuals(lm(pred_lasso ~ time_day, data = preds_olink))
 
+preds_olink <- readRDS("olink_int_replication.rds") %>% filter(i == 0 & !is.na(cv)) %>%
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)),
+         gap = pred_mean - time_day,
+         mod_sd = sd(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))
+preds_olink$res <- residuals(lm(pred_mean ~ time_day, data = preds_olink))
 
 
 data <- preds_olink %>%
   left_join(covs) %>%
-  left_join(data.table::fread("/mnt/project/clara/covariates.csv")) %>%
-  mutate(Sex = factor(sex, labels = c("Female", "Male"))) %>%
+  #left_join(data.table::fread("/mnt/project/clara/covariates.csv")) %>%
+  mutate(Sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male"))) #%>%
   group_by(p21000_i0) %>%
   mutate(n = n()) %>% filter(n > 200) %>%
   mutate(
@@ -31,13 +31,19 @@ data <- preds_olink %>%
     ), ancestry = forcats::fct_recode(ancestry,"Other white" = "Any other white background")
   ) %>% ungroup()
 
+data %>%
+  group_by(Sex, age_recruitment) %>%
+  summarise(m_p = mean(gap), n = n()) %>%
+  filter(n > 10) %>%
+  ggplot(aes(x = age_recruitment, y = m_p, color = Sex)) + geom_point()
 
 plot_demo1 <- data %>%
-  ggplot(aes(x = age_recruitment, y = res, color = Sex)) + geom_smooth() +
+  filter(age_recruitment > 39) %>%
+  ggplot(aes(x = age_recruitment, y = time_day, color = Sex)) + geom_smooth() +
   theme_classic(base_size = 14) +
-  labs(x = "Age", y = "Acceleration", color = "Sex") +
+  labs(x = "Age", y = "Recorded time of day", color = "Sex") +
   ggtitle("C") +
-  #paletteer::scale_color_paletteer_d("nbapalettes::cavaliers_retro") +
+  paletteer::scale_color_paletteer_d("nbapalettes::cavaliers_retro") +
   theme(legend.position      = c(0.95, 0.95),
         legend.justification = c("right", "top"),
         axis.title = element_text(face = "bold"),
@@ -46,7 +52,8 @@ plot_demo1 <- data %>%
 
 
 # Models
-broom::tidy(glm(res ~ age_recruitment, data = data %>% filter(Sex == "Male")))
+broom::tidy(glm(gap ~ Sex, data = data))
+broom::tidy(glm(gap ~ age_recruitment, data = data %>% filter(Sex == "Female")))
 
 gam_mod <- mgcv::gam(
   res ~ s(age_recruitment,         # a smooth function of age
