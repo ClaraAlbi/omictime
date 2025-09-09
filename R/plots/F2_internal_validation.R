@@ -9,8 +9,6 @@ library(lightgbm)
 install.packages("xgboost")
 install.packages("glmnet")
 
-#l <- list.files("/mnt/project/biomarkers_3", full.names = T)
-
 l <- c(list.files("/mnt/project/biomarkers_3",
                       pattern = "predictions", full.names = TRUE)[-c(31:35, 1:5, 16:20)],
            list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
@@ -158,7 +156,7 @@ out_i0_2 <- preds_protsf %>%
          N = map_dbl(data, ~sum(!is.na(.x$value)))) %>%
   select(-data)
 
-preds_i0 <- bind_rows(preds_i0_olink, preds_protsf)
+preds_i0 <- bind_rows(preds_i0_olink %>% left_join(time_i0 %>% select(eid, date_bsampling)), preds_protsf) %>% select(-y_test)
 
 ### validation
 
