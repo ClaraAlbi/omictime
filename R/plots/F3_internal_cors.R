@@ -12,7 +12,7 @@ install.packages("ggrepel")
 library(ggplot2)
 
 preds_olink <- readRDS("/mnt/project/olink_int_replication.rds") %>%
-  filter(i == 0) %>%
+  filter(i == 0 & !is.na(cv)) %>%
   rowwise() %>%
   mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)),
          gap = pred_mean - time_day,
@@ -79,7 +79,7 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_mean, color = res)) +
   ) +
   paletteer::scale_color_paletteer_c("ggthemes::Orange-Blue Diverging",
                                      direction = -1,
-                                     limits = c(-5, 5)) +
+                                     limits = c(-6, 6)) +
   guides(
     colour = guide_colourbar(
       title.position = "top",
@@ -123,7 +123,9 @@ part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.2, 1))
 time <- readRDS("/mnt/project/biomarkers/time.rds")
 
 df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
-  mutate(gap = pred_lasso - time_day) %>%
+  left_join(time) %>%
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
   filter(!is.na(time_day)) %>%
   separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) #%>%
   filter(n == 3)

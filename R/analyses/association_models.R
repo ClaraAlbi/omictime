@@ -52,8 +52,10 @@ bio_covs <- readRDS("/mnt/project/olink_int_replication.rds") %>%
     by = "eid"
   ) %>%
   left_join(time %>% select(eid, fasting)) %>%
-  mutate(
-    res        = residuals(lm(pred_lasso ~ time_day, data = cur_data())),
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)),
+         gap = pred_mean - time_day,
+    res        = residuals(lm(pred_mean ~ time_day, data = cur_data())),
     res_abs    = abs(res),
     ares_q     = factor(ntile(res_abs, 5), levels = 1:5),
     gap        = pred_lasso - time_day,
