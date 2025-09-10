@@ -11,13 +11,16 @@ install.packages("broom")
 install.packages("ggrepel")
 library(ggplot2)
 
-preds_olink <- readRDS("olink_int_replication.rds") %>%
+preds_olink <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   filter(i == 0) %>%
-  mutate(gap = pred_lasso - time_day) %>%
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)),
+         gap = pred_mean - time_day,
+         mod_sd = sd(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
   filter(!is.na(time_day))
 
-preds_olink$res <- residuals(lm(pred_lasso ~ time_day, data = preds_olink))
-mod <- lm(pred_lasso ~ time_day, data = preds_olink)
+preds_olink$res <- residuals(lm(pred_mean ~ time_day, data = preds_olink))
+mod <- lm(pred_mean ~ time_day, data = preds_olink)
 
 df2 <- broom::augment(mod, data = preds_olink)
 df2$gap <- df2$pred_lasso - df2$time_day
@@ -27,8 +30,9 @@ top2 <- df2 %>%
   filter(eid %in% c(5723240, 1218408))
 
 
-p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
-  geom_point() +
+p_ex <- ggplot(df2, aes(x = time_day, y = pred_mean, color = res)) +
+  geom_pointrange(
+    aes(ymin = pred_mean - mod_sd, ymax = pred_mean + mod_sd)) +
   geom_abline(
     intercept = coef(mod)[1],
     slope     = coef(mod)[2],
@@ -38,7 +42,7 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
   # highlight the two points
   geom_point(
     data  = top2,
-    aes(x = time_day, y = pred_lasso),
+    aes(x = time_day, y = pred_mean),
     color = "black",
     size  = 3
   ) +
@@ -47,7 +51,7 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
     data  = top2,
     aes(
       x    = time_day,
-      y    = pred_lasso,
+      y    = pred_mean,
       xend = time_day,
       yend = .fitted
     ),
@@ -57,8 +61,8 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
   ) +
   ggrepel::geom_label_repel(
     data = top2,
-    aes(x = time_day, y = pred_lasso,
-        label = paste0(round(gap, 1), "h")),
+    aes(x = time_day, y = pred_mean,
+        label = paste0(round(res, 1), "h")),
     nudge_x    = 0.5,       # move right
     nudge_y    = 0,         # no vertical shift
     hjust      = 0,         # left-align text so it extends rightward
@@ -71,7 +75,7 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
   ggtitle("A") +
   labs(
     x     = "Recorded time of day",
-    y     = "Predicted proteomic time", color = "Acceleration"
+    y     = "Mean predicted proteomic time", color = "Acceleration"
   ) +
   paletteer::scale_color_paletteer_c("ggthemes::Orange-Blue Diverging",
                                      direction = -1,
@@ -94,7 +98,7 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_lasso, color = res)) +
 
 
 p_hist <- preds_olink %>%
-  ggplot(aes(x = gap, fill = gap)) +
+  ggplot(aes(x = res, fill = res)) +
   geom_histogram(
     aes(fill = ..x..),   # map bin midpoint to fill
     bins = 30,           # or whatever bin count you prefer
@@ -118,26 +122,26 @@ part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.2, 1))
 
 time <- readRDS("/mnt/project/biomarkers/time.rds")
 
-df <- readRDS("olink_int_replication.rds") %>%
+df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   mutate(gap = pred_lasso - time_day) %>%
   filter(!is.na(time_day)) %>%
   separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) #%>%
   filter(n == 3)
 
-df$res <- residuals(lm(pred_lasso ~ time_day, data = df))
+df$res <- residuals(lm(pred_mean ~ time_day, data = df))
 
 res_wide <- df %>%
   pivot_wider(id_cols = eid,
     names_from  = i,
-    values_from = c(gap, time_day, y),
+    values_from = c(res, time_day, y),
     names_prefix = "i"
   )
 
 
 make_pair_plot <- function(v1, v2){
   # column names
-  x_gap  <- paste0("gap_i",      v1)
-  y_gap  <- paste0("gap_i",      v2)
+  x_gap  <- paste0("res_i",      v1)
+  y_gap  <- paste0("res_i",      v2)
   x_time <- paste0("time_day_i", v1)
   y_time <- paste0("time_day_i", v2)
 

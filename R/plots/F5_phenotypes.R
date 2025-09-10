@@ -9,33 +9,106 @@ install.packages("forcats")
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds")
 
-preds_olink <- readRDS("olink_int_replication.rds") %>% filter(i == 0 & !is.na(cv)) %>%
+preds_olink <- readRDS("/mnt/project/olink_int_replication.rds") %>% filter(i == 0 & !is.na(cv)) %>%
   rowwise() %>%
   mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)),
          gap = pred_mean - time_day,
-         mod_sd = sd(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))
-preds_olink$res <- residuals(lm(pred_mean ~ time_day, data = preds_olink))
-
-
-data <- preds_olink %>%
+         mod_sd = sd(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
   left_join(covs) %>%
-  #left_join(data.table::fread("/mnt/project/clara/covariates.csv")) %>%
-  mutate(Sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male"))) #%>%
-  group_by(p21000_i0) %>%
-  mutate(n = n()) %>% filter(n > 200) %>%
-  mutate(
-    ancestry = factor(
-      p21000_i0,
-      levels = c("British",  "Any other white background","African",
-                 "Caribbean", "Indian", "Irish")
-    ), ancestry = forcats::fct_recode(ancestry,"Other white" = "Any other white background")
-  ) %>% ungroup()
+  mutate(Sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")),
+         time_day_r = round(time_day, 0)) %>%
+  filter(age_recruitment > 39)
+preds_olink$res <- residuals(lm(pred_mean ~ time_day, data = preds_olink))
+mod <- lm(pred_mean ~ time_day, data = preds_olink)
+
+cor(preds_olink$time_day, preds_olink$pred_mean)^2
+
+ggplot(preds_olink, aes(x = time_day, y = pred_mean, color = res)) +
+  geom_pointrange(aes(ymin = pred_mean - mod_sd, ymax = pred_mean + mod_sd), position = "dodge")
+
+ggplot(preds_olink, aes(x = time_day, y = pred_mean, color = res)) +
+  geom_pointrange(aes(ymin = pred_mean - mod_sd, ymax = pred_mean + mod_sd)) +
+  geom_abline(
+    intercept = coef(mod)[1],
+    slope     = coef(mod)[2],
+    color     = "black",
+    size      = 1
+  ) +
+  # draw residual vectors for just those two
+  ggtitle("A") +
+  labs(
+    x     = "Recorded time of day",
+    y     = "Mean predicted proteomic time", color = "Acceleration"
+  ) +
+  guides(
+    colour = guide_colourbar(
+      title.position = "top",
+      title.hjust    = 0.5,
+      barwidth       = 14,
+      barheight      = 1.5,
+      reverse = TRUE
+    )
+  ) +
+  theme_classic(base_size = 14) +
+  theme(legend.position   = "top",
+        axis.title = element_text(face = "bold"),
+        legend.title = element_text(face = "bold", size = 12),
+        legend.text = element_text(size = 10), legend.margin = margin(0,0,0,0),
+        plot.title = element_text(size = 20, face  = "bold"))
+
+
+
+# >%
+#   group_by(p21000_i0) %>%
+#   mutate(n = n()) %>% filter(n > 200) %>%
+#   mutate(
+#     ancestry = factor(
+#       p21000_i0,
+#       levels = c("British",  "Any other white background","African",
+#                  "Caribbean", "Indian", "Irish")
+#     ), ancestry = forcats::fct_recode(ancestry,"Other white" = "Any other white background")
+#   ) %>% ungroup()
+
+# Compare res and mod_sd
+
+ggplot(preds_olink, aes(x = age_recruitment, y = res, color = Sex)) + geom_smooth()
+
+ggplot(preds_olink, aes(x = age_recruitment, y = res, color = Sex)) + geom_boxplot() +
+  facet_grid(~age_recruitment, scales = "free")
+
 
 data %>%
+  mutate(time_day_r = round(time_day, 0)) %>%
   group_by(Sex, age_recruitment) %>%
-  summarise(m_p = mean(gap), n = n()) %>%
+  summarise(m_p = mean(res), n = n(), sd_p = sd(res)) %>%
   filter(n > 10) %>%
-  ggplot(aes(x = age_recruitment, y = m_p, color = Sex)) + geom_point()
+  ggplot(aes(x = age_recruitment, y = m_p, color = Sex)) +
+  geom_pointrange(aes(ymin = m_p - sd_p, ymax = m_p + sd_p), position = "dodge")
+
+preds_olink %>%
+  mutate(time_day_r = round(time_day, 0)) %>%
+  group_by(Sex, time_day_r) %>%
+  summarise(m_p = mean(res), n = n(), sd_p = sd(res)) %>%
+  filter(n > 10) %>%
+  ggplot(aes(x = time_day_r, y = m_p, color = Sex)) +
+  geom_pointrange(aes(ymin = m_p - sd_p, ymax = m_p + sd_p), position = "dodge")
+
+
+data %>%
+  mutate(time_day_r = round(time_day, 0)) %>%
+  group_by(Sex, time_day_r) %>%
+  summarise(m_p = mean(gap), n = n(), sd_p = sd(gap)) %>%
+  filter(n > 10) %>%
+  ggplot(aes(x = time_day_r, y = m_p, color = Sex)) +
+  geom_pointrange(aes(ymin = m_p - sd_p, ymax = m_p + sd_p), position = "dodge")
+
+data %>%
+  ggplot(aes(x = time_day, y = res, color = Sex)) + geom_point()
+  geom_pointrange(aes(ymin = m_p - sd_p, ymax = m_p + sd_p), position = "dodge")
+
+
+t.test(data$res ~ data$Sex)
+t.test(data$res, data$age_recruitment)
 
 plot_demo1 <- data %>%
   filter(age_recruitment > 39) %>%
