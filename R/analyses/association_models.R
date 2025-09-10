@@ -43,7 +43,7 @@ base_cohort <- fread("/mnt/project/clara/death.csv") %>%
 # biomarker residuals + covs (sex, age, PCs, BMI, smoking, fasting)
 time <- readRDS("/mnt/project/biomarkers/time.rds")
 bio_covs <- readRDS("/mnt/project/olink_int_replication.rds") %>%
-  filter(i == 0) %>%
+  filter(i == 0 & !is.na(cv)) %>%
   left_join(readRDS("/mnt/project/biomarkers/covs.rds"), by = "eid") %>%
   left_join(
     fread("/mnt/project/genetic_covs.tsv") %>%
@@ -52,23 +52,18 @@ bio_covs <- readRDS("/mnt/project/olink_int_replication.rds") %>%
     by = "eid"
   ) %>%
   left_join(time %>% select(eid, fasting)) %>%
-  rowwise() %>%
-  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)),
-         gap = pred_mean - time_day,
-    res        = residuals(lm(pred_mean ~ time_day, data = cur_data())),
-    res_abs    = abs(res),
-    ares_q     = factor(ntile(res_abs, 5), levels = 1:5),
-    gap        = pred_lasso - time_day,
-    gap_abs    = abs(gap),
-    gap_abs_rint = rint(gap_abs)
-  ) %>%
-  # ensure covariates are correct type
+  filter(!is.na(time_day)) %>%
   mutate(
     sex           = factor(sex),
     smoking       = factor(smoking),
     age_recruitment = age_recruitment,
     BMI           = weight/((height/100)^2)
-  ) %>% select(-date_bsampling) %>% filter(fasting < 24)
+  ) %>% select(-date_bsampling) %>% filter(fasting < 24) %>%
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))
+
+bio_covs$res <- residuals(lm(pred_mean ~ time_day, data = bio_covs))
+bio_covs$abs_res <- abs(bio_covs$res)
 
 # diagnosis table
 dis2 <- readRDS("/mnt/project/diseases_circadian.rds")
@@ -81,7 +76,7 @@ run_all_models <- function(disease_field) {
     left_join(dis2 %>% transmute(eid, diag_date = .data[[disease_field]]),
               by = "eid") %>%
     left_join(bio_covs, by = "eid") %>%
-    filter(!is.na(gap_abs)) %>%
+    filter(!is.na(res)) %>%
     mutate(
       prev_case = as.integer(!is.na(diag_date) & diag_date < date_bsampling),
       end_date  = as.Date(pmin(diag_date, death_date, censor_date, na.rm = TRUE)),
