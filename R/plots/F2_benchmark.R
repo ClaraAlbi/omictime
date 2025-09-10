@@ -5,20 +5,19 @@ library(dplyr)
 library(ggplot2)
 library(purrr)
 
-l <- list.files("/mnt/project/biomarkers_3", full.names = T)
-
-
 files <- c(list.files("/mnt/project/biomarkers_3",
-                      pattern = "predictions", full.names = TRUE)[-c(1:5,31:35)],
+                      pattern = "predictions", full.names = TRUE)[-c(31:35, 1:5, 16:20)],
            list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
                       pattern = "predictions", full.names = TRUE))
 
 data <- tibble(file = files) %>%
   mutate(
     data = map(file, readRDS),
+    data = map(data, ~.x %>% rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))),
     type = str_extract(file, "(?<=predictions_)[^_]+"),
     cv   = str_extract(file, "(?<=cv)\\d+"),
     N    = map_dbl(data, ~ sum(!is.na(.x[[4]]))),
+    pmean = map_dbl(data, ~ cor(.x$time_day, .x$pred_mean)^2),
     lgb   = map_dbl(data, ~ cor(.x$time_day, .x$pred_lgb)^2),
     xgboost = map_dbl(data, ~ cor(.x$time_day, .x$pred_xgboost)^2),
     lasso   = map_dbl(data, ~ cor(.x$time_day, .x$pred_lasso)^2),
@@ -26,20 +25,6 @@ data <- tibble(file = files) %>%
   ) %>%
   select(-data, -file)
 
-
-
-  group_by(type, cv) %>%
-  summarise(
-    across(lgb:lassox2, ~ mean(.x), .names = "{col}_mr2"),
-    N = sum(N),
-    .groups = "drop"
-  ) %>%
-  pivot_longer(
-    cols = ends_with("mr2"),
-    names_to  = "model",
-    names_pattern = "(.*)_mr2",
-    values_to = "mr2"
-  )
 
 
 pbenchmark <- data %>%
@@ -51,7 +36,8 @@ pbenchmark <- data %>%
   group_by(type, name) %>%
   mutate(m_r2 = mean(value),
          sd_r2 = sd(value),
-         N_cv = round(mean(samples), 0)) %>%
+         N_cv = round(mean(samples), 0),
+         name = factor(name, levels = c("pmean", "lasso", "lassox2", "lgb", "xgboost"))) %>%
   ggplot(aes(x = type, y = value, fill = name)) +
   geom_col(aes(y = m_r2, fill = name),
           position = position_dodge(width = 0.7),

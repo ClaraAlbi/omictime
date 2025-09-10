@@ -7,17 +7,18 @@ library(scales)
 install.packages("ggpmisc")
 
 files <- c(list.files("/mnt/project/biomarkers_3",
-                      pattern = "predictions", full.names = TRUE)[-c(31:35, 1:5)],
+                      pattern = "predictions", full.names = TRUE)[-c(31:35, 1:5, 16:20)],
            list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
                       pattern = "predictions", full.names = TRUE))
 
 # 2. Compute per‐type R² summaries (r2s)
 r2s <- tibble(file = files) %>%
-  mutate(
-    data = map(file, readRDS),
-    type = str_extract(file, "(?<=predictions_)[^_]+"),
+  mutate(data = map(file, readRDS),
+         data = map(data, ~.x %>% rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))),
+         type = str_extract(file, "(?<=predictions_)[^_]+"),
     cv   = str_extract(file, "(?<=cv)\\d+"),
     N    = map_dbl(data, ~ sum(!is.na(.x[[4]]))),
+    pmean = map_dbl(data, ~ cor(.x$time_day, .x$pred_mean)^2),
     lgb   = map_dbl(data, ~ cor(.x$time_day, .x$pred_lgb)^2),
     xgboost = map_dbl(data, ~ cor(.x$time_day, .x$pred_xgboost)^2),
     lasso   = map_dbl(data, ~ cor(.x$time_day, .x$pred_lasso)^2),
@@ -26,7 +27,7 @@ r2s <- tibble(file = files) %>%
   select(-data, -file) %>%
   group_by(type) %>%
   summarise(
-    across(lgb:lassox2, ~ mean(.x), .names = "{col}_mr2"),
+    across(pmean:lassox2, ~ mean(.x), .names = "{col}_mr2"),
     N = sum(N),
     .groups = "drop"
   ) %>%
@@ -45,7 +46,9 @@ data_ind <- tibble(file = files) %>%
     type = str_extract(file, "(?<=predictions_)[^_]+")
   ) %>%
   select(type, df) %>%
-  unnest(df)
+  unnest(df) %>%
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))
 
 
 data_long <- data_ind %>%
@@ -65,14 +68,25 @@ best_m <- r2s %>%
          top_R2     = mr2,
          Nt         = N)
 
+# plot_data <- data_long %>%
+#   left_join(best_m, by = "type") %>%
+#   filter(model == best_model) %>%
+#   mutate(type = factor(
+#     type,
+#     levels = c("all","olink","NMR","labs","counts"),
+#     labels = c("All","Proteomics","Metabolomics", "Biochemistry","Cell counts")
+#   ))
+
 plot_data <- data_long %>%
-  left_join(best_m, by = "type") %>%
-  filter(model == best_model) %>%
+  filter(model == "mean") %>%
   mutate(type = factor(
     type,
     levels = c("all","olink","NMR","labs","counts"),
     labels = c("All","Proteomics","Metabolomics", "Biochemistry","Cell counts")
-  ))
+  )) %>%
+  group_by(type) %>%
+  mutate(Nt = n())
+
 
 # 2. Define the formula object
 formula <- y ~ x
@@ -113,6 +127,7 @@ pl <- plot_data %>%
   ) +
   # scales & styling
   scale_x_continuous(breaks = c(10, 15, 20)) +
+  scale_y_continuous(limits = c(9,21), breaks = c(10, 15, 20)) +
   scale_color_manual(values = c(
     "All"          = "gray",
     "Proteomics"   = "#76B041",
