@@ -99,3 +99,15 @@ df_effects <- bind_rows(readRDS("data/effects_labs.rds") %>% mutate(type = "Bioc
 
 saveRDS(df_effects, "data/combined_effects.rds")
 
+
+effects_table <- df_effects %>%
+  select(FID = phen, Name = title, Type = type_clean, estimate_mesor, std.error_mesor, p.value_mesor,
+         estimate_beta_cos1, std.error_beta_cos1, p.value_beta_cos1,
+         estimate_beta_sin1, std.error_beta_sin1, p.value_beta_sin1,
+         amplitude_24hfreq, acrophase_24hfreq, pvalue_h) %>%
+  mutate(across(contains(c("estimate", "std")), ~round(.x, 5)),
+         across(contains("p.value"), ~sprintf("%.1g", .x)))
+
+
+data.table::fwrite(effects_table, "data_share/supplementary_data2.csv", row.names = F)
+
