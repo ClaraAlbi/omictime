@@ -6,6 +6,11 @@ df_effects <- readRDS("data/combined_effects.rds") %>%
   mutate(pval_h = p.adjust(pvalue_h)) %>%
   filter(pval_h < 0.05)
 
+df_effects %>% group_by(type_clean) %>% count()
+df_effects %>% group_by(type_clean) %>% summarise(mean_amplitude = mean(amplitude_24hfreq),
+                                                  sd_amplitude = sd(amplitude_24hfreq),
+                                                  n = n())
+
 df_r2 <- readRDS("data/combined_variance.rds") %>%
   filter(term == "time_day") %>%
   mutate(pval = p.adjust(p.value)) %>%

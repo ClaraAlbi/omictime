@@ -53,16 +53,13 @@ saveRDS(df_comb, "data/combined_variance.rds")
 
 ######### Save to github
 
-#
-# variance_table <- df_comb %>%
-#   select(FID = phen, Name = title, Type = type_clean, Covariate = term, R2 = pr2, pvalue = p.value) %>%
-#   mutate(R2 = round(R2, 5))
-#   #group_by(Type, FID, Covariate) %>% arrange(desc(R2)) %>%
-#   mutate(across(c(R2, pvalue), ~ ))
-#
-#
-# mutate(across(where(is.numeric), ~ sprintf("%.15g", .x)))
-#
+
+variance_table <- df_comb %>%
+  select(FID = phen, Name = title, Type = type_clean, Covariate = term, R2 = pr2, pvalue = p.value) %>%
+  mutate(R2 = round(R2, 5))
+variance_table$pvalue <- sprintf("%.1g", variance_table$pvalue)
+
+data.table::fwrite(variance_table, "data_share/supplementary_data1.txt", row.names = F)
 
 #### EFFECTS
 

@@ -20,7 +20,7 @@ df_r2 <- bind_rows(readRDS("data/aov_olink.rds") %>% mutate(type = "Proteomics-O
   mutate(p_val = p.adjust(p.value)) %>%
   filter(amplitude_24hfreq > 0.1 & pr2 > 0.01 & p_val < 0.05)
 
-tissues <- data.table::fread("~/Downloads/explore_ukb.csv") %>%
+tissues <- data.table::fread("data/explore_ukb.csv") %>%
   rename(tissue_info = `Tissue Specificity`) %>%
   mutate(
     tissue_info = str_trim(tissue_info),
