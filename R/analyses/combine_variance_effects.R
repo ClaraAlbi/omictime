@@ -59,7 +59,7 @@ variance_table <- df_comb %>%
   mutate(R2 = round(R2, 5))
 variance_table$pvalue <- sprintf("%.1g", variance_table$pvalue)
 
-data.table::fwrite(variance_table, "data_share/supplementary_data1.txt", row.names = F)
+data.table::fwrite(variance_table, "data_share/supplementary_data1.csv", row.names = F)
 
 #### EFFECTS
 
