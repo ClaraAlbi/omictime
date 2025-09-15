@@ -42,12 +42,10 @@ df_comb <- df_adj %>%
   arrange(desc(pr2)) %>%
   select(phen) %>%
   inner_join(df_adj, by = "phen") %>%
-  filter(term != "Residuals") %>%
-  group_by(phen, type, term, title, color_var, type_clean ) %>%
-  summarise(t_r2 = sum(pr2), pvalue = min(p.value)) %>%
   mutate(term = ifelse(grepl("^PC[0-9]+$", term), "PCs", term)) %>%
-  group_by(phen, type, title, term, color_var, type_clean ) %>%
-  summarise(pr2 = sum(t_r2), p.value = min(pvalue), .groups = "drop")
+  group_by(phen, type, title, term, color_var, type_clean) %>%
+  summarise(t_r2 = sum(pr2), p.value = min(p.value), .groups = "drop")
+
 
 saveRDS(df_comb, "data/combined_variance.rds")
 
@@ -55,11 +53,13 @@ saveRDS(df_comb, "data/combined_variance.rds")
 
 
 variance_table <- df_comb %>%
-  select(FID = phen, Name = title, Type = type_clean, Covariate = term, R2 = pr2, pvalue = p.value) %>%
-  mutate(R2 = round(R2, 5))
-variance_table$pvalue <- sprintf("%.1g", variance_table$pvalue)
+  rename(r2 = t_r2) %>%
+  pivot_wider(id_cols = c(phen, type_clean, title), names_from = term, values_from = c(r2, p.value)) %>%
+  select(FID = phen, Name = title, Type = type_clean, everything()) %>%
+  mutate(across(contains(c("r2")), ~round(.x, 5)),
+         across(contains("p.value"), ~sprintf("%.1g", .x)))
 
-data.table::fwrite(variance_table, "data_share/supplementary_data1.txt", row.names = F, sep = " ")
+data.table::fwrite(variance_table, "data_share/supplementary_data1.csv", row.names = F)
 
 #### EFFECTS
 
@@ -106,8 +106,10 @@ effects_table <- df_effects %>%
          estimate_beta_sin1, std.error_beta_sin1, p.value_beta_sin1,
          amplitude_24hfreq, acrophase_24hfreq, pvalue_h) %>%
   mutate(across(contains(c("estimate", "std")), ~round(.x, 5)),
-         across(contains("p.value"), ~sprintf("%.1g", .x)))
+         amplitude_24hfreq = round(amplitude_24hfreq, 5),
+         acrophase_24hfreq = round(acrophase_24hfreq, 5),
+         across(contains("value"), ~sprintf("%.1g", .x)))
 
 
-data.table::fwrite(effects_table, "data_share/supplementary_data2.txt", row.names = F, sep = " ")
+data.table::fwrite(effects_table, "data_share/supplementary_data2.csv", row.names = F)
 

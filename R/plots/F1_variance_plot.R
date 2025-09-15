@@ -14,7 +14,7 @@ df_top <- df_r2 %>%
   mutate(pval = p.adjust(p.value)) %>%
   filter(pval < 0.05) %>%
   distinct(phen, .keep_all = TRUE) %>%
-  arrange(desc(pr2)) %>%
+  arrange(desc(t_r2)) %>%
   slice_head(n = 30) %>%
   select(phen) %>%
   inner_join(df_r2, by = "phen") %>%
@@ -23,7 +23,7 @@ df_top <- df_r2 %>%
                                         "smoking", "time_day") ~ "technical",
                            TRUE ~ term)) %>%
   group_by(phen, model, color_var, type, title) %>%
-  summarise(t_r2 = sum(pr2))
+  summarise(t_r2 = sum(t_r2))
 
 # trait_order <- df_top %>%
 #   filter(model == "time_day") %>%
