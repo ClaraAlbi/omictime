@@ -2,23 +2,21 @@ library(tidyverse)
 
 fields <- data.table::fread("data/field.tsv")
 
-df_effects <- bind_rows(readRDS("data/effects_olink.rds") %>% mutate(type = "Proteomics-Olink") %>%
-              mutate(title = phen)
-  ) %>%
-  mutate(term = case_when(term == "(Intercept)" ~ "mesor",
-                          term == "cos(2 * pi * time_day/24)" ~ "beta_cos1",
-                          term == "sin(2 * pi * time_day/24)" ~ "beta_sin1")) %>%
-  pivot_wider(id_cols = c(phen, type, title), values_from = c(estimate, p.value, std.error), names_from = term) %>%
-  mutate(amplitude_24hfreq = sqrt(estimate_beta_cos1^2 + estimate_beta_sin1^2),
-         acrophase_24hfreq = (atan2(estimate_beta_sin1, estimate_beta_cos1) / (2 * pi) * 24 + 24) %% 24,
-         q = as.integer(round(acrophase_24hfreq, 0)))
+df_effects <- readRDS("data/combined_effects.rds") %>%
+  mutate(pval_h = p.adjust(pvalue_h)) %>%
+  filter(pval_h < 0.05) %>%
+  filter(type_clean == "Proteins")
 
-df_r2 <- bind_rows(readRDS("data/aov_olink.rds") %>% mutate(type = "Proteomics-Olink") %>%
-              mutate(title = phen)) %>%
+df_r2 <- readRDS("data/combined_variance.rds") %>%
   filter(term == "time_day") %>%
-  left_join(df_effects) %>%
-  mutate(p_val = p.adjust(p.value)) %>%
-  filter(amplitude_24hfreq > 0.1 & pr2 > 0.01 & p_val < 0.05)
+  mutate(pval = p.adjust(p.value)) %>%
+  filter(pval < 0.05) %>%
+  filter(type_clean == "Proteins")
+
+prot_set <- df_effects %>%
+  inner_join(df_r2) %>%
+  filter(t_r2 > 0.01) %>%
+  filter(amplitude_24hfreq > 0.1)
 
 tissues <- data.table::fread("data/explore_ukb.csv") %>%
   rename(tissue_info = `Tissue Specificity`) %>%
@@ -32,26 +30,41 @@ tissues <- data.table::fread("data/explore_ukb.csv") %>%
   select(Gene, `Protein Name`, category, tissue = tissues) %>%
   mutate(tissue = ifelse(str_detect(tissue, ":"), str_extract(tissue, "(?<=: ).*"), tissue), Gene = tolower(Gene))
 
-df <- df_r2 %>%
+n_tissues <- tissues %>%
+  filter(category %in% c("Tissue enriched", "Group enriched"))  %>%
+  mutate(is_time = Gene %in% df_effects$phen) %>%
+  group_by(tissue, is_time) %>%
+  count() %>%
+  filter(!tissue %in% c("Low tissue specificity", "", "Low tissue specificity, Low tissue specificity", "Not detected")) %>%
+  pivot_wider(names_from = is_time, values_from = n, names_prefix = "is_time") %>%
+  mutate(n = is_timeTRUE + is_timeFALSE,
+         frac_time = is_timeTRUE/n)
+
+sum(n_tissues$n)
+
+df <- prot_set %>%
   inner_join(tissues, by = c("phen" = "Gene")) %>%
-  filter(!tissue %in% c("Not detected", "Low tissue specificity", "")) %>%
+  filter(category %in% c("Tissue enriched", "Group enriched")) %>%
   group_by(tissue) %>% mutate(n = n()) %>% ungroup() %>%
-  mutate(category = factor(category, levels = c("Tissue enriched", "Group enriched", "Tissue enhanced")),
+  mutate(category = factor(category, levels = c("Tissue enriched", "Group enriched")),
          tissue = fct_reorder(factor(tissue), n, .desc = TRUE))
 
+
 df %>% arrange(desc(n)) %>% count(tissue)
-# tissue                n
-# <fct>             <int>
-#   1 liver                13
-# 2 intestine            11
-# 3 lymphoid tissue       9
-# 4 adipose tissue        8
-# 5 esophagus             7
-# 6 brain                 6
-# 7 pancreas              6
+
+# tissue                  n
+# 1 intestine             8
+# 2 brain                 4
+# 3 pancreas              4
+# 4 adrenal gland         3
+# 5 liver                 3
+# 6 lymphoid tissue       3
+# 7 parathyroid gland     3
+# 8 pituitary gland       3
+# 9 skeletal muscle       3
 
 df %>% filter(category == "Tissue enriched") %>%
-  filter(amplitude_24hfreq > 0.2) %>%
+  #filter(amplitude_24hfreq > 0.2) %>%
   select(phen, tissue) %>%
   arrange(desc(tissue)) %>% mutate(phen = toupper(phen))
 
@@ -67,5 +80,10 @@ ptissue <- ggplot(df, aes(x = acrophase_24hfreq, y = amplitude_24hfreq, color = 
 
 ggsave("plots/tissue_enrichments.png", ptissue, width = 9, height = 11)
 
-
+ggplot(df, aes(x = acrophase_24hfreq, y = amplitude_24hfreq, shape = category, color = tissue)) +
+  geom_point() +
+  geom_text(data = df[df$amplitude_24hfreq > 0.3,],
+            aes(label = paste0(phen, "_", tissue))) +
+  coord_polar() +
+  theme(legend.position = "none")
 

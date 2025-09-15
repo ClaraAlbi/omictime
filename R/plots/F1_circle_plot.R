@@ -18,13 +18,15 @@ df_r2 <- readRDS("data/combined_variance.rds") %>%
 
 df_r2 %>%
   distinct(phen, .keep_all = TRUE) %>%
-  arrange(desc(pr2)) %>%
+  arrange(desc(t_r2)) %>%
   slice_head(n = 20) %>%
   pull(title) %>% paste0(collapse = ", ")
 
 labes <- df_effects %>%
-  full_join(df_r2, by = c("phen", "color_var", "type_clean", "title")) %>%
-  filter(pr2 > 0.01)
+  inner_join(df_r2, by = c("phen", "color_var", "type_clean", "title"))
+
+labes %>% filter(amplitude_24hfreq > 0.3) %>% count()
+
 
 data.table::fwrite(labes, "data/resulting_phases.txt")
 
@@ -51,7 +53,7 @@ plot_round <- labes %>%
             fill = "lightblue", alpha = 0.2, inherit.aes = FALSE) +
   geom_hline(yintercept = 0.3, linetype = 2, color = "darkgray") +
   #geom_col(aes(fill = type.x), alpha = 0.2) +
-  geom_point(size = 1.5, alpha = 0.8) +
+  geom_point(size = 0.5, alpha = 0.6) +
   ggrepel::geom_label_repel(min.segment.length = 0,
     data        = subset(labes, amplitude_24hfreq > 0.3),
     aes(label   = title, color = type_clean),
