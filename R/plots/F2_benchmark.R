@@ -27,8 +27,7 @@ data <- tibble(file = files) %>%
 
 
 
-pbenchmark <- data %>%
-  filter(time_day > 9 & time_day < 20) %>%
+res <- data %>%
   group_by(type) %>%
   mutate(samples = sum(N)) %>%
   mutate(type = factor(type, levels = c("all", "olink", "NMR", "labs", "counts"), labels = c("All", "Proteomics", "Metabolomics", "Biochemistry", "Cell counts"))) %>%
@@ -38,14 +37,18 @@ pbenchmark <- data %>%
   mutate(m_r2 = mean(value),
          sd_r2 = sd(value),
          N_cv = round(mean(samples), 0),
-         name = factor(name, levels = c("pmean", "lasso", "lassox2", "lgb", "xgboost"))) %>%
+         name = factor(name, levels = c("pmean", "lasso", "lassox2", "lgb", "xgboost")))
+
+saveRDS(res, "data_share/prediction_accuracy.rds")
+
+pbenchmark <- res %>%
   ggplot(aes(x = type, y = value, fill = name)) +
   geom_col(aes(y = m_r2, fill = name),
           position = position_dodge(width = 0.7),
           width = 0.7, alpha = 0.2) +
   geom_jitter(color = "black", shape = 21,
               position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.7),
-              size = 2) +
+              size = 1) +
   scale_y_continuous(n.breaks = 8) +
   scale_x_discrete(expand = c(0.01, 0)) +
   facet_grid(~type + samples, scales = "free") +
