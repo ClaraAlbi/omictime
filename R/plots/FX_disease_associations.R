@@ -9,21 +9,22 @@ install.packages("ggpubr")
 library(paletteer)
 library(g)
 
-t <- readRDS("results_time_diseases.rds") %>%
+t <- readRDS("/mnt/project/associations/results_res_diseases_1y.rds") %>%
   left_join(list_diseases, by = c("disease" = "p")) %>%
   mutate(p_val = p.adjust(p.value, method = "fdr"))
 
 write.table(t, "data_share/results_associations_time.csv")
 
-data <- bind_rows(readRDS("/mnt/project/associations/results_gap_abs_diseases_1y.rds"),
-                  readRDS("/mnt/project/associations/results_gap_diseases_1y.rds"),
-                  readRDS("/mnt/project/associations/results_gap_abs_proteins_diseases_1y.rds"),
-                  readRDS("/mnt/project/associations/results_gap_proteins_diseases_1y.rds")) %>%
+
+
+
+data <- bind_rows(readRDS("/mnt/project/associations/results_res_diseases_1y.rds"),
+                  readRDS("/mnt/project/associations/results_abs_res_diseases_1y.rds")) %>%
   left_join(list_diseases, by = c("disease" = "p")) %>%
   mutate(type = case_when(type == "logistic" ~ "Prevalent",
                           type == "cox" ~ "Incident"),
          type = factor(type, levels = c("Prevalent", "Incident")),
-         term = case_when(str_detect(term, "abs") ~ "Dysregulation",
+         term = case_when(str_detect(term, "abs") ~ "Misalingment",
                           TRUE ~ "Acceleration"),
          p_val = p.adjust(p.value, method = "fdr"),
          sig = case_when(p_val < 0.05 ~ "*",
@@ -48,7 +49,7 @@ plot_assoc <- data %>%
             aes(x = hi95 + 0.03)) +
   geom_vline(xintercept = 1, linetype = 2) +
   scale_x_continuous(n.breaks = 3) +
-  coord_cartesian(xlim = c(0.6, 1.6), clip = "off") +
+  coord_cartesian(xlim = c(0.6, 2), clip = "off") +
   labs(x = "OR / HR", color = "") +
   guides(
     color = guide_legend(
