@@ -1,6 +1,19 @@
 library(purrr)
 library(tidyr)
 
+
+l <- c(list.files("/mnt/project/biomarkers_3",
+                      pattern = "coefs", full.names = TRUE)[-c(31:35, 1:5, 16:20)],
+           list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
+                      pattern = "coefs", full.names = TRUE))
+
+
+weights <- tibble(f = l[str_detect(l, "coefs_olink_")]) %>%
+  mutate(mod = map(f, readRDS)) %>%
+  unnest(mod)
+
+saveRDS(weights, "data_share/prediction_model_weights.rds")
+
 ### LASSO res
 
 data_nmr <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_olink.rds") %>%
