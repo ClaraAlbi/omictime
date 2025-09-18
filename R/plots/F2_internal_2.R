@@ -1,24 +1,28 @@
 library(stringr)
 library(tidyr)
 library(dplyr)
-library(ggplot2)
 library(purrr)
 install.packages("cowplot")
 install.packages("ggpmisc")
+library(cowplot)
+library(ggplot2)
 
-df <- readRDS("olink_int_replication.rds") %>%
-  mutate(i = case_when(i == 0  ~ "Initial assessment \n(2006-2010)",
-                       i == 2  ~ "Imaging \n(2014+)",
-                       i == 3  ~ "First repeat imaging \n(2019+)"),
-         i = factor(i, levels = c("Initial assessment \n(2006-2010)", "Imaging \n(2014+)", "First repeat imaging \n(2019+)"))) %>%
-  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T)
+df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
+  filter(!is.na(time_day)) %>%
+  mutate(i = case_when(i == 0  ~ "i0: Initial assessment \n(2006-2010)",
+                       i == 2  ~ "i2: Imaging \n(2014+)",
+                       i == 3  ~ "i3: First repeat imaging \n(2019+)"),
+         i = factor(i, levels = c("i0: Initial assessment \n(2006-2010)", "i2: Imaging \n(2014+)", "i3: First repeat imaging \n(2019+)"))) %>%
+  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))
 
-df$res <- residuals(lm(pred_lasso ~ time_day, data = df))
+df$res <- residuals(lm(pred_mean ~ time_day, data = df))
 
 formula <- y ~ x
 
 pr <- df %>%
-  ggplot(aes(x = time_day, y = pred_lasso)) +
+  ggplot(aes(x = time_day, y = pred_mean)) +
   geom_point(alpha = 0.7, size = 1.5, color = "#76B041") +
   geom_smooth(method = "lm", color = "red", size = 1.2, se = FALSE, formula = formula) +
   facet_grid(~i, ) +
@@ -40,14 +44,16 @@ pr <- df %>%
     size = 4,
     color = "black"
   ) +
+  scale_y_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
+  scale_x_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
   labs(
     x = "Recorded Time of day",
     y = "Predicted Proteomic Time"
   ) +
-  theme_classic(base_size = 11) +
+  theme_classic(base_size = 9) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 10, face = "bold", hjust = 0),
+    strip.text = element_text(size = 8, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold")
   )
 
@@ -55,21 +61,23 @@ ggsave("plots/F3_internal_olink.png", pr, width = 6, height = 3)
 
 ##### NMR
 
-df <- df_nmr %>%
-  mutate(i = case_when(i == 0  ~ "Initial assessment \n(2006-2010)",
-                       i == 1 ~ "First repeat assessment \n(2012-13)"),
-         i = factor(i, levels = c("Initial assessment \n(2006-2010)", "First repeat assessment \n(2012-13)"))) %>%
-  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T)
+df_nmr <- readRDS("/mnt/project/nmr_int_replication.rds") %>%
+  mutate(i = case_when(i == 0  ~ "i0: Initial assessment \n(2006-2010)",
+                       i == 1 ~ "i1: First repeat assessment \n(2012-13)"),
+         i = factor(i, levels = c("i0: Initial assessment \n(2006-2010)", "i1: First repeat assessment \n(2012-13)"))) %>%
+  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))
 
-df$res <- residuals(lm(pred_lasso ~ time_day, data = df))
+df_nmr$res <- residuals(lm(pred_mean ~ time_day, data = df_nmr))
 
 formula <- y ~ x
 
-pr <- df %>%
-  ggplot(aes(x = time_day, y = pred_lgb)) +
+pr_nmr <- df_nmr %>%
+  ggplot(aes(x = time_day, y = pred_mean)) +
   geom_point(alpha = 0.7, size = 1.5, color = "#2374AB") +
   geom_smooth(method = "lm", color = "red", size = 1.2, se = FALSE, formula = formula) +
-  facet_grid(~i, ) +
+  facet_grid(~i) +
   ggpmisc::stat_poly_eq(
     aes(label = paste(after_stat(rr.label), sep = "*\", \"*")),
     formula = formula,
@@ -88,16 +96,26 @@ pr <- df %>%
     size = 4,
     color = "black"
   ) +
+  scale_y_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9, 21)) +
+  scale_x_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9, 21)) +
   labs(
     x = "Recorded Time of day",
-    y = "Predicted Proteomic Time"
+    y = "Predicted Metabolic Time"
   ) +
-  theme_classic(base_size = 11) +
+  theme_classic(base_size =9) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 10, face = "bold", hjust = 0),
+    strip.text = element_text(size = 8, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold")
   )
 
-ggsave("plots/F3_internal_nmr.png", pr, width = 6, height = 3)
+ggsave("plots/F3_internal_nmr.png", pr_nmr, width = 4, height = 3)
+
+p_comb <- cowplot::plot_grid(pr, pr_nmr, rel_widths = c(0.5, 0.5), labels = c("B", "C"))
+
+ggsave("plots/F3_internal.png", p_comb, width = 10, height = 4)
+
+p_f <- plot_grid(pl, p_comb, nrow = 2)
+
+ggsave("plots/F3.png", p_f, width = 11, height = 8)
 

@@ -28,6 +28,7 @@ data <- tibble(file = files) %>%
 
 
 pbenchmark <- data %>%
+  filter(time_day > 9 & time_day < 20) %>%
   group_by(type) %>%
   mutate(samples = sum(N)) %>%
   mutate(type = factor(type, levels = c("all", "olink", "NMR", "labs", "counts"), labels = c("All", "Proteomics", "Metabolomics", "Biochemistry", "Cell counts"))) %>%

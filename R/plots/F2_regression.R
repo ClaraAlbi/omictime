@@ -93,6 +93,7 @@ formula <- y ~ x
 
 # 3. Build the plot, layering on the eq‐labels
 pl <- plot_data %>%
+  filter(time_day > 9 & time_day < 20) %>%
   ggplot(aes(x = time_day, y = prediction)) +
   # your raw points
   geom_point(aes(color = type), alpha = 0.5, size = 0.8) +
@@ -126,8 +127,8 @@ pl <- plot_data %>%
     color = "black"
   ) +
   # scales & styling
-  scale_x_continuous(breaks = c(10, 15, 20)) +
-  scale_y_continuous(limits = c(9,21), breaks = c(10, 15, 20)) +
+  scale_y_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
+  scale_x_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
   scale_color_manual(values = c(
     "All"          = "gray",
     "Proteomics"   = "#76B041",
@@ -138,15 +139,17 @@ pl <- plot_data %>%
   labs(
     x     = "Recorded time of day",
     y     = "Predicted omic time") +
-  theme_classic(base_size = 14) +
+  theme_classic(base_size = 11) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 12, face = "bold", hjust = 0),
+    strip.text = element_text(size = 14, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold"), legend.position = "none"
   )
 
 
-ggsave("plots/F3_pred.png", pl, width = 10, height = 3)
+ggsave("plots/F3_pred.png", pl, width = 10, height = 4)
+
+
 
 
 
