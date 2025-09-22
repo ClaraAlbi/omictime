@@ -7,7 +7,7 @@ library(stringr)
 install.packages("paletteer")
 install.packages("ggpubr")
 library(paletteer)
-library(g)
+#library(g)
 
 t <- readRDS("/mnt/project/associations/results_res_diseases_1y.rds") %>%
   left_join(list_diseases, by = c("disease" = "p")) %>%
@@ -32,25 +32,31 @@ data <- bind_rows(readRDS("/mnt/project/associations/results_res_diseases_1y.rds
 
 data.table::fwrite(data, "data_share/results_associations.csv")
 
-plot_assoc <- data %>%
-  filter(cases > 40) %>%
+data <- read.csv("data_share/results_associations.csv") %>%
+  filter(class %in% c("1. Neuro-psychiatric", "2. Cardiometabolic")) %>%
+  filter(cases > 1) %>%
+  filter(type == "Prevalent") %>%
+  mutate(p_val = p.adjust(p.value, method = "fdr"),
+         sig = case_when(p_val < 0.05 ~ "*",
+                         TRUE ~ "")) %>%
   filter(model %in% c("Model1", "Model2")) %>%
-  mutate(names = forcats::fct_reorder(names, cases, .desc = FALSE),
+  mutate(names = paste0(names, " (" ,"n=", cases, ")"),
+         names = forcats::fct_reorder(names, cases, .desc = FALSE),
          model_num = str_extract(model, "Model[12]"),
-         model_num = factor(model_num, levels = c("Model2", "Model1"), labels = c( "Model2: Model1 + BMI + smoking + fasting h",
-                                                                                     "Model1: sex + age + 20PCs"))) %>%
+         model_num = factor(model_num, levels = c("Model2", "Model1"), labels = c("Model2: Model1 + BMI + smoking + fasting h",
+                                                                                  "Model1: sex + age + 20PCs")))
+
+plot_assoc <- data %>%
   ggplot(aes(x = effect, y = names, color = model_num, label = sig)) +
   geom_point(position = position_dodge(width = 0.5), size = 2) +
   geom_errorbar(aes(xmin = lo95, xmax = hi95),
                 width = 0.1,
                 position = position_dodge(width = 0.5)) +
-  geom_text(data = subset(data, model == "Model2"), position = position_dodge(width = 0.5),
-            color = "black", hjust = 0, size = 5,
-            aes(x = hi95 + 0.03)) +
+  geom_text(position = position_dodge(width = 0.5)) +
   geom_vline(xintercept = 1, linetype = 2) +
   scale_x_continuous(n.breaks = 3) +
-  coord_cartesian(xlim = c(0.6, 2), clip = "off") +
-  labs(x = "OR / HR", color = "") +
+  coord_cartesian(xlim = c(0.6, 2.5), clip = "off") +
+  labs(x = "OR", color = "") +
   guides(
     color = guide_legend(
       nrow       = 2,
@@ -64,6 +70,7 @@ plot_assoc <- data %>%
   theme(strip.background    = element_rect(fill   = "white",
                                            colour = "black",
                                            size   = 0.5),
+        text = element_text(size = 16),
     legend.position = "bottom",
     legend.justification = "left",
     legend.box.just    = "left",
