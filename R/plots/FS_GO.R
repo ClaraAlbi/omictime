@@ -10,6 +10,12 @@ df_effects <- readRDS("data/combined_effects.rds") %>% mutate(phen = toupper(phe
   filter(pval_h < 0.05) %>%
   filter(type_clean == "Proteins")
 
+write(df_effects$UniProt, "data/list_rhythmic.txt")
+
+df_effects %>%
+  mutate(Panel = str_remove(Panel, " II")) %>%
+  group_by(Panel) %>% count()
+
 go <- data.table::fread("data/explore_ukb (1).csv") %>%
   rename(UniProt = `UniProt ID`) %>%
   mutate(
@@ -28,9 +34,46 @@ rhythmic <- go %>%
   filter(UniProt %in% df_effects$UniProt) %>% group_by(go_bp) %>%
   summarise(l = list(Gene),  n = n(), type = "r")
 
-# Enrichment
 
-proc <- bind_rows(background, rhythmic) %>%
-  select(-l) %>%
-  pivot_wider(names_from = type, values_from = n)
+#####
+library(clusterProfiler)
+library(org.Hs.eg.db)
+
+#BiocManager::install("org.Hs.eg.db")
+bg_entrez <- bitr(assay$UniProt,
+                  fromType = "UNIPROT",
+                  toType   = "ENTREZID",
+                  OrgDb    = org.Hs.eg.db)
+
+sig_entrez <- bitr(df_effects$UniProt,
+                   fromType = "UNIPROT",
+                   toType   = "ENTREZID",
+                   OrgDb    = org.Hs.eg.db)
+
+ego <- enrichGO(
+  gene          = sig_entrez$ENTREZID,
+  universe      = bg_entrez$ENTREZID,
+  OrgDb         = org.Hs.eg.db,
+  keyType       = "ENTREZID",
+  ont           = "BP",        # Biological Process
+  pAdjustMethod = "BH",
+  pvalueCutoff  = 0.05,
+  qvalueCutoff  = 0.05,
+  readable      = TRUE
+)
+
+ekegg <- enrichKEGG(
+  gene          = sig_entrez$ENTREZID,
+  universe      = bg_entrez$ENTREZID,
+  organism      = "hsa",
+  keyType       = "kegg",
+  pvalueCutoff  = 0.05
+)
+
+all_top <- bind_rows(ego@result %>%
+  as.data.frame(), ekegg@result %>%
+    as.data.frame()) %>%
+  arrange(pvalue)
+
+write_csv(all_top, "data/pathway_enrichment.csv")
 

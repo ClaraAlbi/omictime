@@ -22,7 +22,7 @@ df_r2 <- readRDS("data/combined_variance.rds") %>%
   filter(type_clean == "Proteins")
 
 tissues <- data.table::fread("data/explore_ukb.csv") %>%
-  rename(UniProt = `UniProt ID`,
+  dplyr::rename(UniProt = `UniProt ID`,
          tissue_info = `Tissue Specificity`) %>%
   mutate(
     tissue_info = str_trim(tissue_info),
@@ -31,8 +31,16 @@ tissues <- data.table::fread("data/explore_ukb.csv") %>%
   ) %>%
   separate_rows(tissues, sep = ",\\s*") %>%
   mutate(tissues = ifelse(is.na(tissues), category, tissues)) %>%
-  select(Gene, UniProt, `Protein Name`, category, tissue = tissues) %>%
-  mutate(tissue = ifelse(str_detect(tissue, ":"), str_extract(tissue, "(?<=: ).*"), tissue))
+  dplyr::select(Gene, UniProt, `Protein Name`, category, tissue = tissues) %>%
+  mutate(tissue = ifelse(str_detect(tissue, ":"), str_extract(tissue, "(?<=: ).*"), tissue)) %>%
+  filter(UniProt %in% assay$UniProt)
+
+# unique prots
+unique_prots <- tissues %>%
+  filter(category %in% c("Tissue enriched", "Group enriched")) %>% pull(Gene) %>% unique()
+
+unique_prots_all <- df_effects %>% pull(UniProt) %>% unique()
+
 
 n_tissues <- tissues %>%
   filter(category %in% c("Tissue enriched", "Group enriched")) %>%
@@ -58,19 +66,20 @@ lvl <- n_tissues %>%
   arrange(desc(n), desc(frac_time)) %>%
   pull(tissue)
 
-n_tissues %>%
+p_enrich <- n_tissues %>%
   pivot_longer(c(is_timeFALSE, is_timeTRUE), names_to = "name", values_to = "value") %>%
   mutate(tissue = factor(tissue, levels = rev(lvl)),
          name = case_when(name == "is_timeFALSE" ~ "No",
                           name == "is_timeTRUE" ~ "Yes")) %>%
   ggplot(aes(x = tissue, y = value, fill = name)) +
   geom_col() +
-  labs(title = "Number of 4x enriched proteins per tissue",
-       fill = "Rhythmic", y = "Tissue", x = "") +
+  labs(fill = "Rhythmic", y = "Tissue", x = "") +
   coord_flip() +
   scale_fill_manual(values = c("#E7B800","#00AFBB")) +
   theme_minimal() +
   theme(legend.position = "bottom")
+
+ggsave("plots/FS_tissue_enrichments.png", p_enrich, width = 6, height = 7)
 
 
 prot_set <- df_effects %>%
@@ -84,22 +93,21 @@ df <- prot_set %>%
   group_by(tissue) %>% mutate(n = n()) %>% ungroup() %>%
   mutate(category = factor(category, levels = c("Tissue enriched", "Group enriched")))
          #tissue = case_when(n < 3 ~ "Other",
-                            TRUE ~ tissue))
+                            #TRUE ~ tissue))
 
 df %>% group_by(tissue) %>% count() %>% arrange(desc(n))
 
 ptissue <- ggplot(df, aes(x = acrophase_24hfreq, y = amplitude_24hfreq, color = tissue, label = paste0(toupper(phen), "_", tissue))) +
   geom_point(size = 3) +
   coord_polar() +
-  ggrepel::geom_text_repel(size = 3, max.overlaps = 20) +
+  ggrepel::geom_text_repel(size = 3.5, max.overlaps = 20, box.padding = 0.5) +
   #scale_color_manual(values = c( "#FC4E07","#00AFBB", "#E7B800")) +
-  labs(title = "Top rhythmic proteins",
-       x = "Acrophase", y = "Amplitude", color = "GTEX tissue") +
+  labs(x = "Acrophase", y = "Amplitude", color = "GTEX tissue") +
   theme_minimal() +
   guides(color = guide_legend(ncol = 3)) +
   theme(legend.position = "none", text = element_text(size = 12))
 
-ggsave("plots/FS_tissue_enrichments.png", ptissue, width = 6, height = 7)
+ggsave("plots/FS_tissue_enrichments_circle.png", ptissue, width = 6, height = 6)
 
 ggplot(df, aes(x = acrophase_24hfreq, y = amplitude_24hfreq, shape = category, color = tissue)) +
   geom_point() +
