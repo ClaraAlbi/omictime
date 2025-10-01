@@ -50,10 +50,10 @@ pr <- df %>%
     x = "Recorded time of day",
     y = "Predicted Proteomic Time"
   ) +
-  theme_classic(base_size = 9) +
+  theme_classic(base_size = 10) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 9, face = "bold", hjust = 0),
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold")
   )
 
@@ -103,10 +103,10 @@ pr_nmr <- df_nmr %>%
     x = "Recorded time of day",
     y = "Predicted Metabolic Time"
   ) +
-  theme_classic(base_size =9) +
+  theme_classic(base_size =10) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 9, face = "bold", hjust = 0),
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold")
   )
 
@@ -116,7 +116,7 @@ p_comb <- cowplot::plot_grid(pr, pr_nmr, rel_widths = c(0.7, 0.3))
 
 ggsave("plots/F3_internal.png", p_comb, width = 10, height = 3)
 
-p_f <- plot_grid(pl, p_comb, nrow = 2)
+p_f <- plot_grid(pl, p_comb, nrow = 2, labels = c("A", "B"))
 
 ggsave("plots/F3.png", p_f, width = 10, height = 7)
 
