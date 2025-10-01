@@ -44,16 +44,16 @@ pr <- df %>%
     size = 4,
     color = "black"
   ) +
-  scale_y_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
-  scale_x_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
+  scale_y_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
+  scale_x_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
   labs(
-    x = "Recorded Time of day",
+    x = "Recorded time of day",
     y = "Predicted Proteomic Time"
   ) +
   theme_classic(base_size = 9) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 8, face = "bold", hjust = 0),
+    strip.text = element_text(size = 9, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold")
   )
 
@@ -62,6 +62,7 @@ ggsave("plots/F3_internal_olink.png", pr, width = 6, height = 3)
 ##### NMR
 
 df_nmr <- readRDS("/mnt/project/nmr_int_replication.rds") %>%
+  filter(i == 0) %>%
   mutate(i = case_when(i == 0  ~ "i0: Initial assessment \n(2006-2010)",
                        i == 1 ~ "i1: First repeat assessment \n(2012-13)"),
          i = factor(i, levels = c("i0: Initial assessment \n(2006-2010)", "i1: First repeat assessment \n(2012-13)"))) %>%
@@ -96,20 +97,20 @@ pr_nmr <- df_nmr %>%
     size = 4,
     color = "black"
   ) +
-  scale_y_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9, 21)) +
-  scale_x_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9, 21)) +
+  scale_y_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
+  scale_x_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
   labs(
-    x = "Recorded Time of day",
+    x = "Recorded time of day",
     y = "Predicted Metabolic Time"
   ) +
   theme_classic(base_size =9) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 8, face = "bold", hjust = 0),
+    strip.text = element_text(size = 9, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold")
   )
 
-ggsave("plots/F3_internal_nmr.png", pr_nmr, width = 4, height = 3)
+ggsave("plots/F3_internal_nmr.png", pr_nmr, width = 3, height = 3)
 
 p_comb <- cowplot::plot_grid(pr, pr_nmr, rel_widths = c(0.5, 0.5), labels = c("B", "C"))
 

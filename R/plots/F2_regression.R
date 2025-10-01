@@ -127,8 +127,10 @@ pl <- plot_data %>%
     color = "black"
   ) +
   # scales & styling
-  scale_y_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
-  scale_x_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
+  #scale_y_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
+  scale_y_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
+  #scale_x_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
+  scale_x_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
   scale_color_manual(values = c(
     "All"          = "gray",
     "Proteomics"   = "#76B041",
@@ -136,13 +138,12 @@ pl <- plot_data %>%
     "Biochemistry" = "#E85F5C",
     "Cell counts"  = "#8F3985"
   )) +
-  labs(title = "A",
-    x     = "Recorded time of day",
-    y     = "Predicted omic time") +
+  labs(x     = "Recorded time of day",
+    y     = "Predicted internal time") +
   theme_classic(base_size = 11) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 14, face = "bold", hjust = 0),
+    strip.text = element_text(size = 12, face = "bold", hjust = 0),
     axis.title = element_text(face = "bold"), legend.position = "none"
   )
 
@@ -211,19 +212,20 @@ ggsave("plots/F2_heat.png", p_heat, width = 4, height = 4)
 
 ### HEAT across models
 
-pred_cols <- grep("^pred_", colnames(data_ind), value = TRUE)
+pred_cols_a <- grep("^pred_", colnames(data_ind), value = TRUE)
+pred_cols <- str_remove(pred_cols_a, "pred_")
 
 # Function to compute correlation matrix -> long table
 cor_fun <- function(df) {
-  mat <- cor(df[, pred_cols], use = "pairwise.complete.obs")
+  mat <- cor(df[, paste0("pred_", pred_cols)], use = "pairwise.complete.obs")
   # melt to long
   df_long <- as.data.frame(as.table(mat)) %>%
     rename(pred1 = Var1, pred2 = Var2, cor = Freq)
 
   # keep lower triangle only
   df_long <- df_long %>%
-    filter(as.numeric(factor(pred1, levels = pred_cols)) >=
-             as.numeric(factor(pred2, levels = pred_cols)))
+    filter(as.numeric(factor(pred1, levels = pred_cols_a)) >=
+             as.numeric(factor(pred2, levels = pred_cols_a)))
 
   return(df_long)
 }
@@ -240,6 +242,7 @@ cor_by_type <- data_ind %>%
   ungroup()
 
 # plot
+
 heat_mod <- ggplot(cor_by_type, aes(x = pred1, y = pred2, fill = cor)) +
   geom_tile(color = "white") +
   geom_text(aes(label = sprintf("%.2f", cor)), size = 2) +
@@ -248,7 +251,7 @@ heat_mod <- ggplot(cor_by_type, aes(x = pred1, y = pred2, fill = cor)) +
   theme_classic(base_size = 11) +
   theme(
     strip.background = element_blank(),
-    strip.text = element_text(size = 12, face = "bold", hjust = 0),
+    strip.text = element_text(size = 11, face = "bold", hjust = 0),
     axis.text.x = element_text(angle = 45, hjust = 1),
     panel.grid = element_blank(),
     axis.title = element_blank(), legend.position = "none"
