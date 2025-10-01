@@ -68,7 +68,7 @@ plot_import <- ggplot(top20_heat, aes(x = model, y = reorder(feature_wrapped, av
     fill = "Importance"
   )
 
-ggsave("plots/FS_weights_rank.png", plot_import, width = 5, height = 11)
+ggsave("plots/FS_weights_rank.png", plot_import, width = 8, height = 12)
 
 
 
