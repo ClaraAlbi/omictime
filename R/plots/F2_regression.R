@@ -136,7 +136,7 @@ pl <- plot_data %>%
     "Biochemistry" = "#E85F5C",
     "Cell counts"  = "#8F3985"
   )) +
-  labs(
+  labs(title = "A",
     x     = "Recorded time of day",
     y     = "Predicted omic time") +
   theme_classic(base_size = 11) +
@@ -147,7 +147,7 @@ pl <- plot_data %>%
   )
 
 
-ggsave("plots/F3_pred.png", pl, width = 10, height = 4)
+ggsave("plots/F3_pred.png", pl, width = 10, height = 3)
 
 
 
@@ -205,3 +205,51 @@ p_heat <- ggplot(corr_long, aes(x = type2, y = type1, fill = r)) +
 
 
 ggsave("plots/F2_heat.png", p_heat)
+
+
+### HEAT across models
+
+pred_cols <- grep("^pred_", colnames(data_ind), value = TRUE)
+
+# Function to compute correlation matrix -> long table
+cor_fun <- function(df) {
+  mat <- cor(df[, pred_cols], use = "pairwise.complete.obs")
+  # melt to long
+  df_long <- as.data.frame(as.table(mat)) %>%
+    rename(pred1 = Var1, pred2 = Var2, cor = Freq)
+
+  # keep lower triangle only
+  df_long <- df_long %>%
+    filter(as.numeric(factor(pred1, levels = pred_cols)) >=
+             as.numeric(factor(pred2, levels = pred_cols)))
+
+  return(df_long)
+}
+
+cor_by_type <- data_ind %>%
+  filter(type %in% c("all","olink","NMR","labs","counts")) %>%
+  mutate(type = factor(
+    type,
+    levels = c("all","olink","NMR","labs","counts"),
+    labels = c("All","Proteomics","Metabolomics", "Biochemistry","Cell counts")
+  )) %>%
+  group_by(type) %>%
+  group_modify(~ cor_fun(.x)) %>%
+  ungroup()
+
+# plot
+heat_mod <- ggplot(cor_by_type, aes(x = pred1, y = pred2, fill = cor)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", cor)), size = 2) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0.9) +
+  facet_grid(~ type) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank(),
+    axis.title = element_blank(),
+  ) +
+  labs(fill = "Correlation")
+
+ggsave("plots/F3_head_mod.png", heat_mod, width = 10, height = 3)
+
