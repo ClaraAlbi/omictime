@@ -241,15 +241,17 @@ cor_by_type <- data_ind %>%
 heat_mod <- ggplot(cor_by_type, aes(x = pred1, y = pred2, fill = cor)) +
   geom_tile(color = "white") +
   geom_text(aes(label = sprintf("%.2f", cor)), size = 2) +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0.9) +
+  scale_fill_gradient2(low = "lightblue", mid = "white", high = "pink", midpoint = 0.9) +
   facet_grid(~ type) +
-  theme_minimal() +
+  theme_classic(base_size = 11) +
   theme(
+    strip.background = element_blank(),
+    strip.text = element_text(size = 12, face = "bold", hjust = 0),
     axis.text.x = element_text(angle = 45, hjust = 1),
     panel.grid = element_blank(),
-    axis.title = element_blank(),
+    axis.title = element_blank()
   ) +
   labs(fill = "Correlation")
 
-ggsave("plots/F3_head_mod.png", heat_mod, width = 10, height = 3)
+ggsave("plots/F3_head_mod.png", heat_mod, width = 10, height = 4)
 
