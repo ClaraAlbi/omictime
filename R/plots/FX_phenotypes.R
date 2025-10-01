@@ -5,10 +5,11 @@ library(ggplot2)
 library(purrr)
 install.packages("broom")
 install.packages("table1")
+install.packages("forcats")
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   mutate(bmi = weight/(height/100)^2,
-         sex = factor(sex))
+         sex = as.factor(sex))
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
@@ -58,13 +59,177 @@ df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
                             m %in% c("09", "10", "11") ~ "Fall"),
          season = relevel(as.factor(season), ref = "Winter"))
 
-a <- df %>%  left_join(covs) %>%
+data <- df %>%
+  left_join(covs) %>%
   left_join(job_vars) %>%
   left_join(pa) %>%
   left_join(sleep) %>%
   filter(!is.na(chrono)) %>%
   mutate(h = round(time_day, 0)) %>%
   filter(age_recruitment > 39)
+
+data$res <- residuals(lm(pred_mean ~ time_day, data = data))
+data$res_q <- ntile(data$res, 5)
+
+
+my_render_cont <- function(x){
+  with(
+    stats.apply.rounding(stats.default(x)),
+    c(
+      "",
+      `Mean (SD)` = sprintf("%s (%s)", MEAN, SD),
+      `Median [Q1, Q3]` = sprintf("%s [%s, %s]",
+                                  MEDIAN, Q1, Q3)
+    )
+  )
+}
+
+
+tab_desc <- table1::table1(~ time_day + age_recruitment + factor(sex) + chrono + h_sleep + season + night_shift + ever_insomnia,
+                           data = data,
+                           render.cont = my_render_cont)
+
+vars <- c("time_day", "age_recruitment", "sex",
+          "chrono", "h_sleep", "ever_insomnia",
+          "season", "night_shift", "smoking", "bmi")
+
+results <- map_dfr(vars, function(v) {
+  f <- as.formula(paste("res ~", v))
+  fit <- lm(f, data = data)
+
+  res <- broom::tidy(fit) %>%
+    filter(term != "(Intercept)") %>%
+    mutate(predictor = v, reference = FALSE)
+
+  # Add reference row if predictor is factor
+  if (is.factor(data[[v]])) {
+    ref_level <- levels(data[[v]])[1]
+    ref_row <- tibble(
+      term = paste0(v, ref_level),
+      estimate = 0, std.error = NA, statistic = NA, p.value = NA,
+      predictor = v, reference = TRUE
+    )
+    res <- bind_rows(ref_row, res)
+  }
+  res
+})
+
+
+res <- results %>%
+  mutate(
+    OR    = exp(estimate),
+    lower = ifelse(reference, 1, exp(estimate - 1.96*std.error)),
+    upper = ifelse(reference, 1, exp(estimate + 1.96*std.error)),
+    Category = case_when(
+      predictor %in% c("age_recruitment", "sex", "bmi", "smoking") ~ "Demographics",
+      predictor %in% c("chrono", "h_sleep", "ever_insomnia") ~ "Sleep",
+      predictor == "season" ~ "Season",
+      predictor == "night_shift" ~ "Job",
+      predictor == "time_day" ~ "Other",
+      TRUE ~ "Other"
+    )
+  )
+
+res <- res %>%
+  mutate(
+    # Strip out the variable name prefix from "term"
+    level = ifelse(reference,
+                   paste0("Reference: ", gsub(predictor, "", term)),
+                   gsub(predictor, "", term)),
+    display_term = paste0(predictor, ": ", level)
+  )
+
+# Now order within each predictor:
+res <- res %>%
+  group_by(predictor) %>%
+  mutate(display_term = factor(display_term,
+                               levels = unique(display_term))) %>%
+  ungroup()
+
+
+pretty_predictor <- c(
+  time_day = "Time of Day",
+  age_recruitment = "Age at Recruitment",
+  sex = "Sex",
+  chrono = "Chronotype",
+  h_sleep = "Sleep Duration",
+  ever_insomnia = "Insomnia",
+  season = "Season",
+  night_shift = "Night Shift",
+  smoking = "Smoking",
+  bmi = "BMI"
+)
+
+es_plot <- res %>%
+  mutate(
+    # remove predictor prefix from term
+    level_label = gsub(paste0("^", predictor), "", term),
+    # mark reference rows
+    level_label = ifelse(reference, paste0(level_label, " (ref)"), level_label),
+    # pretty predictor labels
+    predictor_label = pretty_predictor[predictor],
+    predictor_label = factor(predictor_label, levels = pretty_predictor)
+  )
+
+
+library(forcats)
+ggplot(res_plot,
+       aes(x = fct_rev(level_label), y = OR,
+           color = Category, shape = reference)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = lower, ymax = upper),
+                width = 0.2, na.rm = TRUE) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
+  facet_grid(rows = vars(Category, predictor_label),
+             scales = "free_y", space = "free_y") +
+  scale_color_brewer(palette = "Set1") +
+  scale_shape_manual(values = c("TRUE" = 21, "FALSE" = 19),
+                     labels = c("FALSE" = "Estimate", "TRUE" = "Reference")) +
+  coord_flip() +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.background = element_rect(fill = "grey90", color = NA),
+    strip.text.y = element_text(angle = 0, hjust = 0),
+    legend.position = "bottom"
+  ) +
+  labs(x = NULL, y = "Odds Ratio (95% CI)",
+       color = "Domain", shape = "")
+# Run regressions separately
+results <- map_dfr(vars, function(v) {
+  f <- as.formula(paste("res ~", v))
+  fit <- lm(f, data = data)
+  broom::tidy(fit) %>% filter(term != "(Intercept)") %>% mutate(predictor = v)
+})
+
+res <- results %>%
+  mutate(
+    OR = exp(estimate),
+    lower = exp(estimate - 1.96*std.error),
+    upper = exp(estimate + 1.96*std.error),
+    Category = case_when(
+      term %in% c("age_recruitment", "sex", "bmi", "smoking") ~ "Demographics",
+      grepl("^chrono|h_sleep|ever_insomnia", term) ~ "Sleep",
+      grepl("^season", term) ~ "Season",
+      grepl("^night_shift", term) ~ "Job",
+      term == "time_day" ~ "Other",
+      TRUE ~ "Other"
+    )
+  )
+
+ggplot(res,
+       aes(x = reorder(term, OR), y = OR, color = Category)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
+  facet_grid(rows = vars(Category, predictor) , scales = "free", space = "free") +
+  coord_flip() +
+  theme_classic(base_size = 14) +
+  labs(title = "Odds Ratios by Predictor",
+       x = "Predictor",
+       y = "Odds Ratio (95% CI)",
+       color = "Category")
+
+
 
 # Step 1: rescale predictions to match min/max
 true_min <- min(a$h, na.rm = TRUE)
@@ -106,87 +271,6 @@ ggplot(calib_df, aes(x = h, y = mean_pred, color = method, linetype = method)) +
   theme_classic(base_size = 14) +
   labs(x = "Recorded time", y = "Mean predicted time",
        color = "Method", linetype = "Method", size = "Sample size")
-
-
-
-install.packages("table1")
-library(table1)
-my_render_cont <- function(x){
-  with(
-    stats.apply.rounding(stats.default(x)),
-    c(
-      "",
-      `Mean (SD)` = sprintf("%s (%s)", MEAN, SD),
-      `Median [Q1, Q3]` = sprintf("%s [%s, %s]",
-                                  MEDIAN, Q1, Q3)
-    )
-  )
-}
-
-a$res <- residuals(lm(pred_mean ~ time_day, data = a))
-a$res_q <- ntile(a$res, 5)
-
-tab_desc <- table1::table1(~ time_day + age_recruitment + factor(sex) + chrono + h_sleep + season + night_shift + ever_insomnia,
-                           data = a,
-                           render.cont = my_render_cont)
-
-
-vars <- c("time_day", "age_recruitment", "sex",
-          "chrono", "h_sleep", "ever_insomnia",
-          "season", "night_shift", "smoking", "bmi")
-
-# Run regressions separately
-results <- map_dfr(vars, function(v) {
-  f <- as.formula(paste("res ~", v))
-  fit <- lm(f, data = a)
-  broom::tidy(fit) %>% filter(term != "(Intercept)") %>% mutate(predictor = v)
-})
-
-res <- results %>%
-  mutate(
-    OR = exp(estimate),
-    lower = exp(estimate - 1.96*std.error),
-    upper = exp(estimate + 1.96*std.error),
-    Category = case_when(
-      term %in% c("age_recruitment", "sex", "bmi", "smoking") ~ "Demographics",
-      grepl("^chrono|h_sleep|ever_insomnia", term) ~ "Sleep",
-      grepl("^season", term) ~ "Season",
-      grepl("^night_shift", term) ~ "Job",
-      term == "time_day" ~ "Other",
-      TRUE ~ "Other"
-    )
-  )
-
-ggplot(results %>% filter(term != "(Intercept)"),
-       aes(x = reorder(term, OR), y = OR, color = Category)) +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
-  geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
-  coord_flip() +
-  theme_classic(base_size = 14) +
-  labs(title = "Odds Ratios by Predictor",
-       x = "Predictor",
-       y = "Odds Ratio (95% CI)",
-       color = "Category")
-
-t.test(res ~ factor(sex), data = a)
-
-ggplot(a, aes(x = factor(h), y = pred_mean, fill = factor(chrono))) +
-  geom_boxplot() +
-  theme_classic() +
-  labs(x = "Recorded time", y = "Mean prediction", fill = "Chronotype")
-
-ggplot(a, aes(x = sex, y = pred_mean, fill = factor(sex))) +
-  geom_boxplot() +
-  theme_classic() +
-  labs(x = "Recorded time", y = "Mean prediction", fill = "Sex")
-
-ggplot(a, aes(x = factor(age_recruitment), y = pred_mean)) +
-  geom_boxplot() +
-  geom_hline(yintercept = mean(a$pred_mean), linetype = 2, color = "red") +
-  theme_classic() +
-  labs(x = "Recorded time", y = "Mean prediction", fill = "Chronotype")
-
 
 
 
