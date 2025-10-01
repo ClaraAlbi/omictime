@@ -187,7 +187,7 @@ p_heat <- ggplot(corr_long, aes(x = type2, y = type1, fill = r)) +
   scale_fill_gradient2(
     low      = muted("blue"),
     mid      = "white",
-    high     = muted("red"),
+    high     = muted("green"),
     midpoint = 0,
     limits   = c(-1, 1),
     name     = expression(r)
@@ -196,15 +196,17 @@ p_heat <- ggplot(corr_long, aes(x = type2, y = type1, fill = r)) +
   labs(
     x     = NULL, y = NULL
   ) +
-  theme_minimal(base_size = 14) +
+  theme_classic(base_size = 12) +
   theme(
-    axis.text.x      = element_text(angle = 45, hjust = 1),
-    panel.grid       = element_blank(),
-    axis.ticks       = element_blank(), legend.position = "none"
+    strip.background = element_blank(),
+    strip.text = element_text(size = 12, face = "bold", hjust = 0),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank(),
+    axis.title = element_blank(), legend.position = "none"
   )
 
 
-ggsave("plots/F2_heat.png", p_heat)
+ggsave("plots/F2_heat.png", p_heat, width = 4, height = 4)
 
 
 ### HEAT across models
@@ -249,9 +251,8 @@ heat_mod <- ggplot(cor_by_type, aes(x = pred1, y = pred2, fill = cor)) +
     strip.text = element_text(size = 12, face = "bold", hjust = 0),
     axis.text.x = element_text(angle = 45, hjust = 1),
     panel.grid = element_blank(),
-    axis.title = element_blank()
-  ) +
-  labs(fill = "Correlation")
+    axis.title = element_blank(), legend.position = "none"
+  )
 
-ggsave("plots/F3_head_mod.png", heat_mod, width = 10, height = 4)
+ggsave("plots/F3_head_mod.png", heat_mod, width = 8, height = 3)
 
