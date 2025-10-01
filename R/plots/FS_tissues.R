@@ -39,7 +39,7 @@ tissues <- data.table::fread("data/explore_ukb.csv") %>%
 unique_prots <- tissues %>%
   filter(category %in% c("Tissue enriched", "Group enriched")) %>% pull(Gene) %>% unique()
 
-unique_prots_all <- df_effects %>% pull(UniProt) %>% unique()
+unique_prots_all <- assay %>% pull(UniProt) %>% unique()
 
 
 n_tissues <- tissues %>%
