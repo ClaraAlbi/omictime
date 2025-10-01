@@ -62,7 +62,7 @@ ggsave("plots/F3_internal_olink.png", pr, width = 6, height = 3)
 ##### NMR
 
 df_nmr <- readRDS("/mnt/project/nmr_int_replication.rds") %>%
-  filter(i == 0) %>%
+  filter(i == 1) %>%
   mutate(i = case_when(i == 0  ~ "i0: Initial assessment \n(2006-2010)",
                        i == 1 ~ "i1: First repeat assessment \n(2012-13)"),
          i = factor(i, levels = c("i0: Initial assessment \n(2006-2010)", "i1: First repeat assessment \n(2012-13)"))) %>%
@@ -112,11 +112,11 @@ pr_nmr <- df_nmr %>%
 
 ggsave("plots/F3_internal_nmr.png", pr_nmr, width = 3, height = 3)
 
-p_comb <- cowplot::plot_grid(pr, pr_nmr, rel_widths = c(0.5, 0.5), labels = c("B", "C"))
+p_comb <- cowplot::plot_grid(pr, pr_nmr, rel_widths = c(0.7, 0.3))
 
-ggsave("plots/F3_internal.png", p_comb, width = 10, height = 4)
+ggsave("plots/F3_internal.png", p_comb, width = 10, height = 3)
 
 p_f <- plot_grid(pl, p_comb, nrow = 2)
 
-ggsave("plots/F3.png", p_f, width = 11, height = 8)
+ggsave("plots/F3.png", p_f, width = 10, height = 7)
 
