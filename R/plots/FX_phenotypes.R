@@ -94,7 +94,7 @@ vars <- c("time_day", "age_recruitment", "sex",
           "season", "night_shift", "smoking", "bmi")
 
 results <- map_dfr(vars, function(v) {
-  f <- as.formula(paste("res ~", v))
+  f <- as.formula(paste("abs(res) ~", v))
   fit <- lm(f, data = data)
 
   res <- broom::tidy(fit) %>%
@@ -160,7 +160,7 @@ pretty_predictor <- c(
   bmi = "BMI"
 )
 
-es_plot <- res %>%
+res_plot <- res %>%
   mutate(
     # remove predictor prefix from term
     level_label = gsub(paste0("^", predictor), "", term),
@@ -173,6 +173,7 @@ es_plot <- res %>%
 
 
 library(forcats)
+
 ggplot(res_plot,
        aes(x = fct_rev(level_label), y = OR,
            color = Category, shape = reference)) +

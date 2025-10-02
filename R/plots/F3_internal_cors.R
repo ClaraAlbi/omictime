@@ -107,7 +107,7 @@ p_hist <- preds_olink %>%
   labs(x = "Acceleration") +
   ggtitle("B") +
   paletteer::scale_fill_paletteer_c("ggthemes::Orange-Blue Diverging", direction = -1) +
-  scale_x_continuous(limits = c(-7,7)) +
+  scale_x_continuous(limits = c(-5,5)) +
   theme_classic(base_size = 14) +
   theme(legend.position = "none",
         axis.title = element_text(face = "bold"),
@@ -117,6 +117,57 @@ p_hist <- preds_olink %>%
 
 part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.2, 1))
 
+p_ex %>%
+  { . +
+      ggtitle("") +
+      theme_classic(base_size = 20) +
+      theme(
+        legend.position   = "top",
+        axis.title        = element_text(face = "bold"),
+        legend.title      = element_text(face = "bold", size = 20),
+        legend.text       = element_text(size = 14),
+        legend.margin     = margin(0,0,0,0),
+        plot.title        = element_text(size = 20, face = "bold")
+      ) } %>%
+  { ggsave("slides/acceleration.png", plot = ., width = 10, height = 8) }
+
+p_hist2 <- preds_olink %>%
+  ggplot(aes(x = res, fill = res)) +
+  geom_histogram(
+    aes(fill = ..x..),   # map bin midpoint to fill
+    bins = 30,           # or whatever bin count you prefer
+    color = "white"      # optional: white borders between bins
+  ) +
+  paletteer::scale_fill_paletteer_c("ggthemes::Orange-Blue Diverging", direction = -1) +
+  scale_x_continuous(limits = c(-5,5), sec.axis = dup_axis(name = "Acceleration", labels = NULL)) +
+  theme_classic(base_size = 20) +
+  theme(legend.position = "none",
+        axis.title = element_text(face = "bold"),
+        axis.title.x.bottom = element_blank(),
+        axis.ticks.x.top = element_blank(),
+        legend.title = element_text(face = "bold"),
+        plot.title = element_text(size = 20, face  = "bold"))
+
+ggsave("slides/hist_acceleration.png", plot = p_hist2, width = 6, height = 5)
+
+p_hist3 <- preds_olink %>%
+  ggplot(aes(x = abs(res), fill = abs(res))) +
+  geom_histogram(
+    aes(fill = ..x..),   # map bin midpoint to fill
+    bins = 30,           # or whatever bin count you prefer
+    color = "white"      # optional: white borders between bins
+  ) +
+  paletteer::scale_fill_paletteer_c("ggthemes::Classic Gray", direction = 1) +
+  scale_x_continuous(limits = c(0,5), sec.axis = dup_axis(name = "Misalignment", labels = NULL)) +
+  theme_classic(base_size = 20) +
+  theme(legend.position = "none",
+        axis.title = element_text(face = "bold"),
+        axis.title.x.bottom = element_blank(),
+        axis.ticks.x.top = element_blank(),
+        legend.title = element_text(face = "bold"),
+        plot.title = element_text(size = 20, face  = "bold"))
+
+ggsave("slides/hist_misalignment.png", plot = p_hist3, width = 6, height = 5)
 
 ###
 
