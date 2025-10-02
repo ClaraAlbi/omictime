@@ -17,7 +17,7 @@ df_effects %>%
   group_by(Panel) %>% count()
 
 go <- data.table::fread("data/explore_ukb (1).csv") %>%
-  rename(UniProt = `UniProt ID`) %>%
+  dplyr::rename(UniProt = `UniProt ID`) %>%
   mutate(
     go_bp = str_trim(`Biological Process`))  %>%
   separate_rows(go_bp, sep = ",\\s*") %>%
@@ -56,6 +56,18 @@ ego <- enrichGO(
   OrgDb         = org.Hs.eg.db,
   keyType       = "ENTREZID",
   ont           = "BP",        # Biological Process
+  pAdjustMethod = "BH",
+  pvalueCutoff  = 0.05,
+  qvalueCutoff  = 0.05,
+  readable      = TRUE
+)
+
+ego_mf <- enrichGO(
+  gene          = sig_entrez$ENTREZID,
+  universe      = bg_entrez$ENTREZID,
+  OrgDb         = org.Hs.eg.db,
+  keyType       = "ENTREZID",
+  ont           = "MF",        # Biological Process
   pAdjustMethod = "BH",
   pvalueCutoff  = 0.05,
   qvalueCutoff  = 0.05,
