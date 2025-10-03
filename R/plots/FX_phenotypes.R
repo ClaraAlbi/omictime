@@ -6,6 +6,7 @@ library(purrr)
 install.packages("broom")
 install.packages("table1")
 install.packages("forcats")
+library(broom)
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   mutate(bmi = weight/(height/100)^2,
@@ -42,7 +43,8 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
     chrono = factor(chrono, levels = c("Definitely morning", "Rather morning", "Don't know", "Rather evening", "Definitely evening")),
     ever_insomnia = case_when(ever_insomnia == 1 ~ "Never/rarely",
                               ever_insomnia == 2 ~ "Sometimes",
-                              ever_insomnia == 3 ~ "Usually"))
+                              ever_insomnia == 3 ~ "Usually"),
+    ever_insomnia = factor(ever_insomnia, levels = c("Never/rarely", "Sometimes", "Usually")))
 
 df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   filter(!is.na(time_day)) %>%
@@ -62,7 +64,6 @@ df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
 data <- df %>%
   left_join(covs) %>%
   left_join(job_vars) %>%
-  left_join(pa) %>%
   left_join(sleep) %>%
   filter(!is.na(chrono)) %>%
   mutate(h = round(time_day, 0)) %>%
@@ -89,19 +90,23 @@ tab_desc <- table1::table1(~ time_day + age_recruitment + factor(sex) + chrono +
                            data = data,
                            render.cont = my_render_cont)
 
+
+
+# Predictor list
 vars <- c("time_day", "age_recruitment", "sex",
           "chrono", "h_sleep", "ever_insomnia",
           "season", "night_shift", "smoking", "bmi")
 
+# Loop over predictors
 results <- map_dfr(vars, function(v) {
   f <- as.formula(paste("abs(res) ~", v))
   fit <- lm(f, data = data)
 
-  res <- broom::tidy(fit) %>%
+  res <- tidy(fit) %>%
     filter(term != "(Intercept)") %>%
     mutate(predictor = v, reference = FALSE)
 
-  # Add reference row if predictor is factor
+  # Add reference row if factor
   if (is.factor(data[[v]])) {
     ref_level <- levels(data[[v]])[1]
     ref_row <- tibble(
@@ -114,7 +119,7 @@ results <- map_dfr(vars, function(v) {
   res
 })
 
-
+# Add ORs, CIs, and categories
 res <- results %>%
   mutate(
     OR    = exp(estimate),
@@ -130,23 +135,40 @@ res <- results %>%
     )
   )
 
+
+factor_lookup <- map_dfr(vars, function(v) {
+  if (is.factor(data[[v]])) {
+    tibble(predictor = v,
+           levels_list = list(levels(data[[v]])))
+  } else {
+    tibble(predictor = v,
+           levels_list = list(NULL))
+  }
+})
+
+# --- add labels first ---
 res <- res %>%
   mutate(
-    # Strip out the variable name prefix from "term"
-    level = ifelse(reference,
-                   paste0("Reference: ", gsub(predictor, "", term)),
-                   gsub(predictor, "", term)),
+    level = gsub(predictor, "", term),
+    level = ifelse(reference, paste0(level, " (ref)"), level),
     display_term = paste0(predictor, ": ", level)
-  )
+  ) %>%
+  left_join(factor_lookup, by = "predictor")
 
-# Now order within each predictor:
+# --- reorder display_term using lookup ---
 res <- res %>%
-  group_by(predictor) %>%
-  mutate(display_term = factor(display_term,
-                               levels = unique(display_term))) %>%
+  rowwise() %>%
+  mutate(display_term = if (!is.null(levels_list)) {
+    lvls <- levels_list
+    factor(display_term,
+           levels = c(paste0(predictor, ": ", lvls[1], " (ref)"),
+                      paste0(predictor, ": ", lvls[-1])))
+  } else {
+    factor(display_term, levels = unique(display_term))
+  }) %>%
   ungroup()
 
-
+# Pretty labels for predictors
 pretty_predictor <- c(
   time_day = "Time of Day",
   age_recruitment = "Age at Recruitment",
@@ -160,24 +182,25 @@ pretty_predictor <- c(
   bmi = "BMI"
 )
 
-res_plot <- res %>%
+  res_plot <- res %>%
   mutate(
-    # remove predictor prefix from term
-    level_label = gsub(paste0("^", predictor), "", term),
-    # mark reference rows
-    level_label = ifelse(reference, paste0(level_label, " (ref)"), level_label),
-    # pretty predictor labels
     predictor_label = pretty_predictor[predictor],
     predictor_label = factor(predictor_label, levels = pretty_predictor)
   )
 
+res_plot <- res %>%
+  mutate(
+    level_label = gsub(paste0("^", predictor), "", term),
+    level_label = ifelse(reference, paste0(level_label, " (ref)"), level_label),
+    predictor_label = pretty_predictor[predictor],
+    predictor_label = factor(predictor_label, levels = pretty_predictor)
+  )
 
-library(forcats)
-
+# Plot
 ggplot(res_plot,
        aes(x = fct_rev(level_label), y = OR,
            color = Category, shape = reference)) +
-  geom_point(size = 3) +
+  geom_point(size = 5) +
   geom_errorbar(aes(ymin = lower, ymax = upper),
                 width = 0.2, na.rm = TRUE) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
@@ -187,7 +210,7 @@ ggplot(res_plot,
   scale_shape_manual(values = c("TRUE" = 21, "FALSE" = 19),
                      labels = c("FALSE" = "Estimate", "TRUE" = "Reference")) +
   coord_flip() +
-  theme_bw(base_size = 14) +
+  theme_bw(base_size = 20) +
   theme(
     strip.background = element_rect(fill = "grey90", color = NA),
     strip.text.y = element_text(angle = 0, hjust = 0),
@@ -195,84 +218,5 @@ ggplot(res_plot,
   ) +
   labs(x = NULL, y = "Odds Ratio (95% CI)",
        color = "Domain", shape = "")
-# Run regressions separately
-results <- map_dfr(vars, function(v) {
-  f <- as.formula(paste("res ~", v))
-  fit <- lm(f, data = data)
-  broom::tidy(fit) %>% filter(term != "(Intercept)") %>% mutate(predictor = v)
-})
-
-res <- results %>%
-  mutate(
-    OR = exp(estimate),
-    lower = exp(estimate - 1.96*std.error),
-    upper = exp(estimate + 1.96*std.error),
-    Category = case_when(
-      term %in% c("age_recruitment", "sex", "bmi", "smoking") ~ "Demographics",
-      grepl("^chrono|h_sleep|ever_insomnia", term) ~ "Sleep",
-      grepl("^season", term) ~ "Season",
-      grepl("^night_shift", term) ~ "Job",
-      term == "time_day" ~ "Other",
-      TRUE ~ "Other"
-    )
-  )
-
-ggplot(res,
-       aes(x = reorder(term, OR), y = OR, color = Category)) +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
-  geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
-  facet_grid(rows = vars(Category, predictor) , scales = "free", space = "free") +
-  coord_flip() +
-  theme_classic(base_size = 14) +
-  labs(title = "Odds Ratios by Predictor",
-       x = "Predictor",
-       y = "Odds Ratio (95% CI)",
-       color = "Category")
-
-
-
-# Step 1: rescale predictions to match min/max
-true_min <- min(a$h, na.rm = TRUE)
-true_max <- max(a$h, na.rm = TRUE)
-pred_min <- min(a$pred_mean, na.rm = TRUE)
-pred_max <- max(a$pred_mean, na.rm = TRUE)
-
-scale_factor <- (true_max - true_min) / (pred_max - pred_min)
-shift <- true_min - pred_min * scale_factor
-
-a <- a %>%
-  mutate(pred_rescaled = pred_mean * scale_factor + shift)
-
-# Step 2: spline calibration on rescaled predictions
-fit_spline <- lm(h ~ ns(pred_rescaled, df = 4), data = a)
-a <- a %>%
-  ungroup() %>%
-  mutate(pred_calib_spline = predict(fit_spline, newdata = a))
-
-calib_df <- a %>%
-  group_by(h) %>%
-  summarise(
-    raw      = mean(pred_mean, na.rm = TRUE),
-    spline   = mean(pred_calib_spline, na.rm = TRUE),
-    n = n(),
-    .groups = "drop"
-  ) %>%
-  tidyr::pivot_longer(cols = c(raw, spline),
-                      names_to = "method", values_to = "mean_pred") %>%
-  mutate(method = recode(method,
-                         raw = "Raw",
-                         spline = "Spline-calibrated"))
-
-ggplot(calib_df, aes(x = h, y = mean_pred, color = method, linetype = method)) +
-  geom_point(aes(size = n), alpha = 0.6) +
-  geom_line(size = 1) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
-  coord_equal(xlim = c(8,21), ylim = c(8,21)) +
-  theme_classic(base_size = 14) +
-  labs(x = "Recorded time", y = "Mean predicted time",
-       color = "Method", linetype = "Method", size = "Sample size")
-
-
 
 

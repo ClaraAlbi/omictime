@@ -62,7 +62,8 @@ data <- df %>%
   left_join(sleep) %>%
   filter(!is.na(chrono)) %>%
   mutate(h = round(time_day, 0)) %>%
-  filter(age_recruitment > 39)
+  filter(age_recruitment > 39) %>%
+  filter(h_sleep > 0)
 
 data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 data$res_q <- ntile(data$res, 5)
@@ -140,27 +141,28 @@ extra_covars  <- c("bmi", "smoking")
 
 results <- map_dfr(vars, function(v) {
 
-  # build formulas
+  # formula for abs(res) only
   f_prev1 <- as.formula(
-    paste0("`",v , "`", " ~ abs(res) + chrono +",
-          paste(c(base_covars, extra_covars), collapse = " + "))
+    paste0("`", v, "` ~ abs(res)")
   )
+
+  # formula for abs(res) + covariates
   f_prev2 <- as.formula(
-    paste0("`",v , "`", " ~ abs(res) +",
+    paste0("`", v, "` ~ abs(res) + ",
            paste(c(base_covars, extra_covars), collapse = " + "))
   )
 
   # fit models
-  m0 <- glm(f_prev2, data = data1, family = binomial)
-  m1  <- glm(f_prev1, data = data1, family = binomial)
+  m0 <- glm(f_prev1, data = data1, family = binomial)
+  m1 <- glm(f_prev2, data = data1, family = binomial)
 
   # collect results
   bind_rows(
     broom::tidy(m0, conf.int = TRUE, exponentiate = TRUE) %>%
-      mutate(model = "m0", outcome = v),
+      mutate(model = "m0_MISALIGNMENT", outcome = v),
 
     broom::tidy(m1, conf.int = TRUE, exponentiate = TRUE) %>%
-      mutate(model = "m1", outcome = v)
+      mutate(model = "m1_MISALIGNMENT + COV", outcome = v)
   )
 })
 
@@ -180,7 +182,7 @@ results %>%
              ymin = conf.low, ymax = conf.high,
              color = model, shape = model)) +
   geom_pointrange(position = position_dodge(width = 0.6),
-                  size = 0.8, fatten = 2) +
+                  size = 2, fatten = 2) +
   geom_text(aes(label = sprintf("%.2e", p.value)),
             angle = 45, hjust = -0.1,
             position = position_dodge(width = 0.6), size = 5) +
@@ -188,7 +190,7 @@ results %>%
   geom_hline(yintercept = 1, linetype = "dashed") +
   labs(y = "Odds Ratio (95% CI)",
        x = "Outcome") +
-  theme_classic(base_size = 18) +
+  theme_classic(base_size = 24) +
   theme(legend.position = "top",
         legend.title = element_blank())
 
@@ -214,5 +216,13 @@ data1 %>%
   filter(!is.na(p_1308920.0_prevalent)) %>%
   ggplot(aes(x = res, color = p_1308920.0_prevalent)) +
   geom_density()
+
+data1 %>%
+  filter(!is.na(bp)) %>%
+  ggplot(aes(x = chrono, y = abs(res), fill = bp)) +
+  geom_boxplot() +
+  theme_classic(base_size = 24) +
+  labs(y = "Misalignment") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
 
 
