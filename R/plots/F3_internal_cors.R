@@ -32,7 +32,7 @@ top2 <- df2 %>%
 
 p_ex <- ggplot(df2, aes(x = time_day, y = pred_mean, color = res)) +
   geom_pointrange(
-    aes(ymin = pred_mean - mod_sd, ymax = pred_mean + mod_sd)) +
+    aes(ymin = pred_mean - mod_sd, ymax = pred_mean + mod_sd), size = 0.4) +
   geom_abline(
     intercept = coef(mod)[1],
     slope     = coef(mod)[2],
@@ -69,13 +69,12 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_mean, color = res)) +
     segment.size = 0,
     direction  = "y",       # only repel vertically, to keep all labels at same x-offset
     color      = "black",
-    size       = 4,
+    size       = 5,
     box.padding= 0.1
   ) +
-  ggtitle("A") +
   labs(
     x     = "Recorded time of day",
-    y     = "Mean predicted proteomic time", color = "Acceleration"
+    y     = "Mean predicted proteomic time", color = "Circadian acceleration"
   ) +
   paletteer::scale_color_paletteer_c("ggthemes::Orange-Blue Diverging",
                                      direction = -1,
@@ -85,15 +84,16 @@ p_ex <- ggplot(df2, aes(x = time_day, y = pred_mean, color = res)) +
       title.position = "top",
       title.hjust    = 0.5,
       barwidth       = 14,
-      barheight      = 1.5,
-      reverse = TRUE
+      barheight      = 1.2,
+      reverse = FALSE
     )
   ) +
-  theme_classic(base_size = 14) +
+  theme_classic(base_size = 16) +
   theme(legend.position   = "top",
         axis.title = element_text(face = "bold"),
         legend.title = element_text(face = "bold", size = 12),
-        legend.text = element_text(size = 10), legend.margin = margin(0,0,0,0),
+        legend.text = element_text(size = 12),
+        legend.margin = margin(0,0,0,0),
         plot.title = element_text(size = 20, face  = "bold"))
 
 
@@ -115,7 +115,9 @@ p_hist <- preds_olink %>%
         plot.title = element_text(size = 20, face  = "bold"))
 
 
-part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.2, 1))
+#part1 <- cowplot::plot_grid(p_ex, p_hist, ncol = 2, rel_widths = c(1.2, 1))
+
+
 
 p_ex %>%
   { . +
@@ -139,13 +141,17 @@ p_hist2 <- preds_olink %>%
     color = "white"      # optional: white borders between bins
   ) +
   paletteer::scale_fill_paletteer_c("ggthemes::Orange-Blue Diverging", direction = -1) +
-  scale_x_continuous(limits = c(-5,5), sec.axis = dup_axis(name = "Acceleration", labels = NULL)) +
-  theme_classic(base_size = 20) +
+  scale_x_continuous(limits = c(-5,5), sec.axis = dup_axis(name = "Circadian acceleration", labels = NULL)) +
+  scale_y_continuous(
+    labels = function(x) paste0(x / 1000, "k"),
+    breaks = seq(1000, 5000, 1000), # optional: control tick positions
+    expand = c(0, 0)) +
+  theme_classic(base_size = 14) +
   theme(legend.position = "none",
-        axis.title = element_text(face = "bold"),
+        axis.title.y = element_blank(),
         axis.title.x.bottom = element_blank(),
+        axis.title.x.top = element_text(size = 16, face  = "bold"),
         axis.ticks.x.top = element_blank(),
-        legend.title = element_text(face = "bold"),
         plot.title = element_text(size = 20, face  = "bold"))
 
 ggsave("slides/hist_acceleration.png", plot = p_hist2, width = 6, height = 5)
@@ -158,16 +164,26 @@ p_hist3 <- preds_olink %>%
     color = "white"      # optional: white borders between bins
   ) +
   paletteer::scale_fill_paletteer_c("ggthemes::Classic Gray", direction = 1) +
-  scale_x_continuous(limits = c(0,5), sec.axis = dup_axis(name = "Misalignment", labels = NULL)) +
-  theme_classic(base_size = 20) +
+  labs(x = "Hours") +
+  scale_x_continuous(limits = c(0,5), sec.axis = dup_axis(name = "Circadian misalignment", labels = NULL, expand = c(0,0))) +
+  scale_y_continuous(
+    labels = function(x) paste0(x / 1000, "k"),
+    breaks = seq(1000, 5000, 1000), # optional: control tick positions
+    expand = c(0, 0)) +
+  theme_classic(base_size = 14) +
   theme(legend.position = "none",
-        axis.title = element_text(face = "bold"),
-        axis.title.x.bottom = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x.top = element_text(size = 16, face  = "bold"),
         axis.ticks.x.top = element_blank(),
-        legend.title = element_text(face = "bold"),
         plot.title = element_text(size = 20, face  = "bold"))
 
 ggsave("slides/hist_misalignment.png", plot = p_hist3, width = 6, height = 5)
+
+p_hist_comb <- cowplot::plot_grid(p_hist2, p_hist3, nrow = 2, rel_heights = c(0.7, 0.8))
+
+part1 <- cowplot::plot_grid(p_ex, p_hist_comb, ncol = 2, rel_widths = c(1.7, 1), labels = c("A", "B"), label_size = 18)
+
+
 
 ###
 
@@ -258,84 +274,7 @@ p3 <- make_pair_plot(2, 3)
 final_plot <-  cowplot::plot_grid(p3, p1, p2, nrow = 1)
 
 
-title_grob <- cowplot::ggdraw() +
-  cowplot::draw_label(
-    "C",
-    fontface = "bold",
-    x        = 0,        # left-align
-    hjust    = -1.5,        # left justification
-    size     = 22
-  )
+full <- cowplot::plot_grid(part1,  final_plot, nrow = 2, labels = c("", "C"), label_size = 18)
 
-# 2. Stack title + plot
-titled_plot <- cowplot::plot_grid(
-  title_grob,
-  final_plot,
-  ncol        = 1,
-  rel_heights = c(0.1, 1)  # 10% height for title, 90% for the grid
-)
+ggsave("plots/F4_combined.png", full, width = 10, height = 8)
 
-
-full <- cowplot::plot_grid(part1,  titled_plot, nrow = 2)
-
-ggsave("plots/F4_combined.png", full, width = 10, height = 10)
-
-
-
-
-
-# CURRENTLY UNUSED
-
-df2 <- df %>%
-  filter(n == 3) %>%
-  pivot_wider(id_cols = c(eid), names_from = i, values_from = c(res, y), names_prefix = "i") %>%
-  rowwise() %>%
-  mutate(max_drawdown = max(c_across(starts_with("res"))) - min(c_across(starts_with("res")))) %>%
-  ungroup() %>%
-  pivot_longer(
-    cols       = c(res_i0, res_i2, res_i3, y_i0, y_i2, y_i3),
-    names_to   = c(".value", "i"),
-    names_pattern = "(.*)_i(.*)"
-  ) %>%
-  filter(!is.na(y))
-
-hist(df2$max_drawdown)
-sum(df2$max_drawdown > 3)
-
-ggplot(df2, aes(x = y, y = res, group = eid)) +
-  # first draw all “flat” subjects in light grey
-  geom_line(data = filter(df2, max_drawdown < 3),
-            colour = "grey80", alpha = 0.5) +
-  # then draw the big oscillators on top
-  geom_line(data = filter(df2, max_drawdown > 3),
-            aes(colour = max_drawdown), size = 0.5) +
-  scale_colour_viridis_c(option = "C", name = "max_drawdown") +
-  labs(x = "Year sample", y = "Residual") +
-  theme_minimal(base_size = 14)
-
-
-
-a <- df %>%
-  filter(n == 3) %>%
-  mutate(y = as.numeric(y)) %>%
-  pivot_wider(id_cols = c(eid), names_from = i, values_from = c(res, y), names_prefix = "i") %>%
-  rowwise() %>%
-  mutate(mean_i03 = mean(c(res_i0, res_i2, res_i3)),
-         period = max(c_across(starts_with("y"))) - min(c_across(starts_with("y")))) %>%
-  ungroup() %>%
-  pivot_longer(
-    cols       = c(res_i0, res_i2, res_i3, y_i0, y_i2, y_i3),
-    names_to   = c(".value", "i"),
-    names_pattern = "(.*)_i(.*)"
-  )
-
-ggplot(a, aes(x = mean_i03)) + geom_histogram()
-
-a %>%
-  pivot_wider(id_cols = c(eid), names_from = i, values_from = res, names_prefix = "i") %>%
-  ggplot(aes(x = i0)) + geom_histogram()
-
-hist(a$mean_i03)
-
-
-ggplot(df, aes(x = time_day, y = res, color = i)) + geom_point()
