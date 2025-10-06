@@ -274,7 +274,7 @@ p3 <- make_pair_plot(2, 3)
 final_plot <-  cowplot::plot_grid(p3, p1, p2, nrow = 1)
 
 
-full <- cowplot::plot_grid(part1,  final_plot, nrow = 2, labels = c("", "C"), label_size = 18)
+full <- cowplot::plot_grid(part1,  final_plot, nrow = 2, labels = c("", "C"), label_size = 18, rel_heights = c(1, 0.8))
 
-ggsave("plots/F4_combined.png", full, width = 10, height = 8)
+ggsave("plots/F4_combined.png", full, width = 10, height = 10)
 
