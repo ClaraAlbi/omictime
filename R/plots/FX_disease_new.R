@@ -70,14 +70,18 @@ data$res_q <- ntile(data$res, 5)
 
 
 # diagnosis table
-sleep2 <- readRDS("/mnt/project/diseases_circadian.rds") %>% select(eid, p131060)
+sleep2 <- readRDS("/mnt/project/diseases_circadian.rds") %>% select(eid, p131060, p130708, p130792, p130842, p131306)
 
-outcomes <- tribble(~field_id, ~phen,
-                    "130894", "Depressive_episode",
-                    "130896", "Recurrent_depression",
-                    "130892", "Bipolar",
-                    "130874", "Schizophrenia",
-                    "p131060", "Sleep disorders")
+outcomes <- tribble(~field_id, ~phen, ~class,
+                    "130894", "Depressive_episode","Neuro-psychiatric",
+                    "130896", "Recurrent_depression","Neuro-psychiatric",
+                    "130892", "Bipolar disorder","Neuro-psychiatric",
+                    "130874", "Schizophrenia","Neuro-psychiatric",
+                    "p131060", "Sleep - G47", "Neuro-psychiatric",
+                    "p130842", "Dementia", "Neuro-psychiatric",
+                    "p130708", "Type 2 Diabetes", "Cardiometabolic",
+                    "p130792", "Obesity", "Cardiometabolic",
+                    "p131306", "Ischaemic heart disease", "Cardiometabolic")
 
 dis2 <- data.table::fread("/mnt/project/vars_diseases_2.tsv") %>%
   select(eid, contains(outcomes$field_id)) %>%
@@ -142,6 +146,7 @@ extra_covars  <- c("bmi", "smoking")
 results <- map_dfr(vars, function(v) {
 
   # formula for abs(res) only
+  f0 <- as.formula(paste0("`", v, "` ~ time_day"))
   f_prev1 <- as.formula(
     paste0("`", v, "` ~ abs(res)")
   )
@@ -153,11 +158,15 @@ results <- map_dfr(vars, function(v) {
   )
 
   # fit models
+  mt <- glm(f0, data = data1, family = binomial)
   m0 <- glm(f_prev1, data = data1, family = binomial)
   m1 <- glm(f_prev2, data = data1, family = binomial)
 
   # collect results
   bind_rows(
+    broom::tidy(mt, conf.int = TRUE, exponentiate = TRUE) %>%
+      mutate(model = "mt_TIME_DAY", outcome = v),
+
     broom::tidy(m0, conf.int = TRUE, exponentiate = TRUE) %>%
       mutate(model = "m0_MISALIGNMENT", outcome = v),
 
@@ -171,28 +180,36 @@ library(forcats)
 results %>%
   mutate(
     # Extract the core field id
-    o = str_extract(outcome, "(?<=p_)[0-9]+(?=0\\.0_prevalent)|(?<=p_)p?[0-9]+")
+    o = str_extract(outcome, "(?<=p_)[0-9]+(?=0\\.0_prevalent)|(?<=p_)p?[0-9]+"),
+    model = factor(model, levels =c("mt_TIME_DAY", "m0_MISALIGNMENT", "m1_MISALIGNMENT + COV"))
   ) %>%
   left_join(outcomes, by = c("o" = "field_id")) %>%
   mutate(outcome_clean = coalesce(phen, outcome)) %>%
   filter(term != "(Intercept)") %>%
-  filter(term == "abs(res)") %>%
+  filter(term %in% c("time_day", "abs(res)")) %>%
   ggplot(aes(x = outcome_clean,
              y = estimate,
              ymin = conf.low, ymax = conf.high,
              color = model, shape = model)) +
   geom_pointrange(position = position_dodge(width = 0.6),
-                  size = 2, fatten = 2) +
-  geom_text(aes(label = sprintf("%.2e", p.value)),
+                  size = 1, fatten = 3) +
+  geom_text(data = . %>% filter(p.value < 0.05), aes(label = sprintf("%.0e", p.value)),
             angle = 45, hjust = -0.1,
-            position = position_dodge(width = 0.6), size = 5) +
+            position = position_dodge(width = 0.6), size = 4) +
   coord_flip() +
+  facet_grid(rows = vars(class), space = "free", scales = "free") +
   geom_hline(yintercept = 1, linetype = "dashed") +
+  scale_color_manual(values = c( "#2ca02c","#9467bd","#ff7f0e")) +
   labs(y = "Odds Ratio (95% CI)",
        x = "Outcome") +
-  theme_classic(base_size = 24) +
-  theme(legend.position = "top",
-        legend.title = element_blank())
+  theme_classic(base_size = 16) +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.box = "horizontal")
+  guides(
+    color = guide_legend(nrow = 3, byrow = TRUE),
+    shape = guide_legend(nrow = 3, byrow = TRUE)
+  )
 
 
 

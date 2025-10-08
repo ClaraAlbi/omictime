@@ -12,7 +12,7 @@ library(forcats)
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   filter(smoking != "-3") %>%
   mutate(bmi = weight/(height/100)^2,
-         sex = as.factor(sex),
+         sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
          smoking = as.factor(smoking))
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
@@ -21,7 +21,7 @@ job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
                                  `3426-0.0` == 3 ~ "Usually",
                                  `3426-0.0` == 4 ~ "Always")) %>%
   filter(`3426-0.0` %in% 1:4) %>%
-  mutate(night_shift = as.factor(night_shift),
+  mutate(night_shift = factor(night_shift, levels = c("Never", "Sometimes", "Usually", "Always")),
          night_shift = relevel(night_shift, ref = "Never"))
 
 pa <- data.table::fread("/mnt/project/sun_exposure.csv") %>%
@@ -214,8 +214,10 @@ domain_colors <- c(
 
 df <- res_plot %>%
   mutate(
-    Domain = factor(Category, levels = names(domain_colors))
-  )
+    Domain = factor(Category, levels = c("Other", "Demographics", "Sleep", "Season", "Job"))
+  ) %>%
+  filter(predictor_label != "Smoking")
+
 
 p <- ggplot(df, aes(x = OR, y = fct_rev(display_term), color = Domain)) +
   geom_vline(xintercept = 1, linetype = "dashed", color = "black") +
@@ -224,42 +226,22 @@ p <- ggplot(df, aes(x = OR, y = fct_rev(display_term), color = Domain)) +
   scale_shape_manual(values = c(`FALSE` = 19, `TRUE` = 21),
                      labels = c(`FALSE` = "Estimate", `TRUE` = "Reference")) +
   scale_color_manual(values = domain_colors) +
-  facet_wrap(~ predictor, scales = "free_y", ncol = 1, strip.position = "right") +
+  facet_grid(rows = vars(Domain, predictor_label), scales = "free", space = "free") +
+  #facet_grid(~ Domain + predictor_label, scales = "free_y", ncol = 1, strip.position = "right") +
   labs(
     x = "Odds Ratio (95% CI)",
     y = NULL,
     shape = NULL,
     color = "Domain"
   ) +
-  theme_bw(base_size = 12) +
+  theme_bw(base_size = 14) +
   theme(
     strip.text.y.right = element_text(angle = 0, hjust = 0.5),
     panel.grid.major.y = element_blank(),
     strip.background = element_blank(),
-    strip.text = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 16),
     legend.position = "bottom"
   )
 
-a <- ggplot(res_plotCategorya <- ggplot(res_plot,
-       aes(x = display_term, y = OR,
-           color = Category, shape = reference)) +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = lower, ymax = upper),
-                width = 0.2, na.rm = TRUE) +
-  geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
-  facet_wrap(~ predictor_label + , scales = "free_y", ncol = 1, strip.position = "right") +
-  scale_color_brewer(palette = "Set1") +
-  scale_shape_manual(values = c("FALSE" = 19, "TRUE" = 21),
-                     labels = c("FALSE" = "Estimate", "TRUE" = "Reference")) +
-  coord_flip() +
-  theme_bw(base_size = 14) +
-  theme(
-    strip.background = element_rect(fill = "grey90", color = NA),
-    strip.placement = "outside",
-    strip.text = element_text(face = "bold"),
-    legend.position = "none"
-  ) +
-  labs(x = NULL, y = "Odds Ratio (95% CI)",
-       color = "Domain", shape = "")
+ggsave("plots/FX_phenotypes.png", p, width = 12, height = 7)
 
-ggsave("temp.png", a, height = 10, width = 10)
