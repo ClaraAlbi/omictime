@@ -7,10 +7,13 @@ install.packages("broom")
 install.packages("table1")
 install.packages("forcats")
 library(broom)
+library(forcats)
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
+  filter(smoking != "-3") %>%
   mutate(bmi = weight/(height/100)^2,
-         sex = as.factor(sex))
+         sex = as.factor(sex),
+         smoking = as.factor(smoking))
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
@@ -93,13 +96,16 @@ tab_desc <- table1::table1(~ time_day + age_recruitment + factor(sex) + chrono +
 
 
 # Predictor list
+library(tidyverse)
+library(broom)
+
 vars <- c("time_day", "age_recruitment", "sex",
           "chrono", "h_sleep", "ever_insomnia",
           "season", "night_shift", "smoking", "bmi")
 
 # Loop over predictors
 results <- map_dfr(vars, function(v) {
-  f <- as.formula(paste("abs(res) ~", v))
+  f <- as.formula(paste("res ~", v))
   fit <- lm(f, data = data)
 
   res <- tidy(fit) %>%
@@ -135,7 +141,7 @@ res <- results %>%
     )
   )
 
-
+# Level lookup for ordering
 factor_lookup <- map_dfr(vars, function(v) {
   if (is.factor(data[[v]])) {
     tibble(predictor = v,
@@ -146,29 +152,34 @@ factor_lookup <- map_dfr(vars, function(v) {
   }
 })
 
-# --- add labels first ---
-res <- res %>%
+
+
+# Add display labels and reorder
+res2 <- res %>%
   mutate(
-    level = gsub(predictor, "", term),
-    level = ifelse(reference, paste0(level, " (ref)"), level),
-    display_term = paste0(predictor, ": ", level)
+    level = str_remove(term, paste0("^", predictor)),
+    level_r = ifelse(reference, paste0(level, " (ref)"), level),
+    display_term = ifelse(level == "", predictor, level_r)
   ) %>%
-  left_join(factor_lookup, by = "predictor")
+  left_join(factor_lookup, by = "predictor") %>%
+  group_by(predictor) %>%
+  mutate(
+    display_term = {
+      lvls <- levels_list[[1]]
+      if (!is.null(lvls)) {
+        lvls <- unique(lvls)
+        factor(as.character(display_term),
+               levels = c(paste0(lvls[1], " (ref)"),
+                          paste0(lvls[-1])))
+      } else {
+        factor(as.character(display_term),
+               levels = unique(as.character(display_term)))
+      }
+    }
+  )
 
-# --- reorder display_term using lookup ---
-res <- res %>%
-  rowwise() %>%
-  mutate(display_term = if (!is.null(levels_list)) {
-    lvls <- levels_list
-    factor(display_term,
-           levels = c(paste0(predictor, ": ", lvls[1], " (ref)"),
-                      paste0(predictor, ": ", lvls[-1])))
-  } else {
-    factor(display_term, levels = unique(display_term))
-  }) %>%
-  ungroup()
 
-# Pretty labels for predictors
+# Pretty predictor labels
 pretty_predictor <- c(
   time_day = "Time of Day",
   age_recruitment = "Age at Recruitment",
@@ -182,41 +193,73 @@ pretty_predictor <- c(
   bmi = "BMI"
 )
 
-  res_plot <- res %>%
+res_plot <- res2 %>%
   mutate(
     predictor_label = pretty_predictor[predictor],
-    predictor_label = factor(predictor_label, levels = pretty_predictor)
+    predictor_label = factor(predictor_label,
+                             levels = pretty_predictor)
   )
 
-res_plot <- res %>%
+# --- Plot ---
+
+
+domain_colors <- c(
+  "Demographics" = "#d62728",
+  "Job" = "#1f77b4",
+  "Other" = "#2ca02c",
+  "Season" = "#9467bd",
+  "Sleep" = "#ff7f0e"
+)
+
+
+df <- res_plot %>%
   mutate(
-    level_label = gsub(paste0("^", predictor), "", term),
-    level_label = ifelse(reference, paste0(level_label, " (ref)"), level_label),
-    predictor_label = pretty_predictor[predictor],
-    predictor_label = factor(predictor_label, levels = pretty_predictor)
+    Domain = factor(Category, levels = names(domain_colors))
   )
 
-# Plot
-ggplot(res_plot,
-       aes(x = fct_rev(level_label), y = OR,
+p <- ggplot(df, aes(x = OR, y = fct_rev(display_term), color = Domain)) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "black") +
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.1) +
+  geom_point(aes(shape = reference), size = 3, fill = "white") +
+  scale_shape_manual(values = c(`FALSE` = 19, `TRUE` = 21),
+                     labels = c(`FALSE` = "Estimate", `TRUE` = "Reference")) +
+  scale_color_manual(values = domain_colors) +
+  facet_wrap(~ predictor, scales = "free_y", ncol = 1, strip.position = "right") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = NULL,
+    shape = NULL,
+    color = "Domain"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    strip.text.y.right = element_text(angle = 0, hjust = 0.5),
+    panel.grid.major.y = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+a <- ggplot(res_plotCategorya <- ggplot(res_plot,
+       aes(x = display_term, y = OR,
            color = Category, shape = reference)) +
-  geom_point(size = 5) +
+  geom_point(size = 3) +
   geom_errorbar(aes(ymin = lower, ymax = upper),
                 width = 0.2, na.rm = TRUE) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
-  facet_grid(rows = vars(Category, predictor_label),
-             scales = "free_y", space = "free_y") +
+  facet_wrap(~ predictor_label + , scales = "free_y", ncol = 1, strip.position = "right") +
   scale_color_brewer(palette = "Set1") +
-  scale_shape_manual(values = c("TRUE" = 21, "FALSE" = 19),
+  scale_shape_manual(values = c("FALSE" = 19, "TRUE" = 21),
                      labels = c("FALSE" = "Estimate", "TRUE" = "Reference")) +
   coord_flip() +
-  theme_bw(base_size = 20) +
+  theme_bw(base_size = 14) +
   theme(
     strip.background = element_rect(fill = "grey90", color = NA),
-    strip.text.y = element_text(angle = 0, hjust = 0),
-    legend.position = "bottom"
+    strip.placement = "outside",
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
   ) +
   labs(x = NULL, y = "Odds Ratio (95% CI)",
        color = "Domain", shape = "")
 
-
+ggsave("temp.png", a, height = 10, width = 10)
