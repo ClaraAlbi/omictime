@@ -1,6 +1,10 @@
 library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+install.packages("paletteer")
 
-data <- readRDS("data/predictions_internal_time_updated.rds") %>%
+data <- readRDS("data_share//predictions_internal_time_updated.rds") %>%
   mutate(time_extended = time_day + 24 * (as.numeric(visitday) - 1))
 
 data <- data %>%
@@ -86,44 +90,76 @@ data_plot <- data %>%
     pred_extended = fitted + 24 * (as.numeric(visitday) - 1)
   )
 
+
+n <- 12
+r <- sprintf("%.2f", summary(fit)$r.squared)
+
 # Plot observed vs fitted, with residual lines
-ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
-  geom_point(alpha = 0.8, aes(color = participantid)) +
+p_long <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
+  geom_point(alpha = 0.8, aes(color = participantid), size = 2) +
   # residual lines (vertical from fitted to observed)
-  geom_segment(aes(xend = time_day, y = fitted, yend = pred_mean),
-               color = "grey60", alpha = 0.6) +
-  # fitted curve
-  geom_line(aes(y = fitted), color = "red", linewidth = 0.5) +
+  #geom_segment(
+  #  aes(xend = time_day, y = fitted, yend = pred_mean),
+  #  color = "grey60", alpha = 0.6
+  #) +
+  ggpmisc::stat_poly_eq(
+    aes(label = paste("italic(R^2) ==", after_stat(r))),
+    formula = formula,
+    parse = TRUE,
+    label.x = 0.02,
+    label.y = 1,
+    size = 4,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    aes(label = paste("italic(n) ==", after_stat(n))),
+    formula = formula,
+    parse = TRUE,
+    label.x = 0.02,
+    label.y = 0.90,
+    size = 4,
+    color = "black"
+  ) +
+  geom_line(aes(y = fitted), color = "red", linewidth = 0.7) +
   labs(
     title = "Longitudinal data",
-    x = "Recorded time",
-    y = "Mean proteomic predicted time",
-    subtitle = sprintf("R² = %.2f", summary(fit)$r.squared)
+    x = "Recorded time of day",
+    color = "Participant",
+    y = "Predicted Proteomic time"
   ) +
-  theme_minimal()
-
-ggplot(data_plot, aes(x = resid)) + geom_histogram() +
-  theme_minimal()
-
-
-data_plot %>%
-  filter(resid > -10) %>%
-  group_by(participantid) %>%
-  mutate(mean_res = mean(resid, na.rm = TRUE)) %>%
-  ggplot(aes(x = time_day, y = resid, color = visitday)) +
-  geom_point() +
-  geom_hline(aes(yintercept = mean_res), color = "black", linetype = "dashed") +
-  facet_grid(~ participantid, scales = "free_y") +
-  theme_minimal(base_size = 14) +
-  scale_x_continuous(n.breaks = 3)
-
-data_plot %>%
-  mutate(time_day = round(time_day, 0)) %>%
-  pivot_wider(names_from = visitday, values_from = resid, names_prefix = "visit") %>%
-  rowwise() %>%
-  mutate(mean_r = mean(c(visit1, visit2))) -> a%>%
-  ggplot(aes(x = time_day, y = mean_r, color = participantid)) +
-  geom_point()
+  paletteer::scale_color_paletteer_d("dichromat::DarkRedtoBlue_12", direction = -1) +
+  guides(
+    color = guide_legend(
+      byrow = TRUE,
+      keyheight = unit(10, "pt"),
+      keywidth  = unit(10, "pt"),
+      default.unit = "pt",
+    )
+  ) +
+  theme_classic(base_size = 10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 12),
+    strip.background = element_blank(),
+    #legend.spacing.y = unit(0, "pt"),
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),
+    #legend.text = element_text(size = 8),
+    legend.box.margin = margin(t = 0, r = 0, b = 0, l = -10, unit = "pt"),
+    legend.margin = margin(0, 0, 0, 0),
+    #legend.box.spacing = unit(0, "pt"),
+    axis.title = element_text(face = "bold"), legend.position = "right"
+  )
 
 
+ggsave("plots/F3_long.png", p_long, width = 7, height = 3)
+
+
+p1 <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
+  geom_point(aes(color = participantid)) +
+  theme_classic()
+
+# blank white plot
+blank <- ggplot() + theme_void() + theme(panel.background = element_rect(fill = "white", color = NA))
+
+# combine: main plot on left, white filler on right
+p_ext <- plot_grid(p_long, blank, ncol = 2, rel_widths = c(0.7, 0.3))
 

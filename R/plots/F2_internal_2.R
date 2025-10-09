@@ -120,3 +120,7 @@ p_f <- plot_grid(pl, p_comb, nrow = 2, labels = c("A", "B"))
 
 ggsave("plots/F3.png", p_f, width = 10, height = 7)
 
+
+p_f <- plot_grid(pl, p_comb, p_ext, nrow = 3, labels = c("A", "B", "C"))
+
+ggsave("plots/F3.png", p_f, width = 10, height = 10)
