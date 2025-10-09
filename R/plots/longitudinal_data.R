@@ -1,6 +1,7 @@
 library(tidyverse)
 
-data <- readRDS("data/predictions_internal_time_updated.rds")
+data <- readRDS("data/predictions_internal_time_updated.rds") %>%
+  mutate(time_extended = time_day + 24 * (as.numeric(visitday) - 1))
 
 data <- data %>%
   ungroup() %>%
@@ -73,29 +74,31 @@ ggplot(data, aes(x = time_day, y = pred_scaled)) +
   geom_smooth(method = harmonic_method, se = FALSE, color = "red") +
   theme_minimal()
 
-fit <- lm(pred_scaled ~ sin(2*pi*time_day/24) + cos(2*pi*time_day/24),
+fit <- lm(pred_mean ~ sin(2*pi*time_extended/24) + cos(2*pi*time_extended/24),
           data = data)
 
 # Add fitted values and residuals to data
 data_plot <- data %>%
+  ungroup() %>%
   mutate(
     fitted = fitted(fit),
-    resid  = resid(fit)
+    resid  = resid(fit),
+    pred_extended = fitted + 24 * (as.numeric(visitday) - 1)
   )
 
 # Plot observed vs fitted, with residual lines
-ggplot(data_plot, aes(x = time_day, y = pred_scaled)) +
-  geom_point(alpha = 0.5) +
+ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
+  geom_point(alpha = 0.8, aes(color = participantid)) +
   # residual lines (vertical from fitted to observed)
-  geom_segment(aes(xend = time_day, y = fitted, yend = pred_scaled),
+  geom_segment(aes(xend = time_day, y = fitted, yend = pred_mean),
                color = "grey60", alpha = 0.6) +
   # fitted curve
-  geom_line(aes(y = fitted), color = "red", linewidth = 1.2) +
+  geom_line(aes(y = fitted), color = "red", linewidth = 0.5) +
   labs(
-    x = "Time of day (h)",
-    y = "Predicted time (pred_mean)",
-    title = "Harmonic regression with residuals",
-    subtitle = sprintf("R² = %.3f", summary(fit)$r.squared)
+    title = "Longitudinal data",
+    x = "Recorded time",
+    y = "Mean proteomic predicted time",
+    subtitle = sprintf("R² = %.2f", summary(fit)$r.squared)
   ) +
   theme_minimal()
 
