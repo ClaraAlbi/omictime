@@ -20,15 +20,27 @@ job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
                                  `3426-0.0` == 2 ~ "Sometimes",
                                  `3426-0.0` == 3 ~ "Usually",
-                                 `3426-0.0` == 4 ~ "Always")) %>%
+                                 `3426-0.0` == 4 ~ "Always"),
+         shift_work = case_when(`826-0.0` == 1 ~ "Never/rarely",
+                                 `826-0.0` == 2 ~ "Sometimes",
+                                 `826-0.0` == 3 ~ "Usually",
+                                 `826-0.0` == 4 ~ "Always")) %>%
   #filter(`3426-0.0` %in% 1:4) %>%
-  mutate(night_shift = factor(night_shift, levels = c("Never", "Sometimes", "Usually", "Always")))
+  mutate(night_shift = factor(night_shift, levels = c("Never", "Sometimes", "Usually", "Always")),
+         shift_work = factor(night_shift, levels = c("Never/rarely", "Sometimes", "Usually", "Always")))
 
-# pa <- data.table::fread("/mnt/project/sun_exposure.csv") %>%
-#   mutate(time_outdoors_s = case_when(as.integer(p1050_i0) > 0 & as.integer(p1050_i0) < 4  ~ "< 4h",
-#                                      as.integer(p1050_i0) > 4 ~ "> 4h"),
-#          time_outdoors_w = case_when(as.integer(p1060_i0) > 0 & as.integer(p1050_i0) < 2  ~ "< 2h",
-#                                      as.integer(p1060_i0) > 2 ~ "> 2h"))
+pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
+  select(eid = 1, contains("PC"))
+
+# MH <- data.table::fread("/mnt/project/psychosocial_MH.csv") %>%
+#   select(eid, contains("p20"), contains("p19")) %>%
+#   select(-contains("p2012")) %>%
+#   mutate(across(contains("p"), as.factor))
+
+dep <- data.table::fread("/mnt/project/other_covs.tsv") %>%
+  select(eid, TDI = 2, eth = 3)
+
+chrono_new <- data.table::fread("/mnt/project/cho")
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   select(eid,
@@ -76,17 +88,20 @@ df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
                             m %in% c("09", "10", "11") ~ "Fall"),
          season = relevel(as.factor(season), ref = "Winter"))
 
-labs <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_labs.rds")
+#labs <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_labs.rds")
 
-fields <- data.table::fread("/mnt/project/Showcase metadata/field.tsv")
+#fields <- data.table::fread("/mnt/project/Showcase metadata/field.tsv")
 
-colnames(labs) <- c("eid", fields %>% filter(field_id %in% as.numeric(colnames(labs))) %>% pull(title))
+#colnames(labs) <- c("eid", fields %>% filter(field_id %in% as.numeric(colnames(labs))) %>% pull(title))
 
 data <- df %>%
   left_join(covs) %>%
   left_join(job_vars) %>%
   left_join(sleep) %>%
   #left_join(labs) %>%
+  #left_join(MH) %>%
+  left_join(pcs) %>%
+  left_join(dep) %>%
   filter(!is.na(chrono)) %>%
   mutate(h = round(time_day, 0)) %>%
   filter(age_recruitment > 39)
@@ -114,161 +129,127 @@ tab_desc <- table1::table1(~ time_day + age_recruitment + factor(sex) + chrono +
 
 
 
-# Predictor list
-library(tidyverse)
-library(broom)
 
-vars <- c("time_day", "age_recruitment", "sex",
-          "chrono", "h_sleep", "ever_insomnia",
-          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup")
 
-# Loop over predictors
+# --- 1. Predictor list ---
+vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia",
+          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI")
+
+#vars <- colnames(MH)[-1]
+
+covars <- c("sex", "age_recruitment", paste0("PC", 1:20))
+
+data <- data %>% filter(eth == 1001)
+
+# --- 2. Fit models and extract results ---
 results <- map_dfr(vars, function(v) {
-  f <- as.formula(paste0("res ~ ", "`",v, "`"))
+  adj_vars <- if (v %in% c("sex", "age_recruitment")) character(0) else covars
+
+  # Combine predictor + covariates safely
+  rhs <- paste(c(v, adj_vars), collapse = " + ")
+  f <- as.formula(paste("res ~", rhs))
+
   fit <- lm(f, data = data)
 
-  res <- tidy(fit) %>%
-    filter(term != "(Intercept)") %>%
-    mutate(predictor = v, reference = FALSE)
-
-  # Add reference row if factor
-  if (is.factor(data[[v]])) {
-    ref_level <- levels(data[[v]])[1]
-    ref_row <- tibble(
-      term = paste0(v, ref_level),
-      estimate = 0, std.error = NA, statistic = NA, p.value = NA,
-      predictor = v, reference = TRUE
-    )
-    res <- bind_rows(ref_row, res)
-  }
-  res
+  tidy(fit) %>%
+    filter(str_detect(term, paste0("^", v))) %>%
+    mutate(predictor = v, reference = FALSE) %>%
+    {
+      if (is.factor(data[[v]])) {
+        ref <- tibble(
+          term = paste0(v, levels(data[[v]])[1]),
+          estimate = 0, std.error = NA, statistic = NA, p.value = NA,
+          predictor = v, reference = TRUE
+        )
+        bind_rows(ref, .)
+      } else .
+    }
 })
 
-
-# Add ORs, CIs, and categories
+# --- 3. Compute ORs, CIs, and domain categories ---
 res <- results %>%
   mutate(
     OR    = exp(estimate),
-    lower = ifelse(reference, 1, exp(estimate - 1.96*std.error)),
-    upper = ifelse(reference, 1, exp(estimate + 1.96*std.error)),
+    lower = ifelse(reference, 1, exp(estimate - 1.96 * std.error)),
+    upper = ifelse(reference, 1, exp(estimate + 1.96 * std.error)),
     Category = case_when(
       predictor %in% c("age_recruitment", "sex", "bmi", "smoking") ~ "Demographics",
       predictor %in% c("chrono", "h_sleep", "ever_insomnia", "wakeup") ~ "Sleep",
       predictor %in% c("season", "is_dst") ~ "Season",
       predictor == "night_shift" ~ "Job",
-      predictor == "time_day" ~ "Other",
-      predictor %in% colnames(labs) ~ "Labs",
       TRUE ~ "Other"
     )
   )
 
-# Level lookup for ordering
-factor_lookup <- map_dfr(vars, function(v) {
-  if (is.factor(data[[v]])) {
-    tibble(predictor = v,
-           levels_list = list(levels(data[[v]])))
-  } else {
-    tibble(predictor = v,
-           levels_list = list(NULL))
-  }
-})
+# --- 4. Factor level lookup for consistent ordering ---
+factor_lookup <- map_dfr(vars, \(v)
+                         tibble(predictor = v,
+                                levels_list = list(if (is.factor(data[[v]])) levels(data[[v]]) else NULL))
+)
 
-
-
-# Add display labels and reorder
+# --- 5. Clean display terms ---
 res2 <- res %>%
-  mutate(
-    level = str_remove(term, paste0("^", predictor)),
-    level_r = ifelse(reference, paste0(level, " (ref)"), level),
-    display_term = ifelse(level == "", predictor, level_r)
-  ) %>%
+  mutate(level = str_remove(term, paste0("^", predictor)),
+         display_term = ifelse(reference, paste0(level, " (ref)"),
+                               ifelse(level == "", predictor, level))) %>%
   left_join(factor_lookup, by = "predictor") %>%
   group_by(predictor) %>%
-  mutate(
-    display_term = {
-      lvls <- levels_list[[1]]
-      if (!is.null(lvls)) {
-        lvls <- unique(lvls)
-        factor(as.character(display_term),
-               levels = c(paste0(lvls[1], " (ref)"),
-                          paste0(lvls[-1])))
-      } else {
-        factor(as.character(display_term),
-               levels = unique(as.character(display_term)))
-      }
-    }
-  )
+  mutate(display_term = {
+    lvls <- levels_list[[1]]
+    if (is.null(lvls)) factor(display_term, levels = unique(display_term))
+    else factor(display_term, levels = c(paste0(lvls[1], " (ref)"), lvls[-1]))
+  }) %>%
+  ungroup()
 
-
-
-
-
-# Pretty predictor labels
+# --- 6. Pretty labels and domain colors ---
 pretty_predictor <- c(
-  time_day = "Time of Day",
-  age_recruitment = "Age at Recruitment",
-  sex = "Sex",
-  chrono = "Chronotype",
-  h_sleep = "Sleep Duration",
-  ever_insomnia = "Insomnia",
-  season = "Season",
-  is_dst = "Daylight savings",
-  night_shift = "Night Shift",
-  smoking = "Smoking",
-  wakeup = "Waking easiness",
-  bmi = "BMI"
+  time_day = "Time of Day", age_recruitment = "Age at Recruitment", sex = "Sex",
+  chrono = "Chronotype", h_sleep = "Sleep Duration", ever_insomnia = "Insomnia",
+  season = "Season", is_dst = "Daylight Savings", night_shift = "Night Shift",
+  smoking = "Smoking", wakeup = "Waking Easiness", bmi = "BMI"
+)
+
+domain_colors <- c(
+  "Demographics" = "#d62728", "Job" = "#1f77b4", "Other" = "#2ca02c",
+  "Season" = "#9467bd", "Sleep" = "#ff7f0e"
 )
 
 res_plot <- res2 %>%
   mutate(
-    predictor_label = pretty_predictor[predictor],
-    predictor_label = factor(predictor_label,
-                             levels = pretty_predictor)
-  )
-
-# --- Plot ---
-
-
-domain_colors <- c(
-  "Demographics" = "#d62728",
-  "Job" = "#1f77b4",
-  "Other" = "#2ca02c",
-  "Season" = "#9467bd",
-  "Sleep" = "#ff7f0e"
-)
-
-
-d2 <- res_plot %>%
-  mutate(
+    predictor_label = factor(pretty_predictor[predictor], levels = pretty_predictor),
     Domain = factor(Category, levels = c("Other", "Demographics", "Sleep", "Season", "Job"))
   )
 
-
-p <- ggplot(d2, aes(x = OR, y = fct_rev(display_term), color = Domain)) +
-  geom_vline(xintercept = 1, linetype = "dashed", color = "black") +
+# --- 7. Plot ---
+p <- ggplot(res2, aes(x = OR, y = fct_rev(display_term))) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.1) +
   geom_point(aes(shape = reference), size = 3, fill = "white") +
   scale_shape_manual(values = c(`FALSE` = 19, `TRUE` = 21),
                      labels = c(`FALSE` = "Estimate", `TRUE` = "Reference")) +
   scale_color_manual(values = domain_colors) +
-  facet_grid(rows = vars(Domain, predictor_label), scales = "free", space = "free") +
-  #facet_grid(~ Domain + predictor_label, scales = "free_y", ncol = 1, strip.position = "right") +
-  labs(
-    x = "Odds Ratio (95% CI)",
-    y = NULL,
-    shape = NULL,
-    color = "Domain"
-  ) +
+  facet_grid(rows = vars(predictor), scales = "free", space = "free") +
+  labs(x = "Odds Ratio (95% CI)", y = NULL, shape = NULL, color = "Domain") +
   theme_bw(base_size = 14) +
   theme(
-    strip.text.y.right = element_text(angle = 0, hjust = 0.5),
+    strip.text.y.right = element_text(angle = 0, hjust = 0),
     panel.grid.major.y = element_blank(),
     strip.background = element_blank(),
-    strip.text = element_text(face = "bold", size = 16),
-    legend.position = "bottom"
+    strip.text = element_text(face = "bold", size = 12),
+    legend.position = "none"
   )
 
-ggsave("plots/FX_phenotypes.png", p, width = 12, height = 7)
+p
+# ggsave("plots/FX_phenotypes.png", p, width = 12, height = 7)
+
+
+
+
+
+
+
+
+
 
 
 
