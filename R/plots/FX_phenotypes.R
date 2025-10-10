@@ -128,9 +128,6 @@ tab_desc <- table1::table1(~ time_day + age_recruitment + factor(sex) + chrono +
                            render.cont = my_render_cont)
 
 
-
-
-
 # --- 1. Predictor list ---
 vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI")
@@ -139,7 +136,7 @@ vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insom
 
 covars <- c("sex", "age_recruitment", paste0("PC", 1:20))
 
-data <- data %>% filter(eth == 1001)
+#data <- data %>% filter(eth == 1001)
 
 # --- 2. Fit models and extract results ---
 results <- map_dfr(vars, function(v) {
@@ -206,7 +203,8 @@ pretty_predictor <- c(
   time_day = "Time of Day", age_recruitment = "Age at Recruitment", sex = "Sex",
   chrono = "Chronotype", h_sleep = "Sleep Duration", ever_insomnia = "Insomnia",
   season = "Season", is_dst = "Daylight Savings", night_shift = "Night Shift",
-  smoking = "Smoking", wakeup = "Waking Easiness", bmi = "BMI"
+  smoking = "Smoking", wakeup = "Waking Easiness", bmi = "BMI",
+  shift_work = "Shift Work", TDI  = "Townsend DI"
 )
 
 domain_colors <- c(
@@ -221,14 +219,14 @@ res_plot <- res2 %>%
   )
 
 # --- 7. Plot ---
-p <- ggplot(res2, aes(x = OR, y = fct_rev(display_term))) +
+p <- ggplot(res_plot, aes(x = OR, y = fct_rev(display_term), color = Domain)) +
   geom_vline(xintercept = 1, linetype = "dashed") +
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.1) +
   geom_point(aes(shape = reference), size = 3, fill = "white") +
   scale_shape_manual(values = c(`FALSE` = 19, `TRUE` = 21),
                      labels = c(`FALSE` = "Estimate", `TRUE` = "Reference")) +
   scale_color_manual(values = domain_colors) +
-  facet_grid(rows = vars(predictor), scales = "free", space = "free") +
+  facet_grid(rows = vars(predictor_label), scales = "free", space = "free") +
   labs(x = "Odds Ratio (95% CI)", y = NULL, shape = NULL, color = "Domain") +
   theme_bw(base_size = 14) +
   theme(
