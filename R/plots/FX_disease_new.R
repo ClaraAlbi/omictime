@@ -56,10 +56,14 @@ df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
                             m %in% c("09", "10", "11") ~ "Fall"),
          season = relevel(as.factor(season), ref = "Winter"))
 
+pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
+  select(eid = 1, contains("PC"))
+
 data <- df %>%
   left_join(covs) %>%
   left_join(job_vars) %>%
   left_join(sleep) %>%
+  left_join(pcs) %>%
   filter(!is.na(chrono)) %>%
   mutate(h = round(time_day, 0)) %>%
   filter(age_recruitment > 39) %>%
@@ -94,6 +98,8 @@ dis2 <- data.table::fread("/mnt/project/vars_diseases_2.tsv") %>%
   rename_with(~ paste0("p_", .x), -eid) %>%
   rename_with(~ str_remove( .x, "-"), -eid) %>%
   mutate(across(-eid, as.factor))
+
+
 
 data1 <- data %>%
   left_join(dis2)
@@ -154,7 +160,7 @@ results <- map_dfr(vars, function(v) {
   # formula for abs(res) + covariates
   f_prev2 <- as.formula(
     paste0("`", v, "` ~ abs(res) + ",
-           paste(c(base_covars, extra_covars), collapse = " + "))
+           paste(c(base_covars, extra_covars, paste0("PC", 1:10)), collapse = " + "))
   )
 
   # fit models
@@ -175,6 +181,7 @@ results <- map_dfr(vars, function(v) {
   )
 })
 
+saveRDS(results, "data_share/association_results.rds")
 results
 library(forcats)
 results %>%
