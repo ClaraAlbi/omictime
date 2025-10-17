@@ -163,10 +163,16 @@ results <- map_dfr(vars, function(v) {
            paste(c(base_covars, extra_covars, paste0("PC", 1:10)), collapse = " + "))
   )
 
+  f_prev3 <- as.formula(
+    paste0("`", v, "` ~ abs(res) + ",
+           paste(c(base_covars, extra_covars, paste0("PC", 1:10), "chrono"), collapse = " + "))
+  )
+
   # fit models
   mt <- glm(f0, data = data1, family = binomial)
   m0 <- glm(f_prev1, data = data1, family = binomial)
   m1 <- glm(f_prev2, data = data1, family = binomial)
+  m2 <- glm(f_prev3, data = data1, family = binomial)
 
   # collect results
   bind_rows(
@@ -177,12 +183,23 @@ results <- map_dfr(vars, function(v) {
       mutate(model = "m0_MISALIGNMENT", outcome = v),
 
     broom::tidy(m1, conf.int = TRUE, exponentiate = TRUE) %>%
-      mutate(model = "m1_MISALIGNMENT + COV", outcome = v)
+      mutate(model = "m1_MISALIGNMENT + COV", outcome = v),
+
+    broom::tidy(m2, conf.int = TRUE, exponentiate = TRUE) %>%
+      mutate(model = "m1_MISALIGNMENT + COV + chrono", outcome = v)
   )
 })
 
-saveRDS(results, "data_share/association_results.rds")
-results
+counts <- dis2 %>%
+  summarise(across(-eid, table)) %>%
+  mutate(i = c(0, 1)) %>%
+  pivot_longer(-i, names_to = "outcome")
+
+saveRDS(results %>%
+          left_join(counts), "data_share/association_results_disease.rds")
+
+
+
 library(forcats)
 results %>%
   mutate(

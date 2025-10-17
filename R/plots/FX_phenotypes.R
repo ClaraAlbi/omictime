@@ -40,7 +40,6 @@ pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
 dep <- data.table::fread("/mnt/project/other_covs.tsv") %>%
   select(eid, TDI = 2, eth = 3)
 
-chrono_new <- data.table::fread("/mnt/project/cho")
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   select(eid,
@@ -134,7 +133,7 @@ vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insom
 
 #vars <- colnames(MH)[-1]
 
-covars <- c("sex", "age_recruitment", paste0("PC", 1:20))
+covars <- c("sex", "age_recruitment", paste0("PC", 1:10))
 
 #data <- data %>% filter(eth == 1001)
 
@@ -177,6 +176,8 @@ res <- results %>%
       TRUE ~ "Other"
     )
   )
+
+saveRDS(res, "data_share/results_associations_phenotypes.rds")
 
 # --- 4. Factor level lookup for consistent ordering ---
 factor_lookup <- map_dfr(vars, \(v)
