@@ -3,21 +3,22 @@ library(dplyr)
 library(tibble)
 library(purrr)
 library(ggplot2)
+install.packages("forcats")
 
 panels_in <- readRDS("data_share/olink_panels_1to4_over.rds")
 
-res_olink <- readRDS("/mnt/project/clara/res_olink.rds") %>%
+res_olink <- readRDS("/mnt/project/biomarkers_3/covariate_res/OLINK/res_olink.rds") %>%
   select(eid, any_of(panels_in))
 
 X_mat  <- glmnet::makeX(res_olink %>% select(-eid), na.impute = TRUE)
 
-time_i0 <- readRDS("/mnt/project/clara/time.rds")
+time_i0 <- readRDS("/mnt/project/biomarkers/time.rds")
 y_obs <- time_i0$time_day[match(res_olink$eid, time_i0$eid)]
 
 thresholds <- c(0, 0.01, 0.05, 0.1)
 
 # ---- Config: adjust if needed ----
-model_pattern <- "cv.i0_lasso_cv"   # will look for files like cv.i0_lasso_cv1.rds ... cv.i0_lasso_cv5.rds
+model_pattern <- "cv.i0_lasso_cv"
 model_dir <- "data_share"
 
 rds_files <- list.files(model_dir, pattern = paste0("^", model_pattern, ".*\\.rds$"), full.names = TRUE)
@@ -32,8 +33,9 @@ safe_cor2 <- function(y, yhat) {
 
 # get feature names selected in a model at given threshold (exclude intercept)
 selected_features <- function(model, thr = 0) {
-  cf <- as.numeric(coef(model)[, 1])
-  nm <- rownames(coef(model))
+  ix <- which(coef(model) != 0)
+  cf <- as.numeric(coef(model)[ix, 1])
+  nm <- rownames(coef(model))[ix]
   names(cf) <- nm
   feats <- nm[-1][abs(cf[-1]) >= thr]   # >= thr means selected at this threshold
   feats
@@ -41,6 +43,7 @@ selected_features <- function(model, thr = 0) {
 
 # predict by zeroing out everything except 'keep' features (keep is vector of predictor names)
 predict_using_keep <- function(model, X, keep) {
+
   cf <- as.numeric(coef(model)[,1])
   nm <- rownames(coef(model))
   names(cf) <- nm
@@ -107,10 +110,11 @@ results <- results %>%
          n_common = forcats::fct_reorder(factor(n_common), desc(n_common)))
 
 results_mean <- results_mean %>%
-  mutate(threshold_label = factor(threshold_label, levels = ordered_levels))
+  mutate(threshold_label = factor(threshold_label, levels = ordered_levels),
+         n_common = factor(n_common, levels = c("545", "378", "123", "44")))
 
 # --- plot ---
-p <- ggplot(results, aes(x = threshold_label, y = R2, fill = model_idx)) +
+p <-ggplot(results, aes(x = threshold_label, y = R2, fill = model_idx)) +
   geom_col(position = pos, width = 0.7) +
   geom_hline(
     data = results_mean,
@@ -133,7 +137,7 @@ p <- ggplot(results, aes(x = threshold_label, y = R2, fill = model_idx)) +
     inherit.aes = FALSE
   ) +
   scale_fill_viridis_d(option = "H") +
-  labs(subtitle = "Number of proteins:",
+  labs(subtitle = "Number of proteins in common across 5 CV folds:",
     x = "Coefficient threshold",
     y = expression(R^2),
     fill = "CV fold"
