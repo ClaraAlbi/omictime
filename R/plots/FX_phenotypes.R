@@ -17,16 +17,16 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          )
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
-  mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
-                                 `3426-0.0` == 2 ~ "Sometimes",
-                                 `3426-0.0` == 3 ~ "Usually",
-                                 `3426-0.0` == 4 ~ "Always"),
+  mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never.",
+                                 `3426-0.0` == 2 ~ "Sometimes.",
+                                 `3426-0.0` == 3 ~ "Usually.",
+                                 `3426-0.0` == 4 ~ "Always."),
          shift_work = case_when(`826-0.0` == 1 ~ "Never/rarely",
                                  `826-0.0` == 2 ~ "Sometimes",
                                  `826-0.0` == 3 ~ "Usually",
                                  `826-0.0` == 4 ~ "Always")) %>%
   #filter(`3426-0.0` %in% 1:4) %>%
-  mutate(night_shift = factor(night_shift, levels = c("Never", "Sometimes", "Usually", "Always")),
+  mutate(night_shift = factor(night_shift, levels = c("Never.", "Sometimes.", "Usually.", "Always.")),
          shift_work = factor(night_shift, levels = c("Never/rarely", "Sometimes", "Usually", "Always")))
 
 pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
@@ -165,8 +165,11 @@ results <- map_dfr(vars, function(v) {
 
 results <- readRDS("data_share/results_associations_phenotypes.rds")
 
+
 # --- 3. Compute ORs, CIs, and domain categories ---
 res <- results %>%
+  mutate(term = case_when(str_detect(term, "night_shift") ~ paste0(term, "."),
+                          TRUE ~ term)) %>%
   mutate(
     OR    = exp(estimate),
     lower = ifelse(reference, 1, exp(estimate - 1.96 * std.error)),
@@ -193,8 +196,11 @@ factor_lookup <- map_dfr(vars, \(v)
 res2 <- res %>%
   mutate(level = str_remove(term, paste0("^", predictor)),
          display_term = ifelse(reference, paste0(level, " (ref)"),
-                               ifelse(level == "", predictor, level))) #%>%
-  #left_join(factor_lookup, by = "predictor") %>%
+                               ifelse(level == "", predictor, level))) %>%
+  group_by(predictor) %>% mutate(n = n()) %>%
+  mutate(display_term = case_when(n == 1 ~ "",
+                                  TRUE ~ display_term)) %>%
+  left_join(factor_lookup, by = "predictor") %>%
   group_by(predictor) %>%
   mutate(display_term = {
     lvls <- levels_list[[1]]
@@ -224,10 +230,8 @@ res_plot <- res2 %>%
   )
 
 # --- 7. Plot ---
-
-res_plot %>%
-  mutate(res)
-  filter(Category == "Demographics") %>%
+p_d <- res_plot %>%
+  filter(Domain == "Demographics") %>%
   ggplot(aes(x = OR, y = fct_rev(display_term), color = Domain)) +
   geom_vline(xintercept = 1, linetype = "dashed") +
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.1) +
@@ -235,6 +239,7 @@ res_plot %>%
   scale_shape_manual(values = c(`FALSE` = 19, `TRUE` = 21),
                      labels = c(`FALSE` = "Estimate", `TRUE` = "Reference")) +
   scale_color_manual(values = domain_colors) +
+  scale_x_continuous(limits = c(0.5, 1.2)) +
   facet_grid(rows = vars(predictor_label), scales = "free", space = "free") +
   labs(x = "Odds Ratio (95% CI)", y = NULL, shape = NULL, color = "Domain") +
   theme_bw(base_size = 14) +
@@ -242,6 +247,29 @@ res_plot %>%
     strip.text.y.right = element_text(angle = 0, hjust = 0),
     panel.grid.major.y = element_blank(),
     strip.background = element_blank(),
+    axis.ticks.y = element_blank(),
+    strip.text = element_text(face = "bold", size = 12),
+    legend.position = "none"
+  )
+
+res_plot %>%
+  filter(Domain %in% c("Sleep")) %>%
+  ggplot(aes(x = OR, y = fct_rev(display_term), color = Domain)) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.1) +
+  geom_point(aes(shape = reference), size = 3, fill = "white") +
+  scale_shape_manual(values = c(`FALSE` = 19, `TRUE` = 21),
+                     labels = c(`FALSE` = "Estimate", `TRUE` = "Reference")) +
+  scale_color_manual(values = domain_colors) +
+  scale_x_continuous(limits = c(0.5, 1.2)) +
+  facet_grid(rows = vars(predictor_label), scales = "free", space = "free") +
+  labs(x = "Odds Ratio (95% CI)", y = NULL, shape = NULL, color = "Domain") +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.text.y.right = element_text(angle = 0, hjust = 0),
+    panel.grid.major.y = element_blank(),
+    strip.background = element_blank(),
+    axis.ticks.y = element_blank(),
     strip.text = element_text(face = "bold", size = 12),
     legend.position = "none"
   )
