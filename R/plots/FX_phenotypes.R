@@ -162,6 +162,9 @@ results <- map_dfr(vars, function(v) {
     }
 })
 
+
+results <- readRDS("data_share/results_associations_phenotypes.rds")
+
 # --- 3. Compute ORs, CIs, and domain categories ---
 res <- results %>%
   mutate(
@@ -169,15 +172,16 @@ res <- results %>%
     lower = ifelse(reference, 1, exp(estimate - 1.96 * std.error)),
     upper = ifelse(reference, 1, exp(estimate + 1.96 * std.error)),
     Category = case_when(
-      predictor %in% c("age_recruitment", "sex", "bmi", "smoking") ~ "Demographics",
+      predictor %in% c("age_recruitment", "sex", "bmi", "smoking", "TDI") ~ "Demographics",
+      predictor %in% c("time_day") ~ "Time",
       predictor %in% c("chrono", "h_sleep", "ever_insomnia", "wakeup") ~ "Sleep",
       predictor %in% c("season", "is_dst") ~ "Season",
-      predictor == "night_shift" ~ "Job",
+      predictor %in% c("shift_work", "night_shift") ~ "Job",
       TRUE ~ "Other"
     )
   )
 
-saveRDS(res, "data_share/results_associations_phenotypes.rds")
+#saveRDS(res, "data_share/results_associations_phenotypes.rds")
 
 # --- 4. Factor level lookup for consistent ordering ---
 factor_lookup <- map_dfr(vars, \(v)
@@ -189,8 +193,8 @@ factor_lookup <- map_dfr(vars, \(v)
 res2 <- res %>%
   mutate(level = str_remove(term, paste0("^", predictor)),
          display_term = ifelse(reference, paste0(level, " (ref)"),
-                               ifelse(level == "", predictor, level))) %>%
-  left_join(factor_lookup, by = "predictor") %>%
+                               ifelse(level == "", predictor, level))) #%>%
+  #left_join(factor_lookup, by = "predictor") %>%
   group_by(predictor) %>%
   mutate(display_term = {
     lvls <- levels_list[[1]]
@@ -209,18 +213,22 @@ pretty_predictor <- c(
 )
 
 domain_colors <- c(
-  "Demographics" = "#d62728", "Job" = "#1f77b4", "Other" = "#2ca02c",
+  "Demographics" = "#d62728", "Job" = "#1f77b4", "Time" = "#2ca02c",
   "Season" = "#9467bd", "Sleep" = "#ff7f0e"
 )
 
 res_plot <- res2 %>%
   mutate(
     predictor_label = factor(pretty_predictor[predictor], levels = pretty_predictor),
-    Domain = factor(Category, levels = c("Other", "Demographics", "Sleep", "Season", "Job"))
+    Domain = factor(Category, levels = c("Time", "Demographics", "Sleep", "Season", "Job"))
   )
 
 # --- 7. Plot ---
-p <- ggplot(res_plot, aes(x = OR, y = fct_rev(display_term), color = Domain)) +
+
+res_plot %>%
+  mutate(res)
+  filter(Category == "Demographics") %>%
+  ggplot(aes(x = OR, y = fct_rev(display_term), color = Domain)) +
   geom_vline(xintercept = 1, linetype = "dashed") +
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.1) +
   geom_point(aes(shape = reference), size = 3, fill = "white") +

@@ -200,42 +200,68 @@ saveRDS(results %>%
 
 
 
+
+library(tidyverse)
 library(forcats)
-results %>%
+
+results <- readRDS("data_share/association_results_disease.rds")
+
+
+outcomes <- tribble(~field_id, ~phen, ~class,
+                    "130894", "Depressive episode","Neuro-psychiatric",
+                    "130896", "Recurrent depression","Neuro-psychiatric",
+                    "130892", "Bipolar disorder","Neuro-psychiatric",
+                    "130874", "Schizophrenia","Neuro-psychiatric",
+                    "p131060", "Sleep - G47", "Sleep",
+                    "p130842", "Dementia", "Neuro-psychiatric",
+                    "p130708", "Type 2 Diabetes", "Cardiometabolic",
+                    "p130792", "Obesity", "Cardiometabolic",
+                    "p131306", "Ischaemic heart disease", "Cardiometabolic")
+
+
+p_res <- results %>%
+  filter(model != "mt_TIME_DAY") %>%
+  filter(i == 1) %>%
   mutate(
     # Extract the core field id
     o = str_extract(outcome, "(?<=p_)[0-9]+(?=0\\.0_prevalent)|(?<=p_)p?[0-9]+"),
-    model = factor(model, levels =c("mt_TIME_DAY", "m0_MISALIGNMENT", "m1_MISALIGNMENT + COV"))
+    model = factor(model, levels =c("m0_MISALIGNMENT", "m1_MISALIGNMENT + COV", "m1_MISALIGNMENT + COV + chrono"),
+                   labels = c("Circadian Misalignment", "+ sex + age + 10PCs + BMI + smoking", "+ Chronotype"))
   ) %>%
   left_join(outcomes, by = c("o" = "field_id")) %>%
-  mutate(outcome_clean = coalesce(phen, outcome)) %>%
+  mutate(outcome_clean = coalesce(phen, outcome),
+         outcome_clean = paste0((outcome_clean), "\nn=", value),
+         outcome_clean = fct_reorder(outcome_clean, value)) %>%
   filter(term != "(Intercept)") %>%
   filter(term %in% c("time_day", "abs(res)")) %>%
   ggplot(aes(x = outcome_clean,
              y = estimate,
              ymin = conf.low, ymax = conf.high,
-             color = model, shape = model)) +
+             color = model, shape = model,
+             alpha = p.value < 0.05)) +
   geom_pointrange(position = position_dodge(width = 0.6),
                   size = 1, fatten = 3) +
-  geom_text(data = . %>% filter(p.value < 0.05), aes(label = sprintf("%.0e", p.value)),
-            angle = 45, hjust = -0.1,
-            position = position_dodge(width = 0.6), size = 4) +
+  #geom_text(data = . %>% filter(p.value < 0.05), aes(label = sprintf("%.0e", p.value)),
+  #          angle = 45, hjust = -0.1,
+  #          position = position_dodge(width = 0.6), size = 4) +
   coord_flip() +
   facet_grid(rows = vars(class), space = "free", scales = "free") +
   geom_hline(yintercept = 1, linetype = "dashed") +
   scale_color_manual(values = c( "#2ca02c","#9467bd","#ff7f0e")) +
+  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.3)) +
+  #scale_alpha_discrete(values = c(0.8, 0.7)) +
   labs(y = "Odds Ratio (95% CI)",
        x = "Outcome") +
-  theme_classic(base_size = 16) +
-  theme(legend.position = "bottom",
+  theme_classic(base_size = 24) +
+  theme(legend.position = "right",
         legend.title = element_blank(),
-        legend.box = "horizontal")
+        legend.box = "horizontal") +
   guides(
-    color = guide_legend(nrow = 3, byrow = TRUE),
-    shape = guide_legend(nrow = 3, byrow = TRUE)
+    color = guide_legend(nrow = 3, byrow = TRUE), alpha = FALSE
   )
 
 
+ggsave("plots/FX_diseases.png", p_res, width = 16, height = 9)
 
 ### BIPOLAR
 
