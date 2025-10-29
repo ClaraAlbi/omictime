@@ -67,25 +67,74 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
                               ever_insomnia == 3 ~ "Usually"),
     ever_insomnia = factor(ever_insomnia, levels = c("Never/rarely", "Sometimes", "Usually")))
 
-df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
+df_temp <- readRDS("/mnt/project/biomarkers/time.rds") %>%
+  inner_join(readRDS("/mnt/project/olink_int_replication.rds") %>% select(-date_bsampling)) %>%
   filter(!is.na(time_day)) %>%
-  #filter(time_day > 12 & time_day < 18) %>%
   filter(i == 0) %>%
-  #filter(cv %in% 1:5) %>%
-  mutate(date = as.POSIXct(
-    date_bsampling,
-    tz = "Europe/London"),
+  mutate(date = as.POSIXct(date_bsampling, tz = "Europe/London"))
+
+years <- unique(year(df_temp$date))
+
+dst_transitions <- map_df(years, ~{
+  test_dates <- seq(as.Date(paste0(.x, "-01-01")),
+                    as.Date(paste0(.x, "-12-31")),
+                    by = "day")
+
+  is_dst <- dst(force_tz(as.POSIXct(test_dates), "Europe/London"))
+  dst_changes <- which(diff(is_dst) != 0)
+
+  if (length(dst_changes) >= 2) {
+    tibble(
+      year = .x,
+      spring_dst = test_dates[dst_changes[1] + 1],
+      fall_dst = test_dates[dst_changes[2] + 1]
+    )
+  }
+})
+
+df <- df_temp %>%
+  mutate(
+    date = as.POSIXct(date_bsampling, tz = "Europe/London"),
     is_dst = as.logical(as.POSIXlt(date, tz = "Europe/London")$isdst),
-    is_dst = factor(is_dst, levels = c(FALSE, TRUE), labels = c("No", "Yes"))) %>%
-  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
+    is_dst = factor(is_dst, levels = c(FALSE, TRUE), labels = c("No", "Yes")),
+    date_only = as.Date(date)
+  ) %>%
+  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = FALSE) %>%
   rowwise() %>%
   mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
   ungroup() %>%
-  mutate(season = case_when(m %in% c("12", "01", "02") ~ "Winter",
-                            m %in% c("03", "04", "05") ~ "Spring",
-                            m %in% c("06", "07", "08") ~ "Summer",
-                            m %in% c("09", "10", "11") ~ "Fall"),
-         season = relevel(as.factor(season), ref = "Winter"))
+  mutate(
+    season = case_when(
+      m %in% c("12", "01", "02") ~ "Winter",
+      m %in% c("03", "04", "05") ~ "Spring",
+      m %in% c("06", "07", "08") ~ "Summer",
+      m %in% c("09", "10", "11") ~ "Fall"
+    ),
+    season = relevel(as.factor(season), ref = "Winter"),
+
+    # Weekday/weekend classification
+    day_of_week = wday(date_bsampling, label=TRUE, week_start=1),
+    day_of_week = relevel(factor(day_of_week, ordered = FALSE), ref = "Wed"),
+    is_weekend = wday(date_bsampling, week_start = 1) %in% c(6),
+    day_type = if_else(is_weekend, "Weekend", "Weekday"),
+
+    # Add year for joining
+    year = year(date_bsampling)
+  ) %>%
+  left_join(dst_transitions, by = "year") %>%
+  mutate(
+    # DST classification
+    dst_category = case_when(
+      date_bsampling >= (spring_dst - 2) & date_bsampling <= (spring_dst - 1) ~ "before_spring_DST",
+      date_bsampling >= (spring_dst + 1) & date_bsampling <= (spring_dst + 2) ~ "after_spring_DST",
+      date_bsampling >= (fall_dst - 2) & date_bsampling <= (fall_dst - 1) ~ "before_fall_DST",
+      date_bsampling >= (fall_dst + 1) & date_bsampling <= (fall_dst + 2) ~ "after_fall_DST",
+      TRUE ~ "normal"
+    ),
+    dst_category = relevel(factor(dst_category), ref = "normal")
+  ) #%>%
+  select(-year, -spring_dst, -fall_dst, -date_only)
+
 
 #labs <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_labs.rds")
 
@@ -108,6 +157,37 @@ data <- df %>%
 data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 data$res_q <- ntile(data$res, 5)
 
+
+a <- broom::tidy(lm(res ~ dst_category, data = data))
+
+library(ggplot2)
+
+a %>%
+  filter(term != "(Intercept)") %>%
+  mutate(
+    day = str_remove(term, "day_of_week"),
+    significant = p.value < 0.05
+  ) %>%
+  ggplot(aes(x = day, y = estimate, color = significant)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = estimate - 1.96*std.error,
+                    ymax = estimate + 1.96*std.error),
+                width = 0.2) +
+  scale_color_manual(values = c("gray60", "red3"),
+                     labels = c("p ≥ 0.05", "p < 0.05")) +
+  labs(x = "Day of Week",
+       y = "Coefficient Estimate",
+       color = "Significance",
+       title = "Day of Week Effects (Reference: Wednesday)") +
+  theme_minimal()
+
+data %>%
+  group_by(day_of_week) %>% summarise(m = mean(res))
+
+data %>%
+  ggplot(aes(x = day_of_week, y = res)) +
+  geom_boxplot()
 
 my_render_cont <- function(x){
   with(

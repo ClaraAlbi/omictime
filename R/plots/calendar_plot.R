@@ -77,7 +77,7 @@ cal <- time %>%
   ) %>% filter(!is.na(year))
 
 # ── 3) Plot ──────────────────────────────────────────────────────────────────
-ggplot(cal_i1, aes(x = weekday, y = week, fill = n)) +
+ggplot(cal, aes(x = weekday, y = week, fill = n)) +
   geom_tile(color="white") +
   # week 1 at top
   scale_y_reverse(expand = c(0,0), breaks = seq(1,53,2)) +
