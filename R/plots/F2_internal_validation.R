@@ -26,7 +26,7 @@ preds_i0_nmr <- tibble(f = l[str_detect(l, "predictions_NMR")]) %>%
 ### HISTOGRAMS
 
 time_i0 <- readRDS("/mnt/project/biomarkers/time.rds") %>%
-  filter(time_day > 9 & time_day < 20)
+  filter(time_day >= 9 & time_day <= 20)
 
 time_i1 <- data.table::fread("/mnt/project/blood_sampling_instance1.tsv") %>%
   mutate(max_time = pmax(`3166-1.0`,`3166-1.1`,`3166-1.2`,`3166-1.3`,`3166-1.4`, `3166-1.5`, na.rm = T)) %>%

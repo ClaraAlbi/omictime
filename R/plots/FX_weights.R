@@ -74,11 +74,12 @@ ggsave("plots/FS_weights_rank.png", plot_import, width = 8, height = 12)
 
 
 ####
-library()
+install.packages("UpSetR")
+library(UpSetR)
 top_sets <- weights %>%
   group_by(model) %>%
   mutate(rank = rank(-scaled_importance, ties.method = "first")) %>%
-  filter(rank <= 500) %>%
+  #filter(rank <= 500) %>%
   summarise(features = list(feature), .groups = "drop")
 
 # convert to list
