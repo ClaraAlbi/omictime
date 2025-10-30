@@ -9,15 +9,19 @@ fields <- data.table::fread("/mnt/project/Showcase metadata/field.tsv")
 l <- c(list.files("/mnt/project/biomarkers_3",
                   pattern = "coefs", full.names = TRUE)[-c(31:35, 1:5, 16:20)],
        list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
-                  pattern = "coefs", full.names = TRUE))
-
+                  full.names = TRUE))
 
 weights <- tibble(f = l[str_detect(l, "coefs_all_")]) %>%
   mutate(mod = map(f, readRDS),
          cv = map_chr(f, ~sub(".*cv([0-9]+)\\.rds$", "\\1", .x))) %>%
   unnest(mod) %>%
-  filter(feature != "(Intercept)") %>%
-  filter(feature != 0) %>%
+  filter(feature != "(Intercept)")
+
+weights %>%
+  filter(model == "LASSO") %>%
+  group_by(cv) %>% count()
+
+  filter(abs(weight) > 1e-8) %>%
   group_by(model, feature) %>%
   summarise(mean_weight = mean(weight),
             sd_weight   = sd(weight), .groups = "drop",

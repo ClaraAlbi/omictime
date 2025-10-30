@@ -10,12 +10,16 @@ data_all <- readRDS("/mnt/project/biomarkers_3/covariate_res/OLINK/res_olink.rds
   inner_join(readRDS("/mnt/project/biomarkers_3/covariate_res/res_labs.rds")) %>%
   inner_join(readRDS("/mnt/project/biomarkers_3/covariate_res/res_counts.rds"))
 
-cv_subsets <-
+col_na_counts <- colSums(is.na(data_all))/nrow(data_all)
+row_na_counts <- rowSums(is.na(data_all))
+data_all <- data_all[row_na_counts < 1000, col_na_counts < 0.1]
+
+cv_subsets <- readRDS("data_share/cv.all_subsets.rds")
 
 X_mat  <- glmnet::makeX(data_all %>% select(-eid), na.impute = TRUE)
 
 time_i0 <- readRDS("/mnt/project/biomarkers/time.rds")
-y_obs <- time_i0$time_day[match(res_olink$eid, time_i0$eid)]
+y_obs <- time_i0$time_day[match(data_all$eid, time_i0$eid)]
 
 thresholds <- c(0, 0.01, 0.05, 0.1)
 
@@ -45,7 +49,6 @@ selected_features <- function(model, thr = 0) {
 
 # predict by zeroing out everything except 'keep' features (keep is vector of predictor names)
 predict_using_keep <- function(model, X, keep) {
-
   cf <- as.numeric(coef(model)[,1])
   nm <- rownames(coef(model))
   names(cf) <- nm
@@ -57,39 +60,127 @@ predict_using_keep <- function(model, X, keep) {
   as.numeric(intercept + X %*% betas)
 }
 
-# ---- compute intersection per threshold ----
-# For each threshold, compute per-model selected features, then the intersection across all models
-sel_per_thr <- map(thresholds, function(thr) {
+# ---- compute common features and all feature lists per threshold ----
+common_and_features_per_thr <- map(thresholds, function(thr) {
   sel_lists <- map(lasso_models, selected_features, thr = thr)
-  common <- reduce(sel_lists, intersect)
-  list(threshold = thr, sel_lists = sel_lists, common = common)
+  common_feats <- reduce(sel_lists, intersect)
+  list(
+    threshold = thr,
+    n_common = length(common_feats),
+    common_features = common_feats,
+    sel_lists = sel_lists  # store all individual fold feature lists
+  )
 })
 
-# ---- compute R2 per model using only the intersection features for each threshold ----
-results <- map_dfr(seq_along(sel_per_thr), function(i) {
-  thr_info <- sel_per_thr[[i]]
+# ---- compute R2 per model using its own selected features at each threshold ----
+results <- map_dfr(seq_along(common_and_features_per_thr), function(i) {
+  thr_info <- common_and_features_per_thr[[i]]
   thr <- thr_info$threshold
-  common_feats <- thr_info$common
-  n_common <- length(common_feats)
+  n_common <- thr_info$n_common
 
-  # For each model compute prediction using only the intersection and its R2
+  # For each model (fold) compute prediction using its own selected features at this threshold
   map_dfr(seq_along(lasso_models), function(midx) {
     mod <- lasso_models[[midx]]
-    # If no common features, predictions become intercept-only
-    if(n_common == 0) {
-      # predict intercept only: get intercept and use that as prediction
-      cf_all <- as.numeric(coef(mod)[,1]); pred <- rep(cf_all[1], nrow(X_mat))
-    } else {
-      pred <- predict_using_keep(mod, X_mat, common_feats)
+
+    # Get features selected by THIS model at THIS threshold
+    selected_feats <- thr_info$sel_lists[[midx]]
+    n_features <- length(selected_feats)
+
+    # Get test indices for this fold (cv_subsets already matches data_all)
+    test_idx <- which(cv_subsets == midx)
+
+    # If no test samples in this fold, skip
+    if(length(test_idx) == 0) {
+      return(tibble(
+        model_idx = midx,
+        threshold = thr,
+        R2 = NA_real_,
+        n_features = n_features,
+        n_common = n_common,
+        features = list(selected_feats)
+      ))
     }
+
+    # Get test data
+    X_test <- X_mat[test_idx, , drop = FALSE]
+    y_test <- y_obs[test_idx]
+
+    # If no selected features, predictions become intercept-only
+    if(n_features == 0) {
+      cf_all <- as.numeric(coef(mod)[,1])
+      pred <- rep(cf_all[1], length(test_idx))
+    } else {
+      pred <- predict_using_keep(mod, X_test, selected_feats)
+    }
+
     tibble(
-      model_idx = midx,
+      model_idx = as.character(midx),
       threshold = thr,
-      R2 = safe_cor2(y_obs, pred),
-      n_common = n_common
+      R2 = safe_cor2(y_test, pred),
+      n_features = n_features,
+      n_common = n_common,
+      features = list(selected_feats)  # store feature names as list column
     )
   })
 })
+
+# Save the feature information for later use
+feature_info <- list(
+  results_with_features = results,
+  common_features_per_threshold = map(common_and_features_per_thr, function(x) {
+    list(threshold = x$threshold,
+         n_common = x$n_common,
+         common_features = x$common_features)
+  })
+)
+
+
+# ---------------------------
+# compute predictions using ONLY common features, evaluated on CV fold 1 (model = fold1)
+# ---------------------------
+common_preds_cv1 <- map_dfr(common_and_features_per_thr, function(thr_info) {
+  thr <- thr_info$threshold
+  common_feats <- thr_info$common_features
+  n_common <- length(common_feats)
+
+  fold_idx <- 1
+  mod <- lasso_models[[fold_idx]]
+  test_idx <- which(cv_subsets == fold_idx)
+
+  if (length(test_idx) == 0) {
+    return(tibble(
+      model_idx = "∩",
+      threshold = thr,
+      R2 = NA_real_,
+      n_features = n_common,
+      n_common = n_common,
+      features = list(common_feats)
+    ))
+  }
+
+  X_test <- X_mat[test_idx, , drop = FALSE]
+  y_test <- y_obs[test_idx]
+
+  if (n_common == 0) {
+    cf_all <- as.numeric(as.matrix(coef(mod))[, 1])
+    pred <- rep(cf_all[1], length(test_idx))
+  } else {
+    pred <- predict_using_keep(mod, X_test, common_feats)
+  }
+
+  tibble(
+    model_idx = "∩",
+    threshold = thr,
+    R2 = safe_cor2(y_test, pred),
+    n_features = n_common,
+    n_common = n_common,
+    features = list(common_feats)
+  )
+})
+
+# append the common_cv1 rows
+results <- bind_rows(results, common_preds_cv1)
+
 
 # prepare factors/labels
 results <- results %>%
@@ -97,27 +188,27 @@ results <- results %>%
     threshold_label = ifelse(threshold == 0, "0", as.character(threshold)),
     model_idx = factor(model_idx))
 
-# ---- Plot: grouped bars per threshold, colored by CV fold, label = n_common ----
+# ---- Plot: grouped bars per threshold, colored by CV fold ----
 pos <- position_dodge(width = 0.8)
 
 results_mean <- results %>%
+  filter(model_idx != "∩") %>%
   group_by(threshold_label, n_common) %>%
-  summarise(m_R2 = mean(R2, na.rm = TRUE), .groups = "drop")
+  summarise(m_R2 = mean(R2, na.rm = TRUE),
+            mean_n_features = round(mean(n_features, na.rm = TRUE), 1),
+            .groups = "drop")
 
-# --- plot with facet, bars, mean line + mean text ---
-ordered_levels <- c( "0", "0.01", "0.05", "0.1") %>% unique()
+# --- plot with facet by threshold ---
+ordered_levels <- c("0", "0.01", "0.05", "0.1") %>% unique()
 
 results <- results %>%
-  mutate(threshold_label = factor(threshold_label, levels = ordered_levels),
-         n_common = forcats::fct_reorder(factor(n_common), desc(n_common)))
+  mutate(threshold_label = factor(threshold_label, levels = ordered_levels))
 
 results_mean <- results_mean %>%
-  mutate(threshold_label = factor(threshold_label, levels = ordered_levels),
-         n_common = factor(n_common, levels = c("545", "378", "123", "44")))
+  mutate(threshold_label = factor(threshold_label, levels = ordered_levels))
 
-# --- plot ---
-p <-ggplot(results, aes(x = threshold_label, y = R2, fill = model_idx)) +
-  geom_col(position = pos, width = 0.7) +
+p <- ggplot(results, aes(x = model_idx, y = R2, fill = model_idx)) +
+  geom_col(width = 0.7) +
   geom_hline(
     data = results_mean,
     mapping = aes(yintercept = m_R2),
@@ -128,25 +219,37 @@ p <-ggplot(results, aes(x = threshold_label, y = R2, fill = model_idx)) +
   geom_text(
     data = results_mean,
     mapping = aes(
-      x = threshold_label,
+      x = 3.5,
       y = m_R2,
-      label = round(m_R2, 2)
+      label = paste0("Mean R² = ", round(m_R2, 2))
     ),
     color = "black",
-    vjust = -1.2,
-    size = 3.8,
+    vjust = -0.8,
+    size = 2.5,
     fontface = "bold",
     inherit.aes = FALSE
   ) +
+  geom_text(
+    aes(label = n_features, y = 0.1),
+    color = "white",
+    size = 2.5, angle = 90,
+    fontface = "bold"
+  ) +
   scale_fill_viridis_d(option = "H") +
-  labs(subtitle = "Number of proteins in common across 5 CV folds:",
-    x = "Coefficient threshold",
+  labs(
+    subtitle = "LASSO threshold:",
+    x = "CV fold",
     y = expression(R^2),
     fill = "CV fold"
   ) +
-  facet_grid(~n_common, scales = "free") +
+  facet_wrap(~threshold_label,
+             nrow = 1) +
   theme_classic(base_size = 13) +
-  ylim(0, max(results$R2, na.rm = TRUE) * 1.25)
-
+  theme(legend.position = "none") +
+  ylim(0, max(results$R2, na.rm = TRUE) * 1.05)
 
 ggsave("plots/F3_LASSO_coef.png", p, width = 6, height = 3)
+
+
+
+
