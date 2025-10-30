@@ -5,12 +5,14 @@ library(purrr)
 library(ggplot2)
 install.packages("forcats")
 
-panels_in <- readRDS("data_share/olink_panels_1to4_over.rds")
+data_all <- readRDS("/mnt/project/biomarkers_3/covariate_res/OLINK/res_olink.rds") %>%
+  inner_join(readRDS("/mnt/project/biomarkers_3/covariate_res/res_nmr.rds")) %>%
+  inner_join(readRDS("/mnt/project/biomarkers_3/covariate_res/res_labs.rds")) %>%
+  inner_join(readRDS("/mnt/project/biomarkers_3/covariate_res/res_counts.rds"))
 
-res_olink <- readRDS("/mnt/project/biomarkers_3/covariate_res/OLINK/res_olink.rds") %>%
-  select(eid, any_of(panels_in))
+cv_subsets <-
 
-X_mat  <- glmnet::makeX(res_olink %>% select(-eid), na.impute = TRUE)
+X_mat  <- glmnet::makeX(data_all %>% select(-eid), na.impute = TRUE)
 
 time_i0 <- readRDS("/mnt/project/biomarkers/time.rds")
 y_obs <- time_i0$time_day[match(res_olink$eid, time_i0$eid)]
@@ -18,7 +20,7 @@ y_obs <- time_i0$time_day[match(res_olink$eid, time_i0$eid)]
 thresholds <- c(0, 0.01, 0.05, 0.1)
 
 # ---- Config: adjust if needed ----
-model_pattern <- "cv.i0_lasso_cv"
+model_pattern <- "cv.all_lasso_cv"
 model_dir <- "data_share"
 
 rds_files <- list.files(model_dir, pattern = paste0("^", model_pattern, ".*\\.rds$"), full.names = TRUE)
