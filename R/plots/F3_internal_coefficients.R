@@ -221,11 +221,11 @@ p <- ggplot(results, aes(x = model_idx, y = R2, fill = model_idx)) +
     mapping = aes(
       x = 3.5,
       y = m_R2,
-      label = paste0("Mean R² = ", round(m_R2, 2))
+      label = round(m_R2, 2)
     ),
     color = "black",
     vjust = -0.8,
-    size = 2.5,
+    size = 3.5,
     fontface = "bold",
     inherit.aes = FALSE
   ) +
@@ -246,7 +246,7 @@ p <- ggplot(results, aes(x = model_idx, y = R2, fill = model_idx)) +
              nrow = 1) +
   theme_classic(base_size = 13) +
   theme(legend.position = "none") +
-  ylim(0, max(results$R2, na.rm = TRUE) * 1.05)
+  ylim(0, 0.8)
 
 ggsave("plots/F3_LASSO_coef.png", p, width = 6, height = 3)
 
