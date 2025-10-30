@@ -4,6 +4,7 @@ library(dplyr)
 library(ggplot2)
 install.packages("paletteer")
 install.packages("ggmisc")
+install.packages("forcats")
 
 data <- readRDS("data_share/predictions_internal_time_updated.rds") %>%
   mutate(time_extended = time_day + 24 * (as.numeric(visitday) - 1))
@@ -80,6 +81,14 @@ ggplot(data, aes(x = time_day, y = pred_scaled)) +
   geom_point(alpha = 0.4) +
   geom_smooth(method = harmonic_method, se = FALSE, color = "red") +
   theme_minimal()
+
+
+
+
+
+## USEFUL
+
+
 
 fit <- lm(pred_mean ~ sin(2*pi*time_extended/24) + cos(2*pi*time_extended/24),
           data = data)
@@ -167,16 +176,18 @@ blank <- ggplot() + theme_void() + theme(panel.background = element_rect(fill = 
 p_ext <- plot_grid(p_long, blank, ncol = 2, rel_widths = c(0.7, 0.3))
 
 
-
+library(forcats)
 p_c <- data_plot %>%
   group_by(participantid) %>% mutate(m_res = mean(resid)) %>%
   ggplot(aes(x = fct_reorder(as.factor(participantid), m_res), y = resid, fill = participantid)) +
   geom_hline(yintercept = 0, linetype = 2)  +
   geom_boxplot() +
-  labs(y = "Acceleration", x = "Participant ID") +
+  labs(y = "Acceleration", x = "Participant ID", title = "Longitudinal") +
   paletteer::scale_fill_paletteer_d("dichromat::DarkRedtoBlue_12", direction = -1) +
-  theme_classic() +
-  theme(legend.position = 'none')
+  theme_classic(base_size = 14) +
+  theme(legend.position = 'none',
+        plot.title   = element_text(face = "bold", size = 16),
+        axis.title   = element_text(face = "bold"))
 
 ggsave("plots/F3_long_acc.png", p_c, width = 7, height = 3)
 

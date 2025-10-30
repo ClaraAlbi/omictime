@@ -12,7 +12,7 @@ install.packages("ggrepel")
 library(ggplot2)
 
 preds_olink <- readRDS("/mnt/project/olink_int_replication.rds") %>%
-  filter(i == 0 & !is.na(cv)) %>%
+  filter(i == 0) %>%
   rowwise() %>%
   mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)),
          gap = pred_mean - time_day,
@@ -165,7 +165,7 @@ p_hist3 <- preds_olink %>%
   ) +
   paletteer::scale_fill_paletteer_c("ggthemes::Classic Gray", direction = 1) +
   labs(x = "Hours") +
-  scale_x_continuous(limits = c(0,5), sec.axis = dup_axis(name = "Circadian misalignment", labels = NULL, expand = c(0,0))) +
+  scale_x_continuous(limits = c(0,5), sec.axis = dup_axis(name = "Circadian misalignment", labels = NULL)) +
   scale_y_continuous(
     labels = function(x) paste0(x / 1000, "k"),
     breaks = seq(1000, 5000, 1000), # optional: control tick positions
@@ -273,8 +273,8 @@ p3 <- make_pair_plot(2, 3)
 
 final_plot <-  cowplot::plot_grid(p3, p1, p2, nrow = 1)
 
+full <- cowplot::plot_grid(part1,  final_plot, p_c, nrow = 3, labels = c("", "C", "D"), label_size = 18, rel_heights = c(1, 0.8, 0.8))
 
-full <- cowplot::plot_grid(part1,  final_plot, nrow = 2, labels = c("", "C"), label_size = 18, rel_heights = c(1, 0.8))
 
-ggsave("plots/F4_combined.png", full, width = 10, height = 10)
+ggsave("plots/F4_combined.png", full, width = 10, height = 13)
 
