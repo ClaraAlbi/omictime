@@ -19,6 +19,8 @@ data <- data %>%
 data <- data %>%
   mutate(pred_scaled = pred_scaled %% 24)
 
+summary(lm(time_day ~ pred_mean, data %>% filter(time_day >= 9 & time_day <= 20)))
+
 grid_df <- expand_grid(
   participantid = unique(data$participantid),
   time_day = seq(0, 23, by = 1),
