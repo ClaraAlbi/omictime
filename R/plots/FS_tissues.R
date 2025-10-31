@@ -41,6 +41,10 @@ unique_prots <- tissues %>%
 
 unique_prots_all <- assay %>% pull(UniProt) %>% unique()
 
+lookout_effects <- df_effects %>%
+  left_join(tissues) %>%
+  count(category)
+
 
 n_tissues <- tissues %>%
   filter(category %in% c("Tissue enriched", "Group enriched")) %>%
