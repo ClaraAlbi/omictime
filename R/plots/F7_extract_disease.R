@@ -13,24 +13,26 @@ disease_icd10 <- tribble(
   "rec_MDD_remission", "ICD10", "F33.4", "Recurrent depressive disorder, currently in remission",
   "rec_MDD_other", "ICD10", "F33.8", "Other recurrent depressive disorders",
   "rec_MDD_unspecified", "ICD10", "F33.9", "Recurrent depressive disorder, unspecified",
+  "self_reported_depression" ,"ukb_noncancer" , "1286", "Self-reported depression",
 
   "episode_MDD_mild", "ICD10", "F32.0", "Mild depressive episode",
   "episode_MDD_moderate", "ICD10", "F32.1", "Moderate depressive episode",
   "episode_MDD_severe", "ICD10", "F32.2", "Severe depressive episode without psychotic symptoms",
   "episode_MDD_severe_with_psychosis", "ICD10", "F32.3", "Severe depressive episode with psychotic symptoms",
   "episode_MDD_other", "ICD10", "F32.8", "Other depressive episodes",
-  "episode_MDD_unspecified", "ICD10", "F32.9", "Depressive episode, unspecified")
+  "episode_MDD_unspecified", "ICD10", "F32.9", "Depressive episode, unspecified",
 
-"bipolar_disorder", "ICD10", "F31.0", "Bipolar affective disorder, current episode hypomanic",
-"bipolar_disorder", "ICD10", "F31.1", "Bipolar affective disorder, current episode manic without psychotic symptoms",
-"bipolar_disorder", "ICD10", "F31.2", "Bipolar affective disorder, current episode manic with psychotic symptoms",
-"bipolar_disorder", "ICD10", "F31.3", "Bipolar affective disorder, current episode mild or moderate depression",
-"bipolar_disorder", "ICD10", "F31.4", "Bipolar affective disorder, current episode severe depression without psychotic symptoms",
-"bipolar_disorder", "ICD10", "F31.5", "Bipolar affective disorder, current episode severe depression with psychotic symptoms",
-"bipolar_disorder", "ICD10", "F31.6", "Bipolar affective disorder, currently in remission",
-"bipolar_disorder", "ICD10", "F31.7", "Bipolar affective disorder, currently unspecified",
-"bipolar_disorder", "ICD10", "F31.8", "Other bipolar affective disorders",
-"bipolar_disorder", "ICD10", "F31.9", "Bipolar affective disorder, unspecified",
+    "BD_hypo", "ICD10", "F31.0", "Bipolar affective disorder, current episode hypomanic",
+  "BD_manic", "ICD10", "F31.1", "Bipolar affective disorder, current episode manic without psychotic symptoms",
+  "BD_manic_with_psychosis", "ICD10", "F31.2", "Bipolar affective disorder, current episode manic with psychotic symptoms",
+"BD_mild_dep", "ICD10", "F31.3", "Bipolar affective disorder, current episode mild or moderate depression",
+"BD_severe_dep", "ICD10", "F31.4", "Bipolar affective disorder, current episode severe depression without psychotic symptoms",
+"BD_severe_dep_with_psychosis", "ICD10", "F31.5", "Bipolar affective disorder, current episode severe depression with psychotic symptoms",
+"BD_remission", "ICD10", "F31.6", "Bipolar affective disorder, currently in remission",
+"BD_unspecified_phase", "ICD10", "F31.7", "Bipolar affective disorder, currently unspecified",
+"BD_other", "ICD10", "F31.8", "Other bipolar affective disorders",
+"BD_unspecified", "ICD10", "F31.9", "Bipolar affective disorder, unspecified",
+"self_reported_bipolar", "ukb_noncancer" , "1291", "Self-reported bipolar disorder")
 
 "anxiety", "ICD10", "F41.0", "Panic disorder [episodic paroxysmal anxiety]",
 "anxiety", "ICD10", "F41.1", "Generalized anxiety disorder",
@@ -71,15 +73,5 @@ disease_icd10 <- tribble(
 "asthma", "ICD10", "J45.1", "Non-allergic asthma",
 "asthma", "ICD10", "J45.8", "Mixed asthma",
 "asthma", "ICD10", "J45.9", "Asthma, unspecified",
-"asthma", "ICD10", "J46", "Status asthmaticus",
-
-# --- Cancer ---
-"breast_cancer", "ICD10", "C50.0", "Malignant neoplasm of nipple and areola",
-"breast_cancer", "ICD10", "C50.1", "Malignant neoplasm of central portion of breast",
-"breast_cancer", "ICD10", "C50.2", "Malignant neoplasm of upper-inner quadrant of breast",
-"breast_cancer", "ICD10", "C50.3", "Malignant neoplasm of lower-inner quadrant of breast",
-"breast_cancer", "ICD10", "C50.4", "Malignant neoplasm of upper-outer quadrant of breast",
-"breast_cancer", "ICD10", "C50.5", "Malignant neoplasm of lower-outer quadrant of breast",
-"breast_cancer", "ICD10", "C50.8", "Malignant neoplasm of overlapping sites of breast",
-"breast_cancer", "ICD10", "C50.9", "Malignant neoplasm of breast, unspecified"
+"asthma", "ICD10", "J46", "Status asthmaticus"
 )
