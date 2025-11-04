@@ -10,16 +10,19 @@ ckd <- ukbrapR:::codes_df_ckd
 ukbrapR:::codes_df_test
 
 bp <- tribble(~condition, ~vocab_id, ~code,
-              "bp", "ICD10","F31.2",
-              "bp", "ICD9", "296",
-              "bp","Read2", "E11..11",
-              "bp","Read2","E114.00",
-              "bp","Read2","E115.00",
-              "bp","Read2","E117.00",
-              "bp","Read2","Eu31.00",
-              "bp", "CTV3","E1176",
+              # "bp", "ICD10","F31.2",
+              # "bp", "ICD9", "296",
+              # "bp","Read2", "E11..11",
+              # "bp","Read2","E114.00",
+              # "bp","Read2","E115.00",
+              # "bp","Read2","E117.00",
+              # "bp","Read2","Eu31.00",
+              # "bp", "CTV3","E1176",
               "bp", "ukb_noncancer", "1291",
-              "scz", "ukb_noncancer", "1289")
+              "scz", "ukb_noncancer", "1289",
+              "self_reported_depression","ukb_noncancer" , "1286")
+diagnosis_list <- get_diagnoses(bp)
+
 
 diagnosis_list <- get_diagnoses(disease_icd10)
 
@@ -38,9 +41,10 @@ df$res <- residuals(lm(pred_mean ~ time_day, data = df))
 a <- df %>%
   pivot_longer(contains("prev")) %>%
   group_by(name) %>% nest() %>%
-  mutate(m = map(data, ~glm(value ~ abs(res), data = .x, family = binomial)),
-         p = map(m, broom::tidy)) %>%
-  unnest(p)
+  mutate(m = map(data, ~glm(value ~ res, data = .x, family = binomial)),
+         p = map(m, broom::tidy),
+         n = map_dbl(data, ~sum(.x$value == 1, na.rm = T))) %>%
+  unnest(p) %>% select(-data, -m)
 
 summary(glm(episode_MDD_severe_with_psychosis_bin_prev ~ abs(res), data = df, family = binomial))
 
