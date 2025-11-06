@@ -57,5 +57,27 @@ p2 <- cells %>%
 
 ggsave("blood_cell_count_sex_specific_timeday_smooth.png", p2, height = 14, width = 16)
 
+### prots
+
+prot <- readRDS("/mnt/project/biomarkers_3/covariate_res/raw_olink.rds") %>%
+  select(eid, contains("il")) %>%
+  select(1:65)
+
+
+
+
+p3 <- prot %>%
+  #slice(1:1000) %>%
+  left_join(covs) %>%
+  left_join(time %>% select(eid, time_day)) %>%
+  pivot_longer(-c(eid, sex, time_day)) %>%
+  mutate(name = name, time_day = round(time_day, 0)) %>%
+  ggplot(aes(x = time_day, y = value, color = as.factor(sex))) + geom_smooth() +
+  labs(title = "UK Biobank cytokines by sex", color = "Sex", y = "Mean value") +
+  facet_wrap(~name, scales = "free") + theme_classic()
+
+ggsave("ils_sex_specific_timeday_smooth.png", p3, height = 20, width = 16)
+
+
 
 
