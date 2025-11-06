@@ -278,3 +278,84 @@ full <- cowplot::plot_grid(part1,  final_plot, p_c, nrow = 3, labels = c("", "C"
 
 ggsave("plots/F4_combined.png", full, width = 10, height = 13)
 
+
+
+
+#### PLOT MISALIGNMENT CORRELATION
+
+
+
+make_pair_plot <- function(v1, v2){
+  # column names
+  x_gap  <- paste0("res_i",      v1)
+  y_gap  <- paste0("res_i",      v2)
+  x_time <- paste0("time_day_i", v1)
+  y_time <- paste0("time_day_i", v2)
+
+  res_wide[[x_gap]] <- abs(res_wide[[x_gap]])
+  res_wide[[y_gap]] <- abs(res_wide[[y_gap]])
+
+  # 1) compute correlations
+  r_acc  <- cor.test(res_wide[[x_gap]],  res_wide[[y_gap]],  use = "pairwise.complete.obs")
+  r_time <- cor.test(res_wide[[x_time]], res_wide[[y_time]], use = "pairwise.complete.obs")
+  n <- res_wide %>% filter(!is.na(res_wide[[y_gap]]) & !is.na(res_wide[[x_gap]])) %>% nrow()
+  av_y <- mean(as.numeric(res_wide[[paste0("y_i", v2)]]) - as.numeric(res_wide[[paste0("y_i", v1)]]), na.rm = T)
+  sd_y <- sd(as.numeric(res_wide[[paste0("y_i", v2)]]) - as.numeric(res_wide[[paste0("y_i", v1)]]), na.rm = T)
+
+  # 2) build a little data frame for the two text labels
+  label_df <- tibble(
+    x     = c(-5, -5, -5),
+    y     = c( 6,  5.3, 4.6),
+    label = c(paste0("N == ", n),
+              paste0("italic(r)[Misalignment] == ", round(r_acc$estimate,  2), "~(p ==", sprintf("%.0e", r_acc$p.value), ")"),
+              paste0("italic(r)[Time~day] == ", round(r_time$estimate, 2), "~(p ==", sprintf("%.0e", r_time$p.value), ")")
+    ),
+    col   = c("black","#2374AB", "darkgreen" )
+  )
+
+  # 3) draw!
+  ggplot(res_wide, aes_string(x = x_gap, y = y_gap)) +
+    # residuals
+    geom_point(color = "#2374AB", alpha = 0.6) +
+    geom_smooth(method = "lm", se = FALSE, color = "#2374AB") +
+
+    # the two text labels
+    geom_text(
+      data        = label_df,
+      aes(x = x, y = y, label = label, color = col),
+      parse       = TRUE,
+      hjust       = 0,
+      size        = 4,
+      show.legend = FALSE
+    ) +
+    scale_x_continuous(limits = c(-5, 6)) +
+    scale_y_continuous(limits = c(-5, 6)) +
+    scale_color_identity() +
+
+    # zoom to –4…4 without dropping any data/text
+
+    labs(
+      title = paste0("i", v1, " vs i", v2),
+      subtitle = paste0(round(av_y, 1), " (±", round(sd_y, 1),")", " years"),
+      x     = paste0("Misalignment ","i", v1),
+      y     = paste0("Misalignment ", "i", v2)
+    ) +
+    theme_classic(base_size = 14) +
+    theme(
+      plot.title   = element_text(face = "bold", size = 16),
+      axis.title   = element_text(face = "bold")
+    )
+}
+
+# rebuild your three panels
+p1 <- make_pair_plot(0, 2)
+p2 <- make_pair_plot(0, 3)
+p3 <- make_pair_plot(2, 3)
+
+final_plot <-  cowplot::plot_grid(p3, p1, p2, nrow = 1)
+
+full <- cowplot::plot_grid(part1,  final_plot, p_c, nrow = 3, labels = c("", "C", "D"), label_size = 18, rel_heights = c(1, 0.8, 0.8))
+
+
+ggsave("plots/F4_combined.png", full, width = 10, height = 13)
+

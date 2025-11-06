@@ -6,7 +6,7 @@ covariates="covariates.txt"
 
 COVARS="sex,age_recruitment,batch,PC1-PC20"
 
-for pheno in gap abs_gap; do
+for pheno in res res_abs; do
   echo "==> Running GWAS for phenotype: $pheno"
 
   plink_command="plink2 \
@@ -19,7 +19,7 @@ for pheno in gap abs_gap; do
     --glm hide-covar \
     --covar-variance-standardize \
     --threads 16   \
-    --out gwas_${pheno}"
+    --out gwas_${pheno}_v2"
 
   dx run swiss-army-knife \
     -iin="${phenotypes}" \
