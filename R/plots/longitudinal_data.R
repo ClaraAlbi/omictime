@@ -177,6 +177,11 @@ p_ext <- plot_grid(p_long, blank, ncol = 2, rel_widths = c(0.7, 0.3))
 
 
 library(forcats)
+
+data_plot %>%
+  group_by(participantid) %>%
+  count()
+
 p_c <- data_plot %>%
   group_by(participantid) %>% mutate(m_res = mean(resid)) %>%
   ggplot(aes(x = fct_reorder(as.factor(participantid), m_res), y = resid, fill = participantid)) +

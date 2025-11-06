@@ -1,12 +1,22 @@
 library(tidyverse)
 
-gwas <- data.table::fread("~/Downloads/gwas_gap_pQTL.gap.glm.linear") %>%
+#dx download file-J4687g0J7G4FqJ0P1GYqfpx9
+gwas <- data.table::fread("gwas_res_v2.res.glm.linear") %>%
   filter(TEST == "ADD")
+
+sig <- gwas %>%
+  filter(P < 1e-8) %>%
+  rename(CHROM = "#CHROM")
+
+
+
 
 circadian_genes <- data.table::fread("~/Downloads/merged_final_collected_CR_geneset_space_removed_annotated_with_gene_name_add_Science_46tissues_baboon_paper_mouse_SCN_related.txt") %>%
   filter(label == "GOCRpath_human_NA")
 
+install.packages("biomaRt")
 library(biomaRt)
+
 ensembl37 <- useEnsembl(biomart = "genes",
                         dataset = "hsapiens_gene_ensembl",
                         version = 75)
@@ -32,15 +42,15 @@ for (i in 1:nrow(sig)) {
     snp_chr <- sig$`#CHROM`[i]
     snp_pos <- sig$POS[i]
 
-    genes_on_chr <- gene_seq[as.numeric(gene_seq$V1) == snp_chr, ]
-    genes_on_chr$distance <- pmin(abs(snp_pos - genes_on_chr$V4), abs(snp_pos - genes_on_chr$V5))
-    closest_gene <- genes_on_chr[which.min(genes_on_chr$distance), ]
+    # genes_on_chr <- gene_seq[as.numeric(gene_seq$V1) == snp_chr, ]
+    # genes_on_chr$distance <- pmin(abs(snp_pos - genes_on_chr$V4), abs(snp_pos - genes_on_chr$V5))
+    # closest_gene <- genes_on_chr[which.min(genes_on_chr$distance), ]
 
     result <- rbind(result, data.frame(
       snp = snp_id,
       chr = snp_chr,
       pos = snp_pos,
-      gene_id = closest_gene$gene_name
+      #gene_id = closest_gene$gene_name
     ))
   }
 }
@@ -62,7 +72,7 @@ closest_gene <- genes_on_chr[which.min(genes_on_chr$distance), ]
 ########################################################################
 
 sig <- gwas %>%
-  filter(P < 1e-4) %>%
+  filter(P < 1e-8) %>%
   rename(CHROM = "#CHROM")
 
 
@@ -85,17 +95,9 @@ axis_df <- chr_info %>%
 res <- sig %>%
   left_join(result, by = c("CHROM" = "chr", "POS" = "pos"))
 
-res %>%
+sig %>%
   ggplot(aes(x = BP_cum, y = -log10(P))) +
   geom_point(size = 1.2, alpha = 0.75) +
-  geom_text(
-    data            = subset(res, P < 1e-7),
-    aes(x = BP_cum, y = -log10(P), label = gene_id),
-    vjust           = -0.5,
-    hjust = -0.2,
-    size            = 2,
-    check_overlap   = TRUE
-  ) +
   scale_x_continuous(breaks = axis_df$center, labels = axis_df$`CHROM`) +
   labs(x = "Chromosome", y = "-log10(p)") +
   theme_bw() +

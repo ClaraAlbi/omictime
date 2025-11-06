@@ -72,7 +72,6 @@ df_nmr <- readRDS("/mnt/project/nmr_int_replication.rds") %>%
 
 df_nmr$res <- residuals(lm(pred_mean ~ time_day, data = df_nmr))
 
-formula <- y ~ x
 
 pr_nmr <- df_nmr %>%
   ggplot(aes(x = time_day, y = pred_mean)) +
