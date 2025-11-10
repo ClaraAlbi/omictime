@@ -8,6 +8,7 @@ install.packages("table1")
 install.packages("forcats")
 library(broom)
 library(forcats)
+library(lubridate)
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   filter(smoking != "-3") %>%
@@ -17,17 +18,17 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          )
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
-  mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never.",
-                                 `3426-0.0` == 2 ~ "Sometimes.",
-                                 `3426-0.0` == 3 ~ "Usually.",
-                                 `3426-0.0` == 4 ~ "Always."),
+  mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
+                                 `3426-0.0` == 2 ~ "Sometimes",
+                                 `3426-0.0` == 3 ~ "Usually",
+                                 `3426-0.0` == 4 ~ "Always"),
          shift_work = case_when(`826-0.0` == 1 ~ "Never/rarely",
                                  `826-0.0` == 2 ~ "Sometimes",
                                  `826-0.0` == 3 ~ "Usually",
                                  `826-0.0` == 4 ~ "Always")) %>%
   #filter(`3426-0.0` %in% 1:4) %>%
-  mutate(night_shift = factor(night_shift, levels = c("Never.", "Sometimes.", "Usually.", "Always.")),
-         shift_work = factor(night_shift, levels = c("Never/rarely", "Sometimes", "Usually", "Always")))
+  mutate(night_shift = factor(night_shift, levels = c("Never", "Sometimes", "Usually", "Always")),
+         shift_work = factor(shift_work, levels = c("Never/rarely", "Sometimes", "Usually", "Always")))
 
 pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
   select(eid = 1, contains("PC"))
@@ -162,32 +163,6 @@ a <- broom::tidy(lm(res ~ dst_category, data = data))
 
 library(ggplot2)
 
-a %>%
-  filter(term != "(Intercept)") %>%
-  mutate(
-    day = str_remove(term, "day_of_week"),
-    significant = p.value < 0.05
-  ) %>%
-  ggplot(aes(x = day, y = estimate, color = significant)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = estimate - 1.96*std.error,
-                    ymax = estimate + 1.96*std.error),
-                width = 0.2) +
-  scale_color_manual(values = c("gray60", "red3"),
-                     labels = c("p ≥ 0.05", "p < 0.05")) +
-  labs(x = "Day of Week",
-       y = "Coefficient Estimate",
-       color = "Significance",
-       title = "Day of Week Effects (Reference: Wednesday)") +
-  theme_minimal()
-
-data %>%
-  group_by(day_of_week) %>% summarise(m = mean(res))
-
-data %>%
-  ggplot(aes(x = day_of_week, y = res)) +
-  geom_boxplot()
 
 my_render_cont <- function(x){
   with(

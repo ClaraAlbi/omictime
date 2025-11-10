@@ -20,12 +20,14 @@ bp <- tribble(~condition, ~vocab_id, ~code,
               # "bp", "CTV3","E1176",
               "bp", "ukb_noncancer", "1291",
               "scz", "ukb_noncancer", "1289",
+              "delirium", "ICD10","F05",
               "self_reported_depression","ukb_noncancer" , "1286")
+
 diagnosis_list <- get_diagnoses(bp)
+diagnosis_df <- get_df(diagnosis_list, "delirium")
 
 
 diagnosis_list <- get_diagnoses(disease_icd10)
-
 diagnosis_df <- get_df(diagnosis_list, group_by="condition")
 
 
@@ -46,7 +48,7 @@ a <- df %>%
          n = map_dbl(data, ~sum(.x$value == 1, na.rm = T))) %>%
   unnest(p) %>% select(-data, -m)
 
-summary(glm(episode_MDD_severe_with_psychosis_bin_prev ~ abs(res), data = df, family = binomial))
+summary(glm(delirium_bin_prev ~ abs(res), data = df, family = binomial))
 
 
 
