@@ -1,15 +1,12 @@
 library(tidyverse)
 
 #dx download file-J4687g0J7G4FqJ0P1GYqfpx9
-gwas <- data.table::fread("gwas_res_v2.res.glm.linear") %>%
+gwas <- data.table::fread("~/Downloads/gwas_res_v2.res.glm.linear.gz") %>%
   filter(TEST == "ADD")
 
 sig <- gwas %>%
   filter(P < 1e-8) %>%
   rename(CHROM = "#CHROM")
-
-
-
 
 circadian_genes <- data.table::fread("~/Downloads/merged_final_collected_CR_geneset_space_removed_annotated_with_gene_name_add_Science_46tissues_baboon_paper_mouse_SCN_related.txt") %>%
   filter(label == "GOCRpath_human_NA")
