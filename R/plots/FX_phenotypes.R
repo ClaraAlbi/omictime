@@ -9,6 +9,7 @@ install.packages("forcats")
 library(broom)
 library(forcats)
 library(lubridate)
+library(ggh4x)
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   filter(smoking != "-3") %>%
@@ -264,7 +265,7 @@ res <- results %>%
     level = str_remove(term, paste0("^", predictor)),
     display_term = ifelse(reference,
                           paste0(level, " (ref)"),
-                          ifelse(level == "", as.character(predictor_label), level))
+                          ifelse(level == "", predictor_label, level))
   ) %>%
   # Factor predictor using standard names
   mutate(predictor = factor(predictor, levels = predictor_order),
@@ -296,16 +297,49 @@ order_df <- imap_dfr(term_order, ~ tibble(
   display_term = .x,
   term_rank = seq_along(.x)
 )) %>%
-  mutate(predictor = factor(predictor, levels = predictor_order))
-
-order_full <- order_df %>%
+  mutate(predictor = factor(predictor, levels = predictor_order),
+         xterm = paste0(predictor, "::", display_term)) %>%
   arrange(predictor, term_rank) %>%
-  mutate(xterm = paste0(predictor, "::", display_term)) %>%
-  # Add a unique ordering key for y-axis
   mutate(y_order = row_number())
+
 
 # Create the plot
 p2 <- res %>%
+  right_join(order_df, by = c("predictor", "display_term")) %>%
+  mutate(
+    xterm = factor(xterm, levels = order_df$xterm),
+    is_ref = if_else(estimate == 0 & is.na(p.value), TRUE, FALSE),
+    FDR = p.adjust(p.value)
+  ) %>%
+  arrange(desc(y_order)) %>%  # Sort by y_order descending for proper plotting
+  #slice(21:35) %>%
+  mutate(display_term = fct_inorder(display_term)) %>%  # Factor in current order
+  ggplot(aes(x = OR, y = rev(display_term), color = Category, alpha = FDR < 0.05)) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.1) +
+  geom_point(aes(shape = reference), size = 3, fill = "white") +
+  scale_shape_manual(values = c(`FALSE` = 19, `TRUE` = 21),
+                     guide = "none") +
+  scale_color_manual(values = domain_colors) +
+  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.4)) +
+  scale_x_continuous(limits = c(0.5, 1.2)) +
+  facet_nested(rows = vars(Category, predictor_label),
+               scales = "free",
+               space = "free") +
+  labs(x = "Odds Ratio (95% CI)", y = NULL, shape = NULL, color = " ", alpha = "FDR_5%") +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.text.y.right = element_text(angle = 270, hjust = 0.5, face = "bold", size = 12),
+    panel.grid.major.y = element_blank(),
+    strip.background = element_rect(fill = NA, color = "black", linewidth = 1),
+    axis.ticks.y = element_blank(),
+    legend.position = "none",
+    strip.text = element_text(face = "bold", size = 12)
+  )
+
+
+
+p1 <- res %>%
   right_join(order_full, by = c("predictor", "display_term")) %>%
   mutate(
     xterm = factor(xterm, levels = order_full$xterm),
@@ -314,6 +348,7 @@ p2 <- res %>%
   ) %>%
   arrange(desc(y_order)) %>%  # Sort by y_order descending for proper plotting
   mutate(display_term = fct_inorder(display_term)) %>%  # Factor in current order
+  slice(1:20) %>%
   ggplot(aes(x = OR, y = display_term, color = Category, alpha = FDR < 0.05)) +
   geom_vline(xintercept = 1, linetype = "dashed") +
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.1) +
@@ -323,15 +358,20 @@ p2 <- res %>%
   scale_color_manual(values = domain_colors) +
   scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.4)) +
   scale_x_continuous(limits = c(0.5, 1.2)) +
-  facet_grid(rows = vars(predictor_label), scales = "free", space = "free") +
+  facet_nested(rows = vars(Category, predictor_label),
+               scales = "free",
+               space = "free") +
   labs(x = "Odds Ratio (95% CI)", y = NULL, shape = NULL, color = " ", alpha = "FDR_5%") +
   theme_bw(base_size = 14) +
   theme(
-    strip.text.y.right = element_text(angle = 0, hjust = 0),
+    strip.text.y.right = element_text(angle = 270, hjust = 0.5, face = "bold", size = 12),
     panel.grid.major.y = element_blank(),
-    strip.background = element_blank(),
+    strip.background = element_rect(fill = NA, color = "black", linewidth = 1),
     axis.ticks.y = element_blank(),
+    legend.position = "none",
     strip.text = element_text(face = "bold", size = 12)
   )
 
-ggsave("plots/FX_phenotypes.png", p2, width = 12, height = 9)
+px <- cowplot::plot_grid(p2, p1, ncol = 2, rel_widths = c(1,1))
+
+ggsave("plots/FX_phenotypes.png", px, width = 12, height = 9)
