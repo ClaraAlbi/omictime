@@ -3,7 +3,7 @@
 
 ### Download RAP SLEEP
 
-cats <- c(207:216)
+cats <- c(206:216)
 
 for (c in cats) {
   fields <- data.table::fread("data/field.tsv") %>%
@@ -23,6 +23,8 @@ for (c in cats) {
     "-ientity=participant",
     "--tag=table_exporter",
     "--name=table_exporter",
+    "-icoding_option=REPLACE",
+    "-iheader_style=FIELD-NAME",
     "--brief -y",
     # append all -ifield_names arguments (each a separate flag)
     field_args
