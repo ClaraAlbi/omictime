@@ -254,10 +254,7 @@ vars <- c("age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia",
 
 covars <- c("sex", "age_recruitment", paste0("PC", 1:10))
 
-results <- readRDS("data_share/results_associations_phenotypes.rds")
-
-df <- readRDS("data_share/results_associations_phenotypes.rds")
-write.csv(df, "results_associations_phenotypes.csv", row.names = FALSE)
+results <- readRDS("data_share/results_associations_phenotypes_CA.rds")
 
 # Define pretty labels and colors
 pretty_predictor <- c(
@@ -288,7 +285,7 @@ term_order <- list(
   chrono = c("Definitely morning (ref)", "Rather morning", "Don't know",
              "Rather evening", "Definitely evening"),
   wakeup = c("Very easy (ref)", "Fairly easy", "Not very easy", "Not at all easy"),
-  h_sleep = c("Sleep Duration"),
+  h_sleep = c("<10h (ref)", "10h+"),
   ever_insomnia = c("Never/rarely (ref)", "Sometimes", "Usually"),
   shift_work = c("Never/rarely (ref)", "Usually", "Always"),
   night_shift = c("Never. (ref)", "Sometimes.", "Usually.", "Always.")
