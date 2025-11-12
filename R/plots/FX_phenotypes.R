@@ -18,6 +18,15 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
   )
 
+n_v <- physical %>%
+  select(eid,
+         bp_sys = p4080_i0_a0,
+         bp_dias = p4079_i0_a0,
+         handgrip_l = p46_i0,
+         handgrip_r = p47_i0,
+         reaction_time = p20023_i0,
+         f_reasoning = p20016_i0)
+
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
                                  `3426-0.0` == 2 ~ "Sometimes",
@@ -67,7 +76,10 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
     ever_insomnia = case_when(ever_insomnia == 1 ~ "Never/rarely",
                               ever_insomnia == 2 ~ "Sometimes",
                               ever_insomnia == 3 ~ "Usually"),
-    ever_insomnia = factor(ever_insomnia, levels = c("Never/rarely", "Sometimes", "Usually")))
+    ever_insomnia = factor(ever_insomnia, levels = c("Never/rarely", "Sometimes", "Usually")),
+    h_sleep = case_when(h_sleep > 0 & h_sleep < 10 ~ "<10h",
+                        h_sleep > 9 ~ "10h+"),
+    h_sleep = factor(h_sleep, levels = c("<10h", "10h+")))
 
 df_temp <- readRDS("/mnt/project/biomarkers/time.rds") %>%
   inner_join(readRDS("/mnt/project/olink_int_replication.rds") %>% select(-date_bsampling)) %>%
@@ -148,11 +160,12 @@ data <- df %>%
   left_join(covs) %>%
   left_join(job_vars) %>%
   left_join(sleep) %>%
+  left_join(n_v) %>%
   #left_join(labs) %>%
   #left_join(MH) %>%
   left_join(pcs) %>%
   left_join(dep) %>%
-  filter(!is.na(chrono)) %>%
+  #filter(!is.na(chrono)) %>%
   mutate(h = round(time_day, 0)) %>%
   filter(age_recruitment > 39)
 
@@ -160,11 +173,20 @@ data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 data$res_q <- ntile(data$res, 5)
 
 
-a <- broom::tidy(lm(res ~ dst_category, data = data))
+broom::tidy(lm(res ~ f_reasoning, data = data))
+
+
+
+### PLOT DESC
+
+data %>%
+  ggplot(aes(x = age_recruitment, y = res, color = sex )) + geom_smooth() +
+  labs(x = "Age", y = "Circadian acceleration", color = "Sex") +
+  theme_classic(base_size = 16)
 
 library(ggplot2)
 
-
+library(table1)
 my_render_cont <- function(x){
   with(
     stats.apply.rounding(stats.default(x)),
@@ -178,7 +200,7 @@ my_render_cont <- function(x){
 }
 
 
-tab_desc <- table1::table1(~ time_day + age_recruitment + factor(sex) + chrono + h_sleep + season + night_shift + ever_insomnia,
+tab_desc <- table1::table1(~ age_recruitment + sex + TDI + bmi + smoking + chrono + h_sleep + wakeup + ever_insomnia + season + is_dst + shift_work + night_shift ,
                            data = data,
                            render.cont = my_render_cont)
 
@@ -195,11 +217,11 @@ covars <- c("sex", "age_recruitment", paste0("PC", 1:10))
 
 # --- 2. Fit models and extract results ---
 results <- map_dfr(vars, function(v) {
-  adj_vars <- if (v %in% c("sex", "age_recruitment")) character(0) else covars
+  adj_vars <- if (v %in% c("sex", "age_recruitment")) paste0("PC", 1:10) else covars
 
   # Combine predictor + covariates safely
   rhs <- paste(c(v, adj_vars), collapse = " + ")
-  f <- as.formula(paste("res ~", rhs))
+  f <- as.formula(paste("abs(res) ~", rhs))
 
   fit <- lm(f, data = data)
 
@@ -218,6 +240,7 @@ results <- map_dfr(vars, function(v) {
     }
 })
 
+saveRDS(results, "data_share/results_associations_phenotypes_CM.rds")
 
 
 ### PLOT PART
