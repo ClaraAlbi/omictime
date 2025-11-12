@@ -223,7 +223,7 @@ results <- map_dfr(vars, function(v) {
 
   # Combine predictor + covariates safely
   rhs <- paste(c(v, adj_vars), collapse = " + ")
-  f <- as.formula(paste("abs(res) ~", rhs))
+  f <- as.formula(paste("res ~", rhs))
 
   fit <- lm(f, data = data)
 
@@ -242,7 +242,7 @@ results <- map_dfr(vars, function(v) {
     }
 })
 
-saveRDS(results, "data_share/results_associations_phenotypes_CM.rds")
+saveRDS(results, "data_share/results_associations_phenotypes_CA.rds")
 
 
 ### PLOT PART
