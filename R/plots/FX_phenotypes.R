@@ -179,10 +179,12 @@ broom::tidy(lm(res ~ f_reasoning, data = data))
 
 ### PLOT DESC
 
-data %>%
+ps <- data %>%
   ggplot(aes(x = age_recruitment, y = res, color = sex )) + geom_smooth() +
   labs(x = "Age", y = "Circadian acceleration", color = "Sex") +
   theme_classic(base_size = 16)
+
+ggsave("plots/FS_sexage_CA.png", ps, width = 6, height = 5)
 
 library(ggplot2)
 
