@@ -37,19 +37,6 @@ data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 # diagnosis table
 sleep2 <- readRDS("/mnt/project/diseases_circadian.rds") #%>% select(eid, p131060, p130708, p130792, p130842, p131306)
 
-outcomes <- tribble(~field_id, ~phen, ~class,
-                    "130894", "Depressive_episode","Neuro-psychiatric",
-                    "130896", "Recurrent_depression","Neuro-psychiatric",
-                    "130892", "Bipolar disorder","Neuro-psychiatric",
-                    "130874", "Schizophrenia","Neuro-psychiatric",
-                    "130846", "Delirium", "Neuro-psychiatric",
-                    "p131060", "Sleep - G47", "Neuro-psychiatric",
-                    "130842", "Unspecified dementia", "Neuro-psychiatric",
-                    "130836", "Dementia Alzheimer's","Neuro-psychiatric",
-                    "p130708", "Type 2 Diabetes", "Cardiometabolic",
-                    "p130792", "Obesity", "Cardiometabolic",
-                    "p131306", "Ischaemic heart disease", "Cardiometabolic")
-
 dis2 <- data.table::fread("/mnt/project/vars_diseases_2.tsv") %>%
   #select(eid, contains(outcomes$field_id)) %>%
   inner_join(sleep2) %>%
