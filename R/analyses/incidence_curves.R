@@ -306,3 +306,48 @@ ggsave("plots/F7_diseases_cox.png", p_res, width = 10, height = 11)
 
 
 
+
+data1 <- bio_covs %>%
+  left_join(dis2_inc)
+
+summarise_covs <- function(disease_col) {
+  df <- data1 %>% filter(.data[[disease_col]] == 1)
+
+  n_total <- nrow(df)
+
+  tibble(
+    disease = disease_col,
+    N = n_total,
+    age_mean = mean(df$age_recruitment, na.rm = TRUE),
+    age_sd   = sd(df$age_recruitment, na.rm = TRUE),
+    age_median = median(df$age_recruitment, na.rm = TRUE),
+    age_q1   = quantile(df$age_recruitment, 0.25, na.rm = TRUE),
+    age_q3   = quantile(df$age_recruitment, 0.75, na.rm = TRUE),
+
+    sex_0 = sum(df$sex == 0, na.rm = TRUE),
+    sex_1 = sum(df$sex == 1, na.rm = TRUE),
+
+    bmi_mean = mean(df$bmi, na.rm = TRUE),
+    bmi_sd   = sd(df$bmi, na.rm = TRUE),
+    bmi_median = median(df$bmi, na.rm = TRUE),
+    bmi_q1   = quantile(df$bmi, 0.25, na.rm = TRUE),
+    bmi_q3   = quantile(df$bmi, 0.75, na.rm = TRUE),
+    bmi_missing = sum(is.na(df$bmi)),
+
+    smoke_0 = sum(df$smoking == 0, na.rm = TRUE),
+    smoke_1 = sum(df$smoking == 1, na.rm = TRUE),
+    smoke_2 = sum(df$smoking == 2, na.rm = TRUE)
+  )
+}
+
+disease_cols <- colnames(dis2_inc)[-1]
+
+# Covariates to summarise
+covs <- c("age_recruitment", "sex", "bmi", "smoking")
+cov_stats_tbl <- map_dfr(disease_cols, summarise_covs)
+
+saveRDS(cov_stats_tbl, "data_share/stats_incident.rds")
+
+
+
+
