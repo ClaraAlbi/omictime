@@ -121,19 +121,16 @@ saveRDS(results %>%
 library(tidyverse)
 library(forcats)
 
-results <- readRDS("data_share/association_results_disease.rds")
+results <- readRDS("data_share/association_results_disease_CA.rds")
 
+fields <- data.table::fread("data/field.tsv")
 
-outcomes <- tribble(~field_id, ~phen, ~class,
-                    "130894", "Depressive episode","Neuro-psychiatric",
-                    "130896", "Recurrent depression","Neuro-psychiatric",
-                    "130892", "Bipolar disorder","Neuro-psychiatric",
-                    "130874", "Schizophrenia","Neuro-psychiatric",
-                    "p131060", "Sleep - G47", "Sleep",
-                    "p130842", "Dementia", "Neuro-psychiatric",
-                    "p130708", "Type 2 Diabetes", "Cardiometabolic",
-                    "p130792", "Obesity", "Cardiometabolic",
-                    "p131306", "Ischaemic heart disease", "Cardiometabolic")
+r <- results %>%
+  filter(term == "res") %>%
+  mutate(outcome = str_remove(outcome, "-0.0_prevalent"),
+         outcome = str_remove(outcome, "p"),
+         field_id = as.numeric(str_remove(outcome, "_prevalent"))) %>%
+  left_join(fields %>% select(field_id, title))
 
 
 p_res <- results %>%
