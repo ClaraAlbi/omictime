@@ -17,15 +17,15 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
   )
-
-n_v <- physical %>%
-  select(eid,
-         bp_sys = p4080_i0_a0,
-         bp_dias = p4079_i0_a0,
-         handgrip_l = p46_i0,
-         handgrip_r = p47_i0,
-         reaction_time = p20023_i0,
-         f_reasoning = p20016_i0)
+#
+# n_v <- physical %>%
+#   select(eid,
+#          bp_sys = p4080_i0_a0,
+#          bp_dias = p4079_i0_a0,
+#          handgrip_l = p46_i0,
+#          handgrip_r = p47_i0,
+#          reaction_time = p20023_i0,
+#          f_reasoning = p20016_i0)
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
@@ -160,7 +160,7 @@ data <- df %>%
   left_join(covs) %>%
   left_join(job_vars) %>%
   left_join(sleep) %>%
-  left_join(n_v) %>%
+  #left_join(n_v) %>%
   #left_join(labs) %>%
   #left_join(MH) %>%
   left_join(pcs) %>%
@@ -180,11 +180,19 @@ broom::tidy(lm(res ~ f_reasoning, data = data))
 ### PLOT DESC
 
 ps <- data %>%
-  ggplot(aes(x = age_recruitment, y = res, color = sex )) + geom_smooth() +
-  labs(x = "Age", y = "Circadian acceleration", color = "Sex") +
-  theme_classic(base_size = 16)
+  mutate(res_ab = abs(res)) %>%
+  pivot_longer(c(res, res_ab)) %>%
+  mutate(name = case_when(name == "res" ~ "Circadian acceleration",
+                          name == "res_ab" ~ "Circadian misalignment")) %>%
+  ggplot(aes(x = age_recruitment, y = value, color = sex)) + geom_smooth() +
+  facet_wrap(~name, scales = "free_y") +
+  labs(x = "Age", y = "Value", color = "Sex") +
+  theme_classic(base_size = 16) +
+  theme(legend.position.inside = c(0.95, 0.95))
 
-ggsave("plots/FS_sexage_CA.png", ps, width = 6, height = 5)
+ggsave("plots/FS_sexage_CA.png", ps, width = 10, height = 5)
+
+
 
 library(ggplot2)
 
