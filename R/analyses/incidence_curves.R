@@ -138,7 +138,7 @@ results <- map_dfr(disease_field, function(v) {
 
 
 saveRDS(results %>%
-          left_join(d_counts), "data_share/association_results_cox_disease_CA.rds")
+          left_join(d_counts %>% mutate(outcome = paste0("p", field_id))), "data_share/association_results_cox_disease_CM.rds")
 
 
 
@@ -196,7 +196,7 @@ make_ci_plot <- function(disease_field) {
     scale_color_manual(values = c("steelblue", "forestgreen", "firebrick"), ) +
     scale_fill_manual(values = c("steelblue", "forestgreen", "firebrick")) +
     labs(
-      title =  gsub("(.{1,12})", "\\1\n", d),
+      title =  str_sub(d, 1, 10),
       subtitle = paste0("pval: ",round(pval, 3)),
       x = "y",
       y = "Cumulative incidence",
@@ -207,7 +207,7 @@ make_ci_plot <- function(disease_field) {
     theme_minimal(base_size = 8) +
     guides(fill = "none") +
     theme(
-      legend.position = "none",
+      #legend.position = "none",
       legend.justification = c("right", "top"),
       legend.background = element_rect(fill = alpha("white", 0.8), colour = NA),
       legend.title = element_text(size = 9),
@@ -216,6 +216,7 @@ make_ci_plot <- function(disease_field) {
     )
 
 }
+
 
 selected_p <- colnames(dis2)[which(colnames(dis2) %in% paste0("p" ,d_counts$field_id))]
 
@@ -229,3 +230,12 @@ combined <- wrap_plots(ci_plots, ncol = 5, nrow = 6)
 combined
 # save
 ggsave("plots/CI_ares_q.png", combined, width = 7, height = 10, dpi = 300)
+
+
+legend <- get_legend(p)
+library(grid)
+grid.newpage()
+grid.draw(legend)
+
+# 3. Save to file
+ggsave("plots/legend.png", legend, width = 3, height = 1.5, dpi = 300)
