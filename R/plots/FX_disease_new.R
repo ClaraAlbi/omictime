@@ -87,10 +87,10 @@ results <- map_dfr(vars, function(v) {
 
   # formula for abs(res) + covariates
   f_prev2 <- as.formula(
-    paste0("`", v, "` ~ res + ",
+    paste0("`", v, "` ~ abs(res) + ",
            paste(base_covars, collapse = " + ")))
   f_prev3 <- as.formula(
-    paste0("`", v, "` ~ res + ",
+    paste0("`", v, "` ~ abs(res) + ",
            paste(c(base_covars, extra_covars), collapse = " + ")))
 
 
@@ -112,7 +112,7 @@ results <- map_dfr(vars, function(v) {
 })
 
 saveRDS(results %>%
-          left_join(d_counts %>% rename(outcome = name)), "data_share/association_results_disease_CA.rds")
+          left_join(d_counts %>% rename(outcome = name)), "data_share/association_results_disease_CM.rds")
 
 
 
