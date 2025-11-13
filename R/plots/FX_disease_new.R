@@ -159,7 +159,7 @@ p_res <-
   theme_classic(base_size = 14) +
   theme(
     # place legend inside plot at top-right
-    legend.position = c(0.95, 1),
+    legend.position = c(0.6, 1),
     legend.justification = c("right", "top"),
     strip.background = element_rect(fill = "antiquewhite2", color = "black", linewidth = 0.8),
     legend.title = element_blank(),
@@ -171,5 +171,5 @@ p_res <-
   guides(color = guide_legend(nrow = 3, byrow = TRUE, reverse = TRUE))
 
 
-ggsave("plots/FX_diseases_CA.png", p_res, width = 10, height = 11)
+ggsave("plots/F7_diseases_log.png", p_res, width = 10, height = 11)
 

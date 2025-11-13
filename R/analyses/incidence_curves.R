@@ -239,3 +239,70 @@ grid.draw(legend)
 
 # 3. Save to file
 ggsave("plots/legend.png", legend, width = 3, height = 1.5, dpi = 300)
+
+
+
+
+### PLOTS FINAL
+
+
+results <- readRDS("data_share/association_results_cox_disease_CA.rds") %>%
+  bind_rows(readRDS("data_share/association_results_cox_disease_CM.rds"))
+
+fields <- data.table::fread("data/field.tsv")
+
+r <- results %>%
+  filter(!field_id %in% c(130888)) %>%
+  filter(term %in% c("res", "abs(res)")) %>%
+  mutate(expo = case_when(term == "res" ~ "Circadian Acceleration",
+                          term == "abs(res)" ~ "Circadian Misalignment"),
+         disorder = case_when(disorder == "" ~ "Delirium",
+                              TRUE ~ disorder))
+
+
+p_res <-
+  r %>%
+  mutate(model = forcats::fct_rev(factor(model)),
+         disorder = paste0(disorder, "\n", n)) %>%
+  #slice(1:80) %>%
+  ggplot(aes(
+    x = disorder,
+    y = estimate,
+    ymin = estimate - std.error, ymax = estimate + std.error,
+    color = model,
+    alpha = p.adjust(p.value) < 0.05
+  )) +
+  # points with vertical error bars (dodge by model)
+  geom_pointrange(position = position_dodge(width = 0.8), size = 1, fatten = 1.5) +
+  coord_flip() +
+  facet_nested(
+    cols = vars(expo),
+    rows = vars(family),
+    scales = "free_y",
+    space = "free_y"
+  ) +
+  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40") +
+  scale_color_manual(values = c("#2ca02c", "#9467bd", "#ff7f0e")) +
+  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.35), guide = "none") +
+  labs(y = "HR (95% CI)",
+       x = NULL) +
+  theme_classic(base_size = 14) +
+  theme(
+    # place legend inside plot at top-right
+    legend.position = c(0.6, 1),
+    legend.justification = c("right", "top"),
+    strip.background = element_rect(fill = "antiquewhite2", color = "black", linewidth = 0.8),
+    legend.title = element_blank(),
+    legend.box = "vertical",
+    panel.spacing = unit(0.75, "lines"),
+    strip.text.y.left = element_text(angle = 0, face = "bold", vjust = 0.5, size = 10),
+    axis.text.y = element_text(size = 10)
+  ) +
+  guides(color = guide_legend(nrow = 3, byrow = TRUE, reverse = TRUE))
+
+
+ggsave("plots/F7_diseases_cox.png", p_res, width = 10, height = 11)
+
+
+
+
