@@ -8,6 +8,7 @@ library(survminer)
 library(ggpubr)
 library(ggplot2)
 library(stringr)
+library(ggh4x)
 
 # administrative censor date
 censor_date <- as.Date("2024-09-01")
@@ -256,7 +257,7 @@ r <- results %>%
   filter(term %in% c("res", "abs(res)")) %>%
   mutate(expo = case_when(term == "res" ~ "Circadian Acceleration",
                           term == "abs(res)" ~ "Circadian Misalignment"),
-         disorder = case_when(disorder == "" ~ "Delirium",
+         disorder = case_when(disorder == "Delirium, not induced by alcohol and other psychoactive substances" ~ "Delirium",
                               TRUE ~ disorder))
 
 
