@@ -48,7 +48,10 @@ out_ckb <- tibble(eid = time_day$eid[match(ckb_olink$eid, time_day$eid)],
                       pred_lgb = predict(lgb1, as.matrix(ckb_olink %>% select(-eid))),
                       pred_xgb = predict(xgb, as.matrix(ckb_olink %>% select(-eid))),
                       pred_lasso = predict(lasso, ckb_olink_imp)[,1],
-                      pred_lassox2 = predict(lassox2, ckb_olink_imp_x2)[,1])
+                      pred_lassox2 = predict(lassox2, ckb_olink_imp_x2)[,1]) %>%
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
+  ungroup()
 
 # Prediction accuracy estimation
 pred <- out_ckb %>%
@@ -60,13 +63,13 @@ pred <- out_ckb %>%
 
 saveRDS(pred, "prediction_olink_ckb.rds")
 
-### PLOT CORRELATION (lasso)
+### PLOT CORRELATION (mean)
 
-out_ckb$res <- residuals(lm(pred_lasso ~ y_test, data = out_ckb, na.action = "na.exclude"))
+out_ckb$res <- residuals(lm(pred_mean ~ y_test, data = out_ckb, na.action = "na.exclude"))
 
 formula <- y ~ x
 pl <- out_ckb %>%
-  ggplot(aes(x = y_test, y = pred_lasso)) +
+  ggplot(aes(x = y_test, y = pred_mean)) +
   geom_point(alpha = 0.5, size = 0.8, color = "#D44530") +
   # the overall regression line
   geom_smooth(

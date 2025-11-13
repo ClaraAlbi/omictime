@@ -28,23 +28,20 @@ base_cohort <- fread("/mnt/project/clara/death.csv") %>%
   )
 
 # biomarker residuals + covs (sex, age, PCs, BMI, smoking, fasting)
-time <- readRDS("/mnt/project/biomarkers/time.rds")
+
 bio_covs <- readRDS("/mnt/project/olink_int_replication.rds") %>%
+  filter(!is.na(time_day)) %>%
   filter(i == 0) %>%
-  left_join(readRDS("/mnt/project/biomarkers/covs.rds"), by = "eid") %>%
-  left_join(
-    fread("/mnt/project/genetic_covs.tsv") %>%
-      select(eid, `22009-0.1`:`22009-0.20`) %>%
-      setnames(c("eid", paste0("PC", 1:20))),
-    by = "eid"
-  ) %>%
-  left_join(time %>% select(eid, fasting)) %>%
+  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
+  rowwise() %>%
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
+  left_join(covs) %>%
+  ungroup() %>%
+
   mutate(
-    res        = residuals(lm(pred_lasso ~ time_day, data = cur_data())),
+    res        = residuals(lm(pred_mean ~ time_day, data = cur_data())),
     res_abs    = abs(res),
     ares_q     = factor(ntile(res_abs, 5), levels = 1:5),
-    gap        = pred_lasso - time_day,
-    gap_abs    = abs(gap),
   ) %>%
   # ensure covariates are correct type
   mutate(
@@ -52,7 +49,7 @@ bio_covs <- readRDS("/mnt/project/olink_int_replication.rds") %>%
     smoking       = factor(smoking),
     age_recruitment = age_recruitment,
     BMI           = weight/((height/100)^2)
-  ) %>% select(-date_bsampling) %>% filter(fasting < 24)
+  )
 
 # diagnosis table
 dis2 <- readRDS("/mnt/project/diseases_circadian.rds")
