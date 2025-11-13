@@ -357,7 +357,7 @@ p1 <- plot_data %>%
     scales = "free_y",
     space = "free_y"
   ) +
-  labs(x = "Effect size (SE)", y = NULL, color = " ", alpha = "FDR < 5%") +
+  labs(title = "Circadian acceleration", x = "Effect size (SE)", y = NULL, color = " ", alpha = "FDR < 5%") +
   theme_classic(base_size = 14) +
   theme(
     # Keep outer strip styling as fallback if needed
@@ -368,7 +368,7 @@ p1 <- plot_data %>%
     legend.position = "none"
   )
 
-ggsave("plots/FX_phenotypes.png", p1, width = 10, height = 9)
+ggsave("plots/FX_phenotypes_CA.png", p1, width = 10, height = 9)
 
 
 
