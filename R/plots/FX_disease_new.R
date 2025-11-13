@@ -6,6 +6,7 @@ library(survival)
 library(ggplot2)
 library(stringr)
 install.packages("broom")
+library(ggh4x)
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   mutate(bmi = weight/(height/100)^2,
@@ -121,89 +122,67 @@ saveRDS(results %>%
 library(tidyverse)
 library(forcats)
 
-results <- readRDS("data_share/association_results_disease_CA.rds")
+results <- readRDS("data_share/association_results_disease_CA.rds") %>%
+  bind_rows(readRDS("data_share/association_results_disease_CM.rds"))
 
 fields <- data.table::fread("data/field.tsv")
 
 r <- results %>%
-  filter(term == "res") %>%
-  mutate(outcome = str_remove(outcome, "-0.0_prevalent"),
+  filter(term %in% c("res", "abs(res)")) %>%
+  mutate(expo = case_when(term == "res" ~ "Circadian Acceleration",
+                          term == "abs(res)" ~ "Circadian Misalignment"),
+    outcome = str_remove(outcome, "-0.0_prevalent"),
          outcome = str_remove(outcome, "p"),
          field_id = as.numeric(str_remove(outcome, "_prevalent"))) %>%
-  left_join(fields %>% select(field_id, title))
+  left_join(fields %>% select(field_id, title)) %>%
+  mutate(family = str_extract(title, "(?<=Date )\\S+(?= first reported)"),
+         family = str_sub(family, 1, 2),
+         disorder = sub(".*\\((.*)\\).*", "\\1", title),
+         disorder = str_to_sentence(disorder)) %>%
+  filter(!field_id  %in% c(130898, 130902, 130932, 130944, 130852)) %>%
+  filter(!family %in% c("F4", "F5", "F6", "F1" )) %>%
+  distinct(field_id, model, expo, .keep_all = TRUE)
 
-
-p_res <- results %>%
-  filter(model != "mt_TIME_DAY") %>%
-  filter(i == 1) %>%
-  mutate(
-    # Extract the core field id
-    o = str_extract(outcome, "(?<=p_)[0-9]+(?=0\\.0_prevalent)|(?<=p_)p?[0-9]+"),
-    model = factor(model, levels =c("m0_MISALIGNMENT", "m1_MISALIGNMENT + COV", "m1_MISALIGNMENT + COV + chrono"),
-                   labels = c("Circadian Misalignment", "+ sex + age + 10PCs + BMI + smoking", "+ Chronotype"))
-  ) %>%
-  left_join(outcomes, by = c("o" = "field_id")) %>%
-  mutate(outcome_clean = coalesce(phen, outcome),
-         outcome_clean = paste0((outcome_clean), "\nn=", value),
-         outcome_clean = fct_reorder(outcome_clean, value)) %>%
-  filter(term != "(Intercept)") %>%
-  filter(term %in% c("time_day", "abs(res)")) %>%
-  ggplot(aes(x = outcome_clean,
-             y = estimate,
-             ymin = conf.low, ymax = conf.high,
-             color = model, shape = model,
-             alpha = p.value < 0.05)) +
-  geom_pointrange(position = position_dodge(width = 0.6),
-                  size = 1, fatten = 3) +
-  #geom_text(data = . %>% filter(p.value < 0.05), aes(label = sprintf("%.0e", p.value)),
-  #          angle = 45, hjust = -0.1,
-  #          position = position_dodge(width = 0.6), size = 4) +
+p_res <-
+  r %>%
+  mutate(model = forcats::fct_rev(factor(model)),
+         disorder = paste0(disorder, "\n", n)) %>%
+  #slice(1:80) %>%
+  ggplot(aes(
+    x = disorder,
+    y = estimate,
+    ymin = estimate - std.error, ymax = estimate + std.error,
+    color = model,
+    alpha = p.adjust(p.value) < 0.05
+  )) +
+  # points with vertical error bars (dodge by model)
+  geom_pointrange(position = position_dodge(width = 0.8), size = 1, fatten = 1.5) +
   coord_flip() +
-  facet_grid(rows = vars(class), space = "free", scales = "free") +
-  geom_hline(yintercept = 1, linetype = "dashed") +
-  scale_color_manual(values = c( "#2ca02c","#9467bd","#ff7f0e")) +
-  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.3)) +
-  #scale_alpha_discrete(values = c(0.8, 0.7)) +
-  labs(y = "Odds Ratio (95% CI)",
-       x = "Outcome") +
-  theme_classic(base_size = 24) +
-  theme(legend.position = "right",
-        legend.title = element_blank(),
-        legend.box = "horizontal") +
-  guides(
-    color = guide_legend(nrow = 3, byrow = TRUE), alpha = FALSE
-  )
+  facet_nested(
+    cols = vars(expo),
+    rows = vars(family),
+    scales = "free_y",
+    space = "free_y"
+  ) +
+  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40") +
+  scale_color_manual(values = c("#2ca02c", "#9467bd", "#ff7f0e")) +
+  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.35), guide = "none") +
+  labs(y = "Odds ratio (95% CI)",
+       x = NULL) +
+  theme_classic(base_size = 14) +
+  theme(
+    # place legend inside plot at top-right
+    legend.position = c(0.95, 1),
+    legend.justification = c("right", "top"),
+    strip.background = element_rect(fill = "antiquewhite2", color = "black", linewidth = 0.8),
+    legend.title = element_blank(),
+    legend.box = "vertical",
+    panel.spacing = unit(0.75, "lines"),
+    strip.text.y.left = element_text(angle = 0, face = "bold", vjust = 0.5, size = 10),
+    axis.text.y = element_text(size = 10)
+  ) +
+  guides(color = guide_legend(nrow = 3, byrow = TRUE, reverse = TRUE))
 
 
-ggsave("plots/FX_diseases.png", p_res, width = 16, height = 9)
-
-### BIPOLAR
-
-data1$bp <- data1$p_1308920.0_prevalent
-data1$ares_q <- ntile(abs(data1$res), 5)
-
-
-m0 <- broom::tidy(glm("bp ~ res", data = data1 %>% filter(res < 0), family = binomial))
-m1 <- broom::tidy(glm("bp ~ abs(res) + chrono", data = data1, family = binomial))
-m2 <- broom::tidy(glm("bp ~ abs(res) + ever_insomnia", data = data1, family = binomial))
-m3 <- broom::tidy(glm("bp ~ factor(ares_q) + chrono", data = data1, family = binomial))
-
-data1 %>%
-  filter(p_1308920.0_prevalent == 1) %>%
-  ggplot(aes(x = chrono, y = ares_q, color = ever_insomnia)) +
-  geom_jitter()
-
-data1 %>%
-  filter(!is.na(p_1308920.0_prevalent)) %>%
-  ggplot(aes(x = res, color = p_1308920.0_prevalent)) +
-  geom_density()
-
-data1 %>%
-  filter(!is.na(bp)) %>%
-  ggplot(aes(x = chrono, y = abs(res), fill = bp)) +
-  geom_boxplot() +
-  theme_classic(base_size = 24) +
-  labs(y = "Misalignment") +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
-
+ggsave("plots/FX_diseases_CA.png", p_res, width = 10, height = 11)
 
