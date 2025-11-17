@@ -17,7 +17,7 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
   )
-#
+  #
 # n_v <- physical %>%
 #   select(eid,
 #          bp_sys = p4080_i0_a0,
@@ -77,9 +77,14 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
                               ever_insomnia == 2 ~ "Sometimes",
                               ever_insomnia == 3 ~ "Usually"),
     ever_insomnia = factor(ever_insomnia, levels = c("Never/rarely", "Sometimes", "Usually")),
-    h_sleep = case_when(h_sleep > 0 & h_sleep < 10 ~ "<10h",
-                        h_sleep > 9 ~ "10h+"),
-    h_sleep = factor(h_sleep, levels = c("<10h", "10h+")))
+    h_sleep = case_when(h_sleep > 0 & h_sleep < 7 ~ "Short (<7 h)",
+                        h_sleep >= 7 & h_sleep <=9 ~ "Normal (7-9h)",
+                        h_sleep > 9 ~ "Long (>9h)"),
+    h_sleep = factor(h_sleep, levels = c("Normal (7-9h)", "Short (<7 h)", "Long (>9h)")))
+
+
+#Given previously established U-shape relationships with health and cognition [20], we categorised sleep duration into short (<7 h), normal (7–9 h) and long (>9 h) based on recent guidelines
+
 
 df_temp <- readRDS("/mnt/project/biomarkers/time.rds") %>%
   inner_join(readRDS("/mnt/project/olink_int_replication.rds") %>% select(-date_bsampling)) %>%
@@ -170,7 +175,7 @@ data <- df %>%
   filter(age_recruitment > 39)
 
 data$res <- residuals(lm(pred_mean ~ time_day, data = data))
-data$res_q <- ntile(data$res, 5)
+#data$res_q <- ntile(data$res, 5)
 
 
 broom::tidy(lm(res ~ f_reasoning, data = data))
@@ -231,7 +236,7 @@ results <- map_dfr(vars, function(v) {
 
   # Combine predictor + covariates safely
   rhs <- paste(c(v, adj_vars), collapse = " + ")
-  f <- as.formula(paste("res ~", rhs))
+  f <- as.formula(paste("abs(res) ~", rhs))
 
   fit <- lm(f, data = data)
 
@@ -250,7 +255,7 @@ results <- map_dfr(vars, function(v) {
     }
 })
 
-saveRDS(results, "data_share/results_associations_phenotypes_CA.rds")
+saveRDS(results, "data_share/results_associations_phenotypes_CM.rds")
 
 
 ### PLOT PART
@@ -293,7 +298,7 @@ term_order <- list(
   chrono = c("Definitely morning (ref)", "Rather morning", "Don't know",
              "Rather evening", "Definitely evening"),
   wakeup = c("Very easy (ref)", "Fairly easy", "Not very easy", "Not at all easy"),
-  h_sleep = c("<10h (ref)", "10h+"),
+  h_sleep = c("Normal (7-9h) (ref)", "Short (<7 h)", "Long (>9h)"),
   ever_insomnia = c("Never/rarely (ref)", "Sometimes", "Usually"),
   shift_work = c("Never/rarely (ref)", "Usually", "Always"),
   night_shift = c("Never. (ref)", "Sometimes.", "Usually.", "Always.")
