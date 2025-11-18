@@ -361,34 +361,7 @@ plot_data <- res %>%
   ) %>%
   arrange(y_order) %>%
   mutate(
-    display_term = fct_reorder(display_term, -y_order)
-    # combine predictor_label and display_term into a single label for plotting
-    #full_label = paste0(predictor_label, " - ", display_term),
-    #full_label = factor(full_label, levels = unique(full_label))
-  )
-
-plot_data2 <- plot_data %>%
-  # ensure numeric y_order and remove accidental duplicates in ordering
-  mutate(
-    term_combo = paste0(Category, "||", predictor_label, "||", display_term)
-  ) %>%
-  mutate(term_combo = factor(term_combo, levels = unique(term_combo))) %>%
-  ungroup() %>%
-
-  # 2) also set a global display_term factor following the global y_order
-  #    (use unique() after arrange so the first occurrence of a term
-  #     determines the global position)
-  mutate(display_term = factor(display_term,
-                               levels = plot_data %>% arrange(y_order) %>% pull(display_term) %>% unique()
-  )) %>%
-  # 3) reverse display_term if you want top -> bottom in the plot
-  mutate(display_term = fct_rev(display_term))
-
-term_labels <- levels(plot_data2$term_combo) %>%
-  # remove the "Category||predictor||" prefix so label = display_term
-  str_remove("^[^|]*\\|\\|[^|]*\\|\\|") %>%
-  set_names(levels(plot_data2$term_combo))
-
+    display_term = fct_reorder(display_term, -y_order))
 
 p1 <- plot_data %>%
   ggplot(aes(x = estimate, y = display_term, color = Category, alpha = FDR < 0.05)) +
@@ -418,7 +391,7 @@ p1 <- plot_data %>%
 p1
 
 
-ggsave("plots/FX_phenotypes_CA.png", p1, width = 10, height = 9)
+ggsave("plots/FX_phenotypes_CA.png", p1, width = 10, height = 10)
 
 
 
