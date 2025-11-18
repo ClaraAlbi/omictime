@@ -1,130 +1,79 @@
-﻿,Overall,FID
-,,
-age_recruitment,,21022
-Mean (SD),56.8 (8.21),
-"Median [Q1, Q3]","58.0 [50.0, 64.0]",
-sex,,31
-Female,28237 (54.0%),
-Male,24057 (46.0%),
-TDI,,22189
-Mean (SD),-1.19 (3.18),
-"Median [Q1, Q3]","-2.06 [-3.62, 0.740]",
-Missing,65 (0.1%),
-bmi,,-
-Mean (SD),27.5 (4.81),
-"Median [Q1, Q3]","26.8 [24.2, 29.9]",
-Missing,248 (0.5%),
-smoking,,20116
-Never,28406 (54.3%),
-Previous,18339 (35.1%),
-Current,5549 (10.6%),
-chrono,,1180
-Definitely morning,12477 (23.9%),
-Rather morning,16242 (31.1%),
-Don't know,5600 (10.7%),
-Rather evening,13383 (25.6%),
-Definitely evening,4208 (8.0%),
-Missing,384 (0.7%),
-h_sleep,,1160
-<10h,50810 (97.2%),
-10h+,1105 (2.1%),
-Missing,379 (0.7%),
-wakeup,,1170
-Very easy,16900 (32.3%),
-Fairly easy,25453 (48.7%),
-Not very easy,7483 (14.3%),
-Not at all easy,2119 (4.1%),
-Missing,339 (0.6%),
-ever_insomnia,,1200
-Never/rarely,12454 (23.8%),
-Sometimes,24828 (47.5%),
-Usually,14967 (28.6%),
-Missing,45 (0.1%),
-season,,3166
-Winter,10537 (20.1%),
-Fall,12537 (24.0%),
-Spring,15046 (28.8%),
-Summer,14174 (27.1%),
-is_dst,,-
-No,20373 (39.0%),
-Yes,31921 (61.0%),
-shift_work,,826
-Never/rarely,23391 (44.7%),
-Sometimes,2140 (4.1%),
-Usually,649 (1.2%),
-Always,2372 (4.5%),
-Missing,23742 (45.4%),
-night_shift,,3426
-Never,2506 (4.8%),
-Sometimes,1508 (2.9%),
-Usually,431 (0.8%),
-Always,745 (1.4%),
-Missing,47104 (90.1%),
-has_prescription,,-
-0,34868 (66.4%),
-1,17678 (33.6%),
-antihypertensive,,-
-0,39983 (76.1%),
-1,12563 (23.9%),
-sleep_medication,,-
-0,52147 (99.2%),
-1,399 (0.8%),
-antidepressants,,-
-0,48361 (92.0%),
-1,4185 (8.0%),
-mood_stabiliser,,-
-0,52106 (99.2%),
-1,440 (0.8%),
-lithium,,-
-0,52447 (99.8%),
-1,99 (0.2%),
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
-,,
+﻿FID,Variable / level,Value
+21022,age_recruitment,
+,Mean (SD),56.8 (8.21)
+,"Median [Q1, Q3]","58.0 [50.0, 64.0]"
+31,sex,
+,Female,28237 (54.0%)
+,Male,24057 (46.0%)
+22189,TDI,
+,Mean (SD),-1.19 (3.18)
+,"Median [Q1, Q3]","-2.06 [-3.62, 0.740]"
+,Missing,65 (0.1%)
+-,bmi,
+,Mean (SD),27.5 (4.81)
+,"Median [Q1, Q3]","26.8 [24.2, 29.9]"
+,Missing,248 (0.5%)
+20116,smoking,
+,Never,28406 (54.3%)
+,Previous,18339 (35.1%)
+,Current,5549 (10.6%)
+1180,chrono,
+,Definitely morning,12477 (23.9%)
+,Rather morning,16242 (31.1%)
+,Don't know,5600 (10.7%)
+,Rather evening,13383 (25.6%)
+,Definitely evening,4208 (8.0%)
+,Missing,384 (0.7%)
+1160,h_sleep,
+,<10h,50810 (97.2%)
+,10h+,1105 (2.1%)
+,Missing,379 (0.7%)
+1170,wakeup,
+,Very easy,16900 (32.3%)
+,Fairly easy,25453 (48.7%)
+,Not very easy,7483 (14.3%)
+,Not at all easy,2119 (4.1%)
+,Missing,339 (0.6%)
+1200,ever_insomnia,
+,Never/rarely,12454 (23.8%)
+,Sometimes,24828 (47.5%)
+,Usually,14967 (28.6%)
+,Missing,45 (0.1%)
+3166,season,
+,Winter,10537 (20.1%)
+,Fall,12537 (24.0%)
+,Spring,15046 (28.8%)
+,Summer,14174 (27.1%)
+-,is_dst,
+,No,20373 (39.0%)
+,Yes,31921 (61.0%)
+826,shift_work,
+,Never/rarely,23391 (44.7%)
+,Sometimes,2140 (4.1%)
+,Usually,649 (1.2%)
+,Always,2372 (4.5%)
+,Missing,23742 (45.4%)
+3426,night_shift,
+,Never,2506 (4.8%)
+,Sometimes,1508 (2.9%)
+,Usually,431 (0.8%)
+,Always,745 (1.4%)
+,Missing,47104 (90.1%)
+-,has_prescription,
+,0,34868 (66.4%)
+,1,17678 (33.6%)
+-,antihypertensive,
+,0,39983 (76.1%)
+,1,12563 (23.9%)
+-,sleep_medication,
+,0,52147 (99.2%)
+,1,399 (0.8%)
+-,antidepressants,
+,0,48361 (92.0%)
+,1,4185 (8.0%)
+-,mood_stabiliser,
+,0,52106 (99.2%)
+,1,440 (0.8%)
+-,lithium,
+,0,52447 (99.8%)
+,1,99 (0.2%)
