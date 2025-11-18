@@ -112,5 +112,5 @@ effects_table <- df_effects %>%
          across(contains("value"), ~sprintf("%.1g", .x)))
 
 
-data.table::fwrite(effects_table, "data_share/supplementary_data2.csv", row.names = F)
+data.table::fwrite(effects_table, "tables/ST_time_effects.csv", row.names = F)
 
