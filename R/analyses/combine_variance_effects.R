@@ -59,7 +59,7 @@ variance_table <- df_comb %>%
   mutate(across(contains(c("r2")), ~round(.x, 5)),
          across(contains("p.value"), ~sprintf("%.1g", .x)))
 
-data.table::fwrite(variance_table, "data_share/supplementary_data1.csv", row.names = F)
+data.table::fwrite(variance_table, "tables/ST_time_variances.csv", row.names = F)
 
 #### EFFECTS
 
