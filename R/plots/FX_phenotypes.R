@@ -267,7 +267,10 @@ vars <- c("age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia",
 
 covars <- c("sex", "age_recruitment", paste0("PC", 1:10))
 
-results <- readRDS("data_share/results_associations_phenotypes_CA.rds")
+results <- bind_rows(readRDS("data_share/results_associations_phenotypes_CA.rds"),
+                     readRDS("data_share/results_associations_medication_CA.rds") %>% filter(str_ends(term, "1")) %>%
+                       mutate(term = str_remove(term, "1")))
+
 
 # Define pretty labels and colors
 pretty_predictor <- c(
@@ -275,16 +278,19 @@ pretty_predictor <- c(
   chrono = "Chronotype", h_sleep = "Sleep Duration", ever_insomnia = "Insomnia",
   season = "Season", is_dst = "Daylight Savings", night_shift = "Night Shift",
   smoking = "Smoking", wakeup = "Waking Easiness", bmi = "BMI",
-  shift_work = "Shift Work", TDI = "Townsend DI")
+  shift_work = "Shift Work", TDI = "Townsend DI",
+  has_prescription = "Any",
+  antidepressants = "Antidepressants", antihypertensive = "Antihypertensives", sleep_medication = "Sedatives and hypnotics", mood_stabiliser = "Mood stabilisers", lithium = "Lithium")
 
 domain_colors <- c(
   "Demographics" = "#d62728", "Job" = "#1f77b4",
-  "Season" = "#9467bd", "Sleep" = "#ff7f0e")
+  "Season" = "#9467bd", "Sleep \nquestionnaire" = "#ff7f0e", "Sleep medication" = "darkgreen")
 
 # Define predictor order (standard names)
 predictor_order <- c("sex", "age_recruitment", "bmi", "smoking", "TDI",
                      "season", "is_dst", "chrono", "wakeup", "h_sleep", "ever_insomnia",
-                     "shift_work", "night_shift")
+                     "shift_work", "night_shift",
+                     "has_prescription","sleep_medication", "antihypertensive", "antidepressants", "mood_stabiliser", "lithium")
 
 # Define term order for each predictor
 term_order <- list(
@@ -301,7 +307,13 @@ term_order <- list(
   h_sleep = c("Normal (7-9h) (ref)", "Short (<7 h)", "Long (>9h)"),
   ever_insomnia = c("Never/rarely (ref)", "Sometimes", "Usually"),
   shift_work = c("Never/rarely (ref)", "Usually", "Always"),
-  night_shift = c("Never. (ref)", "Sometimes.", "Usually.", "Always.")
+  night_shift = c("Never. (ref)", "Sometimes.", "Usually.", "Always."),
+  has_prescription = c("Any"),
+  antihypertensive = c("Antihypertensives"),
+  antidepressants= c("Antidepressants"),
+  sleep_medication = c("Sedatives and hypnotics"),
+  mood_stabiliser= c("Mood stabilisers"),
+  lithium= c("Lithium")
 )
 
 # Create ordered dataframe
@@ -325,16 +337,16 @@ res <- results %>%
     upper = ifelse(reference, 0, estimate + 1.96 * std.error),
     Category = case_when(
       predictor %in% c("age_recruitment", "sex", "bmi", "smoking", "TDI") ~ "Demographics",
-      predictor %in% c("chrono", "h_sleep", "ever_insomnia", "wakeup") ~ "Sleep",
+      predictor %in% c("chrono", "h_sleep", "ever_insomnia", "wakeup") ~ "Sleep \nquestionnaire",
       predictor %in% c("season", "is_dst") ~ "Season",
       predictor %in% c("shift_work", "night_shift") ~ "Job",
-      TRUE ~ "Other"
+      TRUE ~ "Sleep medication"
     ),
     predictor_label = pretty_predictor[predictor],
     level = str_remove(term, paste0("^", predictor)),
     display_term = ifelse(reference,
                           paste0(level, " (ref)"),
-                          ifelse(level == "", predictor_label, level))
+                          ifelse(level %in% c(""), predictor_label, level))
   ) %>%
   mutate(predictor = factor(predictor, levels = predictor_order))
 
@@ -345,7 +357,7 @@ plot_data <- res %>%
     is_ref = if_else(estimate == 0 & is.na(p.value), TRUE, FALSE),
     FDR = p.adjust(p.value),
     predictor_label = pretty_predictor[as.character(predictor)],
-    Category = factor(Category, levels = c("Demographics", "Season", "Sleep", "Job"))
+    Category = factor(Category, levels = c("Demographics", "Season", "Sleep \nquestionnaire", "Job", "Sleep medication"))
   ) %>%
   arrange(y_order) %>%
   mutate(
@@ -355,7 +367,29 @@ plot_data <- res %>%
     #full_label = factor(full_label, levels = unique(full_label))
   )
 
-# Plot 1 (first 20 rows)
+plot_data2 <- plot_data %>%
+  # ensure numeric y_order and remove accidental duplicates in ordering
+  mutate(
+    term_combo = paste0(Category, "||", predictor_label, "||", display_term)
+  ) %>%
+  mutate(term_combo = factor(term_combo, levels = unique(term_combo))) %>%
+  ungroup() %>%
+
+  # 2) also set a global display_term factor following the global y_order
+  #    (use unique() after arrange so the first occurrence of a term
+  #     determines the global position)
+  mutate(display_term = factor(display_term,
+                               levels = plot_data %>% arrange(y_order) %>% pull(display_term) %>% unique()
+  )) %>%
+  # 3) reverse display_term if you want top -> bottom in the plot
+  mutate(display_term = fct_rev(display_term))
+
+term_labels <- levels(plot_data2$term_combo) %>%
+  # remove the "Category||predictor||" prefix so label = display_term
+  str_remove("^[^|]*\\|\\|[^|]*\\|\\|") %>%
+  set_names(levels(plot_data2$term_combo))
+
+
 p1 <- plot_data %>%
   ggplot(aes(x = estimate, y = display_term, color = Category, alpha = FDR < 0.05)) +
   geom_vline(xintercept = 0, linetype = "dashed") +
@@ -364,9 +398,10 @@ p1 <- plot_data %>%
   scale_shape_manual(values = c(`FALSE` = 19, `TRUE` = 21), guide = "none") +
   scale_color_manual(values = domain_colors) +
   scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.4)) +
+  #scale_y_discrete(labels = term_labels) +
   #scale_x_continuous(limits = c(0.5, 1.2)) +
   facet_nested(
-    rows = vars(Category, predictor_label),
+    rows = vars(Category, factor(predictor_label, levels=unique(plot_data$predictor_label))),
     scales = "free_y",
     space = "free_y"
   ) +
@@ -380,6 +415,8 @@ p1 <- plot_data %>%
     axis.ticks.y = element_blank(),
     legend.position = "none"
   )
+p1
+
 
 ggsave("plots/FX_phenotypes_CA.png", p1, width = 10, height = 9)
 
