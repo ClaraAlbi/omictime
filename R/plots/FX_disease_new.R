@@ -125,10 +125,15 @@ r <- results %>%
   mutate(family = str_extract(title, "(?<=Date )\\S+(?= first reported)"),
          family = str_sub(family, 1, 2),
          disorder = sub(".*\\((.*)\\).*", "\\1", title),
+         disorder = str_remove(disorder, "\\)"),
          disorder = str_to_sentence(disorder)) %>%
   filter(!field_id  %in% c(130898, 130902, 130932, 130944, 130852)) %>%
   filter(!family %in% c("F4", "F5", "F6", "F1" )) %>%
   distinct(field_id, model, expo, .keep_all = TRUE)
+
+r %>%
+  distinct(field_id, title, family, disorder, n) %>%
+  arrange(desc(n))
 
 p_res <-
   r %>%
