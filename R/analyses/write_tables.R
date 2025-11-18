@@ -62,4 +62,4 @@ t_inc <- readRDS("data_share/stats_incident.rds") %>%
   inner_join(labels) %>%
   select(family, disorder, field_id, N, contains("age"), contains("sex"), contains("bmi"), contains("smoke"))
 
-
+write_csv(t_inc, "tables/ST_incident.csv")
