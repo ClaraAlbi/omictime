@@ -1,7 +1,7 @@
 library(tidyverse)
 
 #dx download file-J4687g0J7G4FqJ0P1GYqfpx9
-gwas <- data.table::fread("~/Downloads/gwas_res_v2.res.glm.linear.gz") %>%
+gwas <- data.table::fread("~/Downloads/gwas_res_abs_v2.res_abs.glm.linear") %>%
   filter(TEST == "ADD")
 
 sig <- gwas %>%
@@ -69,7 +69,7 @@ closest_gene <- genes_on_chr[which.min(genes_on_chr$distance), ]
 ########################################################################
 
 sig <- gwas %>%
-  filter(P < 1e-8) %>%
+  filter(P < 1e-5) %>%
   rename(CHROM = "#CHROM")
 
 
