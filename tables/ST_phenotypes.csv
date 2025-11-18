@@ -1,11 +1,11 @@
 ﻿FID,Variable / level,Value
-21022,age_recruitment,
+21022,Age at Recruitment,
 ,Mean (SD),56.8 (8.21)
 ,"Median [Q1, Q3]","58.0 [50.0, 64.0]"
-31,sex,
+31,Sex,
 ,Female,28237 (54.0%)
 ,Male,24057 (46.0%)
-22189,TDI,
+22189,Townsend DI,
 ,Mean (SD),-1.19 (3.18)
 ,"Median [Q1, Q3]","-2.06 [-3.62, 0.740]"
 ,Missing,65 (0.1%)
@@ -13,67 +13,67 @@
 ,Mean (SD),27.5 (4.81)
 ,"Median [Q1, Q3]","26.8 [24.2, 29.9]"
 ,Missing,248 (0.5%)
-20116,smoking,
+20116,Smoking status,
 ,Never,28406 (54.3%)
 ,Previous,18339 (35.1%)
 ,Current,5549 (10.6%)
-1180,chrono,
+1180,Chronotype,
 ,Definitely morning,12477 (23.9%)
 ,Rather morning,16242 (31.1%)
 ,Don't know,5600 (10.7%)
 ,Rather evening,13383 (25.6%)
 ,Definitely evening,4208 (8.0%)
 ,Missing,384 (0.7%)
-1160,h_sleep,
+1160,Sleep duration,
 ,<10h,50810 (97.2%)
 ,10h+,1105 (2.1%)
 ,Missing,379 (0.7%)
-1170,wakeup,
+1170,Waking Easiness,
 ,Very easy,16900 (32.3%)
 ,Fairly easy,25453 (48.7%)
 ,Not very easy,7483 (14.3%)
 ,Not at all easy,2119 (4.1%)
 ,Missing,339 (0.6%)
-1200,ever_insomnia,
+1200,Insomnia status,
 ,Never/rarely,12454 (23.8%)
 ,Sometimes,24828 (47.5%)
 ,Usually,14967 (28.6%)
 ,Missing,45 (0.1%)
-3166,season,
+3166,Season,
 ,Winter,10537 (20.1%)
 ,Fall,12537 (24.0%)
 ,Spring,15046 (28.8%)
 ,Summer,14174 (27.1%)
--,is_dst,
+-,Daylight savings,
 ,No,20373 (39.0%)
 ,Yes,31921 (61.0%)
-826,shift_work,
+826,Shift work,
 ,Never/rarely,23391 (44.7%)
 ,Sometimes,2140 (4.1%)
 ,Usually,649 (1.2%)
 ,Always,2372 (4.5%)
 ,Missing,23742 (45.4%)
-3426,night_shift,
+3426,Night shift work,
 ,Never,2506 (4.8%)
 ,Sometimes,1508 (2.9%)
 ,Usually,431 (0.8%)
 ,Always,745 (1.4%)
 ,Missing,47104 (90.1%)
--,has_prescription,
+-,Any,
 ,0,34868 (66.4%)
 ,1,17678 (33.6%)
--,antihypertensive,
+-,Antihypertensives,
 ,0,39983 (76.1%)
 ,1,12563 (23.9%)
--,sleep_medication,
+-,Sedatives and hypnotics,
 ,0,52147 (99.2%)
 ,1,399 (0.8%)
--,antidepressants,
+-,Antidepressants,
 ,0,48361 (92.0%)
 ,1,4185 (8.0%)
--,mood_stabiliser,
+-,Mood stabilisers,
 ,0,52106 (99.2%)
 ,1,440 (0.8%)
--,lithium,
+-,Lithium,
 ,0,52447 (99.8%)
 ,1,99 (0.2%)
