@@ -34,7 +34,8 @@ labels <- r %>%
 
 t_prev <- readRDS("data_share/stats_prevalent.rds") %>%
   inner_join(labels) %>%
-  select(family, disorder, field_id, N, contains("age"), contains("sex"), contains("bmi"), contains("smoke"))
+  select(family, disorder, field_id, N, contains("age"), contains("sex"), contains("bmi"), contains("smoke")) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 2)))
 
 
 write_csv(t_prev, "tables/ST_prevalent.csv")
@@ -60,6 +61,7 @@ labels <- r %>%
 
 t_inc <- readRDS("data_share/stats_incident.rds") %>%
   inner_join(labels) %>%
-  select(family, disorder, field_id, N, contains("age"), contains("sex"), contains("bmi"), contains("smoke"))
+  select(family, disorder, field_id, N, contains("age"), contains("sex"), contains("bmi"), contains("smoke")) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 2)))
 
 write_csv(t_inc, "tables/ST_incident.csv")
