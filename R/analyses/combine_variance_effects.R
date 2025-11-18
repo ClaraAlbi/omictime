@@ -56,8 +56,9 @@ variance_table <- df_comb %>%
   rename(r2 = t_r2) %>%
   pivot_wider(id_cols = c(phen, type_clean, title), names_from = term, values_from = c(r2, p.value)) %>%
   select(FID = phen, Name = title, Type = type_clean, everything()) %>%
-  mutate(across(contains(c("r2")), ~round(.x, 5)),
-         across(contains("p.value"), ~sprintf("%.1g", .x)))
+  mutate(across(contains(c("r2")), ~round(.x, 4)),
+         across(contains("p.value"), ~sprintf("%.1g", .x))) %>%
+  select(FID, Name, Type, r2_Residuals, everything())
 
 data.table::fwrite(variance_table, "tables/ST_time_variances.csv", row.names = F)
 
