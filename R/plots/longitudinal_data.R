@@ -182,8 +182,13 @@ data_plot %>%
   group_by(participantid) %>%
   count()
 
-p_c <- data_plot %>%
-  group_by(participantid) %>% mutate(m_res = mean(resid)) %>%
+d_grouped <-data_plot %>%
+  group_by(participantid) %>% mutate(m_res = mean(resid))
+
+broom::tidy(lm(resid ~ participantid, data = d_grouped)) %>%
+  mutate(p_adj = p.adjust(p.value))
+
+p_c <- d_grouped %>%
   ggplot(aes(x = fct_reorder(as.factor(participantid), m_res), y = resid, fill = participantid)) +
   geom_hline(yintercept = 0, linetype = 2)  +
   geom_boxplot() +

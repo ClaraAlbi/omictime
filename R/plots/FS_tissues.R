@@ -21,6 +21,10 @@ df_r2 <- readRDS("data/combined_variance.rds") %>%
   filter(pval < 0.05) %>%
   filter(type_clean == "Proteins")
 
+length(which(!df_effects$phen %in% df_r2$phen))
+
+length(which(!df_r2$phen %in% df_effects$phen))
+
 tissues <- data.table::fread("data/explore_ukb.csv") %>%
   dplyr::rename(UniProt = `UniProt ID`,
          tissue_info = `Tissue Specificity`) %>%
