@@ -4,9 +4,13 @@ library(dplyr)
 library(stringr)
 library(data.table)
 library(viridis)
+install.packages("UpSetR")
 library(UpSetR)
+install.packages("lightgbm")
 library(lightgbm)
+install.packages("xgboost")
 library(xgboost)
+install.packages("glmnet")
 library(glmnet)
 
 # If using LightGBM objects, ensure lightgbm is installed in your environment
@@ -235,6 +239,9 @@ imp <- weights_summary_scaled %>%
   mutate(phen = if_else(is.na(title), feature, title)) %>%
   select(model, feature, phen,main_category, mean_weight, sd_weight, n, scaled_importance)
 
+imp %>%
+  filter(model == "XGBOOST") %>% pull(mean_weight) %>% hist()
+
 imp %>% group_by(main_category, model) %>% count() %>%
   mutate(main_category = case_when(is.na(main_category) ~ "Proteomics",
                                    main_category == "220" ~ "Metabolomics",
@@ -245,10 +252,11 @@ imp %>% group_by(main_category, model) %>% count() %>%
 
 # === UpSet: prepare sets of top features per model ===
 top_sets <- imp %>%
+  filter(model != "XGBOOST") %>%
   group_by(model) %>%
   mutate(rank = rank(-scaled_importance, ties.method = "first")) %>%
   # choose top K to include in set comparisons; use top_n or all features that were in all folds
-  filter(rank <= 500) %>%
+  #filter(rank <= 500) %>%
   summarise(features = list(unique(feature)), .groups = "drop")
 
 feat_list <- setNames(top_sets$features, top_sets$model)
@@ -261,8 +269,8 @@ upset_data_filtered <- upset_data[rowSums(upset_data) > 1, ]
 
 # save upset plot
 png("plots/FS_weights_upset.png", width = 2000, height = 1500, res = 300)
-upset(upset_data_filtered,
-      nsets = ncol(upset_data_filtered),
+upset(upset_data,
+      nsets = ncol(upset_data),
       order.by = "freq",
       mainbar.y.label = "Intersection size",
       sets.x.label = "Set size")
