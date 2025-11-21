@@ -185,8 +185,9 @@ data_plot %>%
 d_grouped <-data_plot %>%
   group_by(participantid) %>% mutate(m_res = mean(resid))
 
-broom::tidy(lm(resid ~ participantid, data = d_grouped)) %>%
-  mutate(p_adj = p.adjust(p.value))
+broom::tidy(lm(resid ~ 0 + participantid, data = d_grouped)) %>%
+  mutate(p_adj = p.adjust(p.value)) %>%
+  filter(p_adj < 0.05)
 
 p_c <- d_grouped %>%
   ggplot(aes(x = fct_reorder(as.factor(participantid), m_res), y = resid, fill = participantid)) +
