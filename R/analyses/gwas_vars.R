@@ -70,6 +70,31 @@ df %>% mutate(FID = eid, res_abs = abs(res)) %>%
 
 
 
+### gcta
+
+covs %>%
+  left_join(gen_covs) %>%
+  mutate(FID = eid) %>%
+  select(FID, eid,  age_recruitment,contains("PC")) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "qcovar.txt", sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+
+
+covs %>%
+  left_join(gen_covs) %>%
+  mutate(FID = eid) %>%
+  select(FID, eid,  sex, batch) %>%
+  mutate(batch = case_when(is.na(batch) ~ NA_character_,
+                           TRUE ~paste0("b",batch)),
+         batch = as.factor(batch)) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "covar.txt", sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+
+
+
+
+
+
 ### snps pQTLS
 
 

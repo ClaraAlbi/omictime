@@ -1,21 +1,18 @@
 #!/bin/bash
 
-
 project="blood_biomarkers - Jul 01, 2024"
 
-for chr in {1..22}; do
+#for chr in {1..22}; do
   run_gcta_fast_GWAS="
     cp gcta64 \$HOME/gcta64 && chmod +x \$HOME/gcta64
-    \$HOME/gcta64 --bgen \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.bgen\" \
-                        --sample \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.sample\" \
+    \$HOME/gcta64 --reml  --grm-adj 0  --grm-cutoff 0.05 \
                         --pheno phenotypes.txt \
                         --qcovar qcovar.txt \
                         --covar covar.txt \
-                        --fastGWA-mlm \
                         --extract ukbEURu_imp_all_v3_impQC_maf01.snpList \
-                        --grm-sparse /mnt/project/grm/sp_grm_eur_OX \
+                        --grm /mnt/project/grm/sp_grm_eur_OX \
                         --covar-maxlevel 110 \
-                        --out res_chr${chr} \
+                        --out reml_res \
                         --thread-num 8
     "
 
@@ -33,4 +30,4 @@ for chr in {1..22}; do
       --tag res_chr${chr} \
       -y \
       --brief
-done
+#done
