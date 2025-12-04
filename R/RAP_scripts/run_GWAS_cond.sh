@@ -9,7 +9,7 @@ for chr in {1..22}; do
     \$HOME/gcta64 --bgen \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.bgen\" \
                         --sample \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.sample\" \
                         --pheno phenotypes.txt \
-                        --qcovar qcovar.txt \
+                        --qcovar qcovar_prots.txt \
                         --covar covar.txt \
                         --fastGWA-mlm \
                         --extract ukbEURu_imp_all_v3_impQC_maf01.snpList \
@@ -23,7 +23,7 @@ for chr in {1..22}; do
       -iin="gcta64" \
       -iin="${project}:/phenotypes.txt" \
       -iin="${project}:/covar.txt" \
-      -iin="${project}:/qcovar.txt" \
+      -iin="${project}:/qcovar_prots.txt" \
       -iin="${project}:/grm/ukbEURu_imp_all_v3_impQC_maf01.snpList" \
       -icmd="${run_gcta_fast_GWAS}" \
       --priority high \
