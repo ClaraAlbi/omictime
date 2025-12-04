@@ -22,7 +22,10 @@ d <- olink %>%
   left_join(df)
 
 d %>%
-  ggplot(aes(x = angptl1, y = res, color = factor(ntile(res, 5)))) + geom_point()
+  ggplot(aes(x = time_day, y = gdf15, color = res_q)) + geom_smooth() + theme_minimal()
+
+d %>%
+  ggplot(aes(x = factor(ntile(res, 5)), y = tnr)) + geom_boxplot() + theme_minimal()
 
 
 d %>%
