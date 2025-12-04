@@ -234,9 +234,8 @@ covars <- c("sex", "age_recruitment", paste0("PC", 1:10))
 results <- map_dfr(vars, function(v) {
   adj_vars <- if (v %in% c("sex", "age_recruitment")) paste0("PC", 1:10) else covars
 
-  # Combine predictor + covariates safely
   rhs <- paste(c(v, adj_vars), collapse = " + ")
-  f <- as.formula(paste("abs(res) ~", rhs))
+  f <- as.formula(paste("res ~", rhs))
 
   fit <- lm(f, data = data)
 
