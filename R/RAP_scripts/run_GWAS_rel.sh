@@ -21,7 +21,7 @@ project="blood_biomarkers - Jul 01, 2024"
       -iin="${project}:/phenotypes_rel.txt" \
       -iin="${project}:/geno_chrs.txt" \
       -iin="${project}:/covar.txt" \
-      -iin="${project}:/qcovar_prots.txt" \
+      -iin="${project}:/qcovar.txt" \
       -iin="${project}:/grm/ukbEURu_imp_all_v3_impQC_maf01.snpList" \
       -icmd="${run_gcta_fast_GWAS}" \
       --priority high \
