@@ -43,39 +43,42 @@ df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   filter(rel == 0)
 
 df$res <- residuals(lm(pred_mean ~ time_day, data = df))
-#
-# df %>% mutate(FID = eid) %>%
-#   select(FID, eid, sex, age_recruitment, batch, contains("PC")) %>%
-#   mutate(across(c(sex, batch), as.factor)) %>%
-#   rename(IID = eid) %>%
-#   data.table::fwrite(., "covariates.txt", sep = "\t", quote = FALSE, row.names = FALSE)
-
-### COVARIATES COJO SNPS pQTLS
-
-# snps <- data.table::fread("/mnt/project/snps/subset_cojo_pqtls.raw") %>%
-#   mutate(across(contains(":"), ~round(.x,0)))
-#
-# data_b %>% mutate(FID = eid) %>%
-#   select(FID, eid, sex, age_recruitment, batch, contains("PC")) %>%
-#   mutate(across(c(sex, batch), as.factor)) %>%
-#   left_join(snps %>% select(FID, contains(":")) %>% rename(eid = FID)) %>%
-#   rename(IID = eid) %>%
-#   data.table::fwrite(., "covariates_cojo.txt", sep = "\t", quote = FALSE, row.names = FALSE)
-#
 
 df %>% mutate(FID = eid, res_abs = abs(res)) %>%
   select(FID, eid, res, res_abs) %>%
   rename(IID = eid) %>%
   data.table::fwrite(., "phenotypes_rel.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
+# Chronotype
+
+sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
+  filter(!eid %in% olink_cohort$eid) %>%
+  select(eid,
+         chrono = `1180-0.0`) %>%
+  mutate(chrono = case_when(
+    chrono == 1 ~ 2,
+    chrono == 2 ~ 1,
+    chrono == -1~ 0,
+    chrono == 3 ~ -1,
+    chrono == 4 ~ -2)) %>%
+  left_join(gen_covs %>% select(eid, is_white)) %>%
+  filter(is_white == 1)
+
+table(sleep$chrono)
+
+sleep %>% mutate(FID = eid) %>%
+  rename(IID = eid) %>%
+  select(FID, IID, chrono) %>%
+  data.table::fwrite(., "phenotypes_chrono.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 ### gcta
 
 # All chr in one file
 install.packages("glue")
 
-write(c(glue::glue("/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c{1:22}_b0_v3.bgen"),
-        glue::glue("/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_${1:22}_b0_v3.sample")),
+
+write(c(glue::glue("\"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c{1:22}_b0_v3.bgen\""),
+        glue::glue("\"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_{1:22}_b0_v3.sample\"")),
       file = "geno_chrs.txt")
 
 
