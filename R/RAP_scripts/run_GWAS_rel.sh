@@ -2,9 +2,6 @@
 
 project="blood_biomarkers - Jul 01, 2024"
 
-
-
-for chr in {1..22}; do
   run_gcta_fast_GWAS="
     cp gcta64 \$HOME/gcta64 && chmod +x \$HOME/gcta64
     \$HOME/gcta64 --mbfile geno_chrs.txt \
@@ -34,4 +31,4 @@ for chr in {1..22}; do
       --tag res_chr${chr} \
       -y \
       --brief
-done
+
