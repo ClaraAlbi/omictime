@@ -38,18 +38,17 @@ df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   filter(!is.na(time_day)) %>%
   filter(i == 0) %>%
   select(eid, time_day, pred_mean) %>%
-  left_join(covs) %>%
   left_join(gen_covs) %>%
-  filter(is_white == 1) %>%
+  filter(is_white == 1) #%>%
   filter(rel == 0)
 
 df$res <- residuals(lm(pred_mean ~ time_day, data = df))
-
-df %>% mutate(FID = eid) %>%
-  select(FID, eid, sex, age_recruitment, batch, contains("PC")) %>%
-  mutate(across(c(sex, batch), as.factor)) %>%
-  rename(IID = eid) %>%
-  data.table::fwrite(., "covariates.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+#
+# df %>% mutate(FID = eid) %>%
+#   select(FID, eid, sex, age_recruitment, batch, contains("PC")) %>%
+#   mutate(across(c(sex, batch), as.factor)) %>%
+#   rename(IID = eid) %>%
+#   data.table::fwrite(., "covariates.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 ### COVARIATES COJO SNPS pQTLS
 
@@ -67,11 +66,18 @@ df %>% mutate(FID = eid) %>%
 df %>% mutate(FID = eid, res_abs = abs(res)) %>%
   select(FID, eid, res, res_abs) %>%
   rename(IID = eid) %>%
-  data.table::fwrite(., "phenotypes.txt", sep = "\t", quote = FALSE, row.names = FALSE)
-
+  data.table::fwrite(., "phenotypes_rel.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 
 ### gcta
+
+# All chr in one file
+install.packages("glue")
+
+write(c(glue::glue("/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c{1:22}_b0_v3.bgen"),
+        glue::glue("/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_${1:22}_b0_v3.sample")),
+      file = "geno_chrs.txt")
+
 
 covs %>%
   left_join(gen_covs) %>%
