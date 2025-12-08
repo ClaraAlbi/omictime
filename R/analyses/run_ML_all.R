@@ -6,6 +6,7 @@ library(Matrix)
 library(lightgbm)
 library(xgboost)
 library(glmnet)
+library(bit64)
 
 type <- "all"
 
