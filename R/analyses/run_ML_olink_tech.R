@@ -11,7 +11,7 @@ type <- "olink_tech"
 
 # ---- load data
 # DO NOT scale across full data (leakage). We'll scale inside each train fold.
-data_all <- readRDS("/mnt/project/res_technical/res_olink_technical.rds")
+data_all <- readRDS("res_olink_tech.rds")
 stopifnot(all(c("eid") %in% names(data_all)))
 
 time <- readRDS("/mnt/project/biomarkers/time.rds") %>%
