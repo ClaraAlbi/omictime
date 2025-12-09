@@ -95,7 +95,7 @@ drop_rare_levels <- function(df) {
 
 # Panel mapping: protein name -> panel column name
 prot_to_panel <- setNames(panel$Panel, panel$prot)
-panel_names   <- unique(panel$Panel)
+panel_names   <- unique(panel$Panel)[1:4]
 panel_names   <- panel_names[panel_names %in% names(metadata)]  # keep only those present in metadata
 
 # Fast access to metadata panel columns
@@ -143,7 +143,7 @@ for (k in seq_along(current_prots)) {
   # Drop rare levels for stable factors; and for panel_date specifically (>=50)
   d <- drop_rare_levels(d)
   if ("panel_date" %in% names(d)) {
-    lv <- names(which(table(d$panel_date) >= 50L))
+    lv <- names(which(table(d$panel_date) >= 30L))
     d$panel_date <- droplevels(d$panel_date[d$panel_date %in% lv])
   }
 

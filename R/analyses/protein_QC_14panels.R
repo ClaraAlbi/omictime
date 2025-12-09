@@ -7,7 +7,7 @@ panel <- data.table::fread("/mnt/project/Bulk/Protein biomarkers/Olink/helper_fi
 panels_14 <- panel$prot[panel$Panel %in% c("Cardiometabolic", "Inflammation", "Neurology", "Oncology")]
 
 prots <- data.table::fread("/mnt/project/olink_instance_0.csv") %>% as_tibble() %>%
-  select(contains(panels_14))
+  select(eid, contains(panels_14))
 
 row_na_counts <- rowSums(is.na(prots))
 prots_f <- prots[row_na_counts < ncol(prots)/3,]
