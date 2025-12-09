@@ -1,13 +1,23 @@
-
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(purrr)
 
 l <- c(list.files("/mnt/project/circadian/results/models/",
                   pattern = "predictions", full.names = TRUE))
 
-preds_i0_olink <- tibble(f = l[str_detect(l, "male")]) %>%
+# l <- c(list.files("/mnt/project/biomarkers_3",
+#                   pattern = "predictions", full.names = TRUE)[-c(31:35, 1:5, 16:20)],
+#        list.files("/mnt/project/biomarkers_3/covariate_res/MODELS",
+#                   pattern = "predictions", full.names = TRUE))
+
+preds_i0_olink <- tibble(f = l[str_detect(l, "tech")]) %>%
   mutate(d = map(f, readRDS)) %>%
   unnest(d) %>%
   rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
   unnest()
+
 
 
 data <- preds_i0_olink %>%
@@ -29,8 +39,14 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
   )
 
-preds_i0_olink %>%
+df <- preds_i0_olink %>%
   left_join(covs) %>%
   filter(age_recruitment > 39) %>%
-  ggplot(aes(x = age_recruitment, y = res, color = sex )) + geom_smooth()
+  mutate(age_g = case_when(age_recruitment <= 50 ~ "40-50",
+                           age_recruitment <= 60 & age_recruitment > 50 ~ "50-60",
+                           age_recruitment <= 70 & age_recruitment > 60 ~ "60-70"))
 
+ggplot(df, aes(x = age_recruitment, y = res, color = sex)) + geom_smooth() +
+  theme_minimal()
+
+summary(lm(res~ age_recruitment*sex, data =df))
