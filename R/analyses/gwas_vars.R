@@ -1,7 +1,7 @@
 library(tidyr)
 library(dplyr)
 library(stringr)
-library(pur)
+library(purrr)
 
 rint <- function(x) {
   ranks <- rank(x, ties.method = "average")
@@ -108,6 +108,13 @@ covs %>%
   rename(IID = eid) %>%
   data.table::fwrite(., "qcovar_prots.txt", sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
+covs %>%
+  left_join(gen_covs) %>%
+  left_join(readRDS("protein_PCA.rds") %>% rename_with(~ paste0("p", .x), .cols = -eid) %>% select(1:11)) %>%
+  mutate(FID = eid) %>%
+  select(FID, eid,  age_recruitment,contains("PC"), contains("pPC")) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "qcovar_pPCA.txt", sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
 
 
