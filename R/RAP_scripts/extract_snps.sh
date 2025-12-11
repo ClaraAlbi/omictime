@@ -1,16 +1,16 @@
 #!/bin/bash
 
 project="blood_biomarkers - Jul 01, 2024"
-snpfile="set_cojo.txt"
+snpfile="cojo_CA.txt"
 
 
-for chr in {1,3,4,5,11,17}; do
+for chr in {1,3,4,5,11,17,19}; do
   plink_command="plink2 \
       --bgen \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.bgen\" ref-first \
       --sample \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.sample\" \
       --extract ${snpfile} \
       --recode A \
-      --out subset_cojo_pQTL"
+      --out subset_cojo_CA"
 
   dx run swiss-army-knife \
     -iin="${snpfile}" \
