@@ -9,18 +9,18 @@ run_gcta_fast_GWAS="
     plink2 --bgen \"/mnt/project/Bulk/Imputation/Imputation from genotype (TOPmed)/ukb21007_cX_b0_v1.bgen\" ref-first \
                         --sample \"/mnt/project/Bulk/Imputation/Imputation from genotype (TOPmed)/ukb21007_cX_b0_v1.sample\" \
                         --pheno-name res \
-                        --pheno phenotypes_0.txt \
+                        --pheno phenotypes_1.txt \
                         --covar-name ${COVARS} \
                         --covar covariates.txt  \
                         --no-input-missing-phenotype \
                         --glm hide-covar \
                         --covar-variance-standardize \
-                        --out res_chr_X_0 \
+                        --out res_chr_X_1 \
                         --thread-num 8
     "
 
   dx run swiss-army-knife \
-      -iin="${project}:/phenotypes_0.txt" \
+      -iin="${project}:/phenotypes_1.txt" \
       -iin="${project}:/covariates.txt" \
       -icmd="${run_gcta_fast_GWAS}" \
       --priority high \
