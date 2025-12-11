@@ -16,6 +16,7 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   mutate(bmi = weight/(height/100)^2,
          sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
+         assessment_centre = as.factor(assessment_centre)
   )
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
@@ -74,14 +75,14 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
 l <- c(list.files("/mnt/project/circadian/results/models",
                   pattern = "predictions", full.names = TRUE))
 
-df <- tibble(f = l[str_detect(l, "tech_14")]) %>%
+data <- tibble(f = l[str_detect(l, "tech_14")]) %>%
   mutate(d = map(f, readRDS)) %>%
   unnest(d) %>%
   rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
   unnest()
-df$res <- residuals(lm(pred_mean ~ time_day, data = preds_i0_olink))
+data$res <- residuals(lm(pred_mean ~ time_day, data = preds_i0_olink))
 
-df_temp <- df %>% select(-f) %>%
+df_temp <- data %>% select(-f) %>%
   inner_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
   filter(!is.na(time_day)) %>%
   mutate(date = as.POSIXct(date_bsampling, tz = "Europe/London"))
@@ -159,12 +160,8 @@ data <- df %>%
   left_join(covs) %>%
   left_join(job_vars) %>%
   left_join(sleep) %>%
-  #left_join(n_v) %>%
-  #left_join(labs) %>%
-  #left_join(MH) %>%
-  left_join(pcs) %>%
+  left_join(gen_covs) %>%
   left_join(dep) %>%
-  #filter(!is.na(chrono)) %>%
   mutate(h = round(time_day, 0)) %>%
   filter(age_recruitment > 39)
 
@@ -220,7 +217,7 @@ vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insom
 
 #vars <- colnames(MH)[-1]
 
-covars <- c("sex", "age_recruitment", paste0("PC", 1:10))
+covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:10))
 
 #data <- data %>% filter(eth == 1001)
 
@@ -248,7 +245,7 @@ results <- map_dfr(vars, function(v) {
     }
 })
 
-saveRDS(results, "data_share/results_associations_phenotypes_CM.rds")
+saveRDS(results, "data_share/results_associations_phenotypes_CA.rds")
 
 
 ### PLOT PART

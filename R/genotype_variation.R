@@ -4,7 +4,7 @@
 dx download file-J4jkGY8J3JFX14J2f3K2xfKz
 dx download file-J4jk9qQJzk1k6bBjkfkj3y1x
 
-chr1 <- data.table::fread("subset_cojo_pQTL_chr1.raw") %>%
+chr1 <- data.table::fread("/mnt/project/snps/subset_cojo_pQTL_chr1.raw") %>%
   filter(IID %in% olink$eid) %>%
   mutate(rs57742792_T = round(rs57742792_T, 0))
 

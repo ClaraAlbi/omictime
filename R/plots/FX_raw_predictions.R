@@ -56,6 +56,6 @@ ggplot(df, aes(x = age_recruitment, y = res, color = sex)) + geom_smooth() +
   theme_minimal() +
   facet_grid(~assessment_centre)
 
-summary(lm(res~ age_recruitment*sex + as.factor(assessment_centre) + p30079, data =df))
+summary(lm(res~ age_recruitment*sex + as.factor(assessment_centre) + p30079, data = df))
 
 summary(lm(res~ 0 + as.factor(p30079) + PC1 + PC2 + PC3, data =df))
