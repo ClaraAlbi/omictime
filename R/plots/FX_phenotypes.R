@@ -17,15 +17,6 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
   )
-  #
-# n_v <- physical %>%
-#   select(eid,
-#          bp_sys = p4080_i0_a0,
-#          bp_dias = p4079_i0_a0,
-#          handgrip_l = p46_i0,
-#          handgrip_r = p47_i0,
-#          reaction_time = p20023_i0,
-#          f_reasoning = p20016_i0)
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
@@ -40,17 +31,12 @@ job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = factor(night_shift, levels = c("Never", "Sometimes", "Usually", "Always")),
          shift_work = factor(shift_work, levels = c("Never/rarely", "Sometimes", "Usually", "Always")))
 
-pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
-  select(eid = 1, contains("PC"))
-
-# MH <- data.table::fread("/mnt/project/psychosocial_MH.csv") %>%
-#   select(eid, contains("p20"), contains("p19")) %>%
-#   select(-contains("p2012")) %>%
-#   mutate(across(contains("p"), as.factor))
+gen_covs <- data.table::fread("/mnt/project/genetic_covs.tsv") %>%
+  select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`, `22000-0.0`)
+colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel", "batch")
 
 dep <- data.table::fread("/mnt/project/other_covs.tsv") %>%
   select(eid, TDI = 2, eth = 3)
-
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   select(eid,
@@ -85,11 +71,19 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
 
 #Given previously established U-shape relationships with health and cognition [20], we categorised sleep duration into short (<7 h), normal (7–9 h) and long (>9 h) based on recent guidelines
 
+l <- c(list.files("/mnt/project/circadian/results/models",
+                  pattern = "predictions", full.names = TRUE))
 
-df_temp <- readRDS("/mnt/project/biomarkers/time.rds") %>%
-  inner_join(readRDS("/mnt/project/olink_int_replication.rds") %>% select(-date_bsampling)) %>%
+df <- tibble(f = l[str_detect(l, "tech_14")]) %>%
+  mutate(d = map(f, readRDS)) %>%
+  unnest(d) %>%
+  rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
+  unnest()
+df$res <- residuals(lm(pred_mean ~ time_day, data = preds_i0_olink))
+
+df_temp <- df %>% select(-f) %>%
+  inner_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
   filter(!is.na(time_day)) %>%
-  filter(i == 0) %>%
   mutate(date = as.POSIXct(date_bsampling, tz = "Europe/London"))
 
 years <- unique(year(df_temp$date))
