@@ -10,7 +10,7 @@ for chr in {1,3,4,5,11,17,19}; do
       --sample \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.sample\" \
       --extract ${snpfile} \
       --recode A \
-      --out subset_cojo_CA"
+      --out cojo_CA_c${chr}"
 
   dx run swiss-army-knife \
     -iin="${snpfile}" \
