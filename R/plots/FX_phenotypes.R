@@ -54,14 +54,12 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
     TRUE ~ NA_character_),
     wakeup = case_when(
       wakeup == 1 ~ "Not at all easy",
-      wakeup == 2~ "Not very easy",
-      wakeup == -1~ "Do not know",
+      wakeup == 2 ~ "Not very easy",
+      wakeup == -1 ~ "Do not know",
       wakeup == 3 ~ "Fairly easy",
       wakeup == 4 ~ "Very easy"),
     wakeup = factor(wakeup, levels = c("Very easy", "Fairly easy",  "Not very easy", "Not at all easy")),
     chrono = factor(chrono, levels = c("Definitely morning", "Rather morning", "Don't know", "Rather evening", "Definitely evening")),
-    chrono = relevel(chrono, ref = "Don't know"),
-    wakeup = relevel(chrono, ref = "Do not know"),
     ever_insomnia = case_when(ever_insomnia == 1 ~ "Never/rarely",
                               ever_insomnia == 2 ~ "Sometimes",
                               ever_insomnia == 3 ~ "Usually"),
@@ -77,14 +75,14 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
 l <- c(list.files("/mnt/project/circadian/results/models",
                   pattern = "predictions", full.names = TRUE))
 
-data <- tibble(f = l[str_detect(l, "tech_14")]) %>%
+df_p <- tibble(f = l[str_detect(l, "tech_14")]) %>%
   mutate(d = map(f, readRDS)) %>%
   unnest(d) %>%
   rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
   unnest()
-data$res <- residuals(lm(pred_mean ~ time_day, data = preds_i0_olink))
+df_p$res <- residuals(lm(pred_mean ~ time_day, data = df_p))
 
-df_temp <- data %>% select(-f) %>%
+df_temp <- df_p %>% select(-f) %>%
   inner_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
   filter(!is.na(time_day)) %>%
   mutate(date = as.POSIXct(date_bsampling, tz = "Europe/London"))
@@ -151,13 +149,6 @@ df <- df_temp %>%
   ) #%>%
 select(-year, -spring_dst, -fall_dst, -date_only)
 
-
-#labs <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_labs.rds")
-
-#fields <- data.table::fread("/mnt/project/Showcase metadata/field.tsv")
-
-#colnames(labs) <- c("eid", fields %>% filter(field_id %in% as.numeric(colnames(labs))) %>% pull(title))
-
 data <- df %>%
   left_join(covs) %>%
   left_join(job_vars) %>%
@@ -173,7 +164,30 @@ data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
 broom::tidy(lm(res ~ f_reasoning, data = data))
 
+### chrono x night
+r <- broom::tidy(lm(res ~ chrono*night_shift + sex + age_recruitment + assessment_centre + PC1 +
+     PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data= data))
 
+rs <- broom::tidy(lm(res ~ chrono*shift_work, data= data))
+
+data %>%
+  count(chrono, night_shift)
+
+a <- data %>%
+  mutate(c = case_when(chrono %in% c("Definitely morning", "Rather morning") ~ "Morning",
+                       chrono %in% c("Definitely evening", "Rather evening") ~ "Evening",
+                       TRUE ~ "Don't know")) %>%
+  filter(!is.na(night_shift)) %>%
+  filter(night_shift %in% c("Never", "Always", "Sometimes")) %>%
+  #filter((chrono %in% c("Definitely morning", "Rather morning") & night_shift %in% c("Never", "Always")) | (chrono %in% c("Definitely evening", "Rather evening") & night_shift %in% c("Never", "Always")) |
+  #         (chrono == "Don't know" & night_shift %in% c("Never", "Always")) ) %>% unite("comb", chrono, night_shift, sep = "_") %>%
+  unite("comb", c, night_shift, sep = "_") %>%
+  mutate(comb = relevel(as.factor(comb), ref = "Morning_Never")) %>%
+  count(comb)
+
+r <- broom::tidy(lm(res ~ comb + sex + age_recruitment + assessment_centre + PC1 +
+                 PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data= a)) %>%
+  filter(str_detect(term, "comb") | str_detect(term, "Intercept"))
 
 ### PLOT DESC
 
@@ -246,6 +260,8 @@ results <- map_dfr(vars, function(v) {
       } else .
     }
 })
+
+
 
 saveRDS(results, "data_share/results_associations_phenotypes_CA.rds")
 
