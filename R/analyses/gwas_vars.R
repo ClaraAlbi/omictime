@@ -39,15 +39,32 @@ df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
   filter(i == 0) %>%
   select(eid, time_day, pred_mean) %>%
   left_join(gen_covs) %>%
-  filter(is_white == 1) #%>%
+  filter(is_white == 1) %>%
   filter(rel == 0)
-
 df$res <- residuals(lm(pred_mean ~ time_day, data = df))
 
 df %>% mutate(FID = eid, res_abs = abs(res)) %>%
   select(FID, eid, res, res_abs) %>%
   rename(IID = eid) %>%
   data.table::fwrite(., "phenotypes_rel.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+
+# FEMALES ONLY
+
+ids_0 <- covs$eid[covs$sex == 0]
+df %>% mutate(FID = eid, res_abs = abs(res)) %>%
+  filter(eid %in% ids_0) %>%
+  select(FID, eid, res, res_abs) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "phenotypes_0.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+ids_1 <- covs$eid[covs$sex == 1]
+df %>% mutate(FID = eid, res_abs = abs(res)) %>%
+  filter(eid %in% ids_1) %>%
+  select(FID, eid, res, res_abs) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "phenotypes_1.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
 
 # Chronotype
 
