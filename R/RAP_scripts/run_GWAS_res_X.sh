@@ -2,27 +2,26 @@
 
 
 project="blood_biomarkers - Jul 01, 2024"
+
+COVARS="age_recruitment,batch,PC1-PC20"
+
 run_gcta_fast_GWAS="
-    cp gcta64 \$HOME/gcta64 && chmod +x \$HOME/gcta64
-    \$HOME/gcta64 --bgen \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_cX_b0_v3.bgen\" \
-                        --sample \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_cX_b0_v3.sample\" \
-                        --pheno phenotypes.txt \
-                        --qcovar qcovar.txt \
-                        --covar covar.txt \
-                        --fastGWA-mlm \
-                        --extract ukbEURu_imp_all_v3_impQC_maf01.snpList \
-                        --grm-sparse /mnt/project/grm/sp_grm_eur_OX \
-                        --covar-maxlevel 110 \
-                        --out res_chr_X \
+    plink2 --bgen \"/mnt/project/Bulk/Imputation/Imputation from genotype (TOPmed)/ukb21007_cX_b0_v1.bgen\" ref-first \
+                        --sample \"/mnt/project/Bulk/Imputation/Imputation from genotype (TOPmed)/ukb21007_cX_b0_v1.sample\" \
+                        --pheno-name res \
+                        --pheno phenotypes_0.txt \
+                        --covar-name ${COVARS} \
+                        --covar covariates.txt  \
+                        --no-input-missing-phenotype \
+                        --glm hide-covar \
+                        --covar-variance-standardize \
+                        --out res_chr_X_0 \
                         --thread-num 8
     "
 
   dx run swiss-army-knife \
-      -iin="gcta64" \
-      -iin="${project}:/phenotypes.txt" \
-      -iin="${project}:/covar.txt" \
-      -iin="${project}:/qcovar.txt" \
-      -iin="${project}:/grm/ukbEURu_imp_all_v3_impQC_maf01.snpList" \
+      -iin="${project}:/phenotypes_0.txt" \
+      -iin="${project}:/covariates.txt" \
       -icmd="${run_gcta_fast_GWAS}" \
       --priority high \
       --cost-limit 10 \
