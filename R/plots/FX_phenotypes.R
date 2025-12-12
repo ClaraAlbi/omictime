@@ -6,13 +6,19 @@ library(purrr)
 install.packages("broom")
 install.packages("table1")
 install.packages("forcats")
+install.packages("ggh4x")
 library(broom)
 library(forcats)
 library(lubridate)
 library(ggh4x)
 
+pred <- readRDS("olink_internal_time_predictions.rds") %>%
+  inner_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
+  filter(i == 0) %>%
+  filter(!is.na(time_day)) %>%
+  mutate(date = as.POSIXct(date_bsampling, tz = "Europe/London"))
+
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
-  filter(smoking != "-3") %>%
   mutate(bmi = weight/(height/100)^2,
          sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
@@ -28,7 +34,6 @@ job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
                                 `826-0.0` == 2 ~ "Sometimes",
                                 `826-0.0` == 3 ~ "Usually",
                                 `826-0.0` == 4 ~ "Always")) %>%
-  #filter(`3426-0.0` %in% 1:4) %>%
   mutate(night_shift = factor(night_shift, levels = c("Never", "Sometimes", "Usually", "Always")),
          shift_work = factor(shift_work, levels = c("Never/rarely", "Sometimes", "Usually", "Always")))
 
@@ -69,85 +74,87 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
                         h_sleep > 9 ~ "Long (>9h)"),
     h_sleep = factor(h_sleep, levels = c("Normal (7-9h)", "Short (<7 h)", "Long (>9h)")))
 
-
-#Given previously established U-shape relationships with health and cognition [20], we categorised sleep duration into short (<7 h), normal (7–9 h) and long (>9 h) based on recent guidelines
-
-l <- c(list.files("/mnt/project/circadian/results/models",
-                  pattern = "predictions", full.names = TRUE))
-
-df_p <- tibble(f = l[str_detect(l, "tech_14")]) %>%
-  mutate(d = map(f, readRDS)) %>%
-  unnest(d) %>%
-  rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
-  unnest()
-df_p$res <- residuals(lm(pred_mean ~ time_day, data = df_p))
-
-df_temp <- df_p %>% select(-f) %>%
-  inner_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
-  filter(!is.na(time_day)) %>%
-  mutate(date = as.POSIXct(date_bsampling, tz = "Europe/London"))
-
-years <- unique(year(df_temp$date))
-
-dst_transitions <- map_df(years, ~{
-  test_dates <- seq(as.Date(paste0(.x, "-01-01")),
-                    as.Date(paste0(.x, "-12-31")),
-                    by = "day")
-
-  is_dst <- dst(force_tz(as.POSIXct(test_dates), "Europe/London"))
-  dst_changes <- which(diff(is_dst) != 0)
-
-  if (length(dst_changes) >= 2) {
-    tibble(
-      year = .x,
-      spring_dst = test_dates[dst_changes[1] + 1],
-      fall_dst = test_dates[dst_changes[2] + 1]
+vars_join <- sleep %>%
+  left_join(job_vars) %>%
+  mutate(
+    c = case_when(
+      chrono %in% c("Definitely morning", "Rather morning") ~ "Morning",
+      chrono %in% c("Definitely evening", "Rather evening") ~ "Evening",
+      TRUE ~ "Don't know"
     )
-  }
-})
+  ) %>%
+  filter(!is.na(night_shift)) %>%
+  filter(night_shift %in% c("Never", "Always", "Sometimes")) %>%
+  unite("chrono_Nightshift", c, night_shift, sep = "_") %>%
+  mutate(chrono_Nightshift = relevel(factor(chrono_Nightshift), ref = "Morning_Never")) %>% select(-shift_work)
 
-df <- df_temp %>%
+
+#Given previously established U-shape relationships with health and cognition [20],
+#we categorised sleep duration into
+# short (<7 h), normal (7–9 h) and long (>9 h) based on recent guidelines
+
+
+# 1. Identify DST transitions for each year
+years <- unique(year(pred$date))
+
+dst_transitions <- tibble(
+  year = c(2006, 2007, 2008, 2009),
+  spring_dst = as.Date(c("2006-03-26", "2007-03-25", "2008-03-30", "2009-03-29")),
+  fall_dst   = as.Date(c("2006-10-29", "2007-10-28", "2008-10-26", "2009-10-25"))
+)
+
+# 2. Clean and engineer features from df_temp
+df <- pred %>%
   mutate(
     date = as.POSIXct(date_bsampling, tz = "Europe/London"),
-    is_dst = as.logical(as.POSIXlt(date, tz = "Europe/London")$isdst),
-    is_dst = factor(is_dst, levels = c(FALSE, TRUE), labels = c("No", "Yes")),
-    date_only = as.Date(date)
-  ) %>%
-  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = FALSE) %>%
-  rowwise() %>%
-  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
-  ungroup() %>%
-  mutate(
+    is_dst = factor(dst(date), levels = c(FALSE, TRUE), labels = c("No", "Yes")),
+    date_only = as.Date(date),
+    y = year(date_bsampling),
+    m = sprintf("%02d", month(date_bsampling)),
+    d = sprintf("%02d", day(date_bsampling)),
     season = case_when(
       m %in% c("12", "01", "02") ~ "Winter",
       m %in% c("03", "04", "05") ~ "Spring",
       m %in% c("06", "07", "08") ~ "Summer",
-      m %in% c("09", "10", "11") ~ "Fall"
+      TRUE ~ "Fall"
     ),
-    season = relevel(as.factor(season), ref = "Winter"),
-
-    # Weekday/weekend classification
-    day_of_week = wday(date_bsampling, label=TRUE, week_start=1),
-    day_of_week = relevel(factor(day_of_week, ordered = FALSE), ref = "Wed"),
-    is_weekend = wday(date_bsampling, week_start = 1) %in% c(6),
+    season = factor(season, levels = c("Winter", "Spring", "Summer", "Fall")),
+    day_of_week = factor(wday(date_bsampling, label = TRUE, week_start = 1), ordered = F),
+    day_of_week = relevel(day_of_week, ref = "Mon"),
+    is_weekend = wday(date_bsampling, week_start = 1) == 6,
     day_type = if_else(is_weekend, "Weekend", "Weekday"),
-
-    # Add year for joining
-    year = year(date_bsampling)
+    year = y
   ) %>%
   left_join(dst_transitions, by = "year") %>%
   mutate(
-    # DST classification
-    dst_category = case_when(
-      date_bsampling >= (spring_dst - 2) & date_bsampling <= (spring_dst - 1) ~ "before_spring_DST",
-      date_bsampling >= (spring_dst + 1) & date_bsampling <= (spring_dst + 2) ~ "after_spring_DST",
-      date_bsampling >= (fall_dst - 2) & date_bsampling <= (fall_dst - 1) ~ "before_fall_DST",
-      date_bsampling >= (fall_dst + 1) & date_bsampling <= (fall_dst + 2) ~ "after_fall_DST",
-      TRUE ~ "normal"
+    date_bsampling = as.Date(date_bsampling),
+
+    # SPRING DST classification
+    springDST = case_when(
+      date_bsampling %in% c(spring_dst - 2, spring_dst - 1) ~ "before_spring_DST",
+      date_bsampling %in% c(spring_dst + 1, spring_dst + 2) ~ "after_spring_DST",
+      between(date_bsampling, spring_dst - 14, spring_dst - 3) ~ "baseline_spring",
+      TRUE ~ NA_character_  # Set all other values to NA
     ),
-    dst_category = relevel(factor(dst_category), ref = "normal")
-  ) #%>%
-select(-year, -spring_dst, -fall_dst, -date_only)
+
+    # AUTUMN DST classification
+    autumnDST = case_when(
+      date_bsampling %in% c(fall_dst - 2, fall_dst - 1) ~ "before_fall_DST",
+      date_bsampling %in% c(fall_dst + 1, fall_dst + 2) ~ "after_fall_DST",
+      between(date_bsampling, fall_dst - 14, fall_dst - 3) ~ "baseline_fall",
+      TRUE ~ NA_character_
+    ),
+
+    # Optional: convert to factors (NA is preserved)
+    springDST = factor(
+      springDST,
+      levels = c("baseline_spring", "before_spring_DST", "after_spring_DST")
+    ),
+    autumnDST = factor(
+      autumnDST,
+      levels = c("baseline_fall", "before_fall_DST", "after_fall_DST")
+    )
+  )
 
 data <- df %>%
   left_join(covs) %>%
@@ -155,56 +162,84 @@ data <- df %>%
   left_join(sleep) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
-  mutate(h = round(time_day, 0)) %>%
-  filter(age_recruitment > 39)
+  left_join(vars_join) #%>%
+  filter(age_recruitment > 40 & age_recruitment < 70)
 
-data$res <- residuals(lm(pred_mean ~ time_day, data = data))
-#data$res_q <- ntile(data$res, 5)
+data$res <- residuals(lm(pred_mean ~ time_day + as.factor(assessment_centre), data = data))
 
 
-broom::tidy(lm(res ~ f_reasoning, data = data))
+
+
+### trials
+rs <- broom::tidy(lm(res ~ chrono_Nightshift + sex + age_recruitment + assessment_centre + PC1 +
+                       PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + season, data= data))
 
 ### chrono x night
 r <- broom::tidy(lm(res ~ chrono*night_shift + sex + age_recruitment + assessment_centre + PC1 +
-     PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data= data))
+     PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + year, data= data))
 
 rs <- broom::tidy(lm(res ~ chrono*shift_work, data= data))
 
 data %>%
   count(chrono, night_shift)
 
-a <- data %>%
-  mutate(c = case_when(chrono %in% c("Definitely morning", "Rather morning") ~ "Morning",
-                       chrono %in% c("Definitely evening", "Rather evening") ~ "Evening",
-                       TRUE ~ "Don't know")) %>%
-  filter(!is.na(night_shift)) %>%
-  filter(night_shift %in% c("Never", "Always", "Sometimes")) %>%
-  #filter((chrono %in% c("Definitely morning", "Rather morning") & night_shift %in% c("Never", "Always")) | (chrono %in% c("Definitely evening", "Rather evening") & night_shift %in% c("Never", "Always")) |
-  #         (chrono == "Don't know" & night_shift %in% c("Never", "Always")) ) %>% unite("comb", chrono, night_shift, sep = "_") %>%
-  unite("comb", c, night_shift, sep = "_") %>%
-  mutate(comb = relevel(as.factor(comb), ref = "Morning_Never")) %>%
-  count(comb)
-
-r <- broom::tidy(lm(res ~ comb + sex + age_recruitment + assessment_centre + PC1 +
-                 PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data= a)) %>%
-  filter(str_detect(term, "comb") | str_detect(term, "Intercept"))
-
 ### PLOT DESC
 
-ps <- data %>%
-  mutate(res_ab = abs(res)) %>%
-  pivot_longer(c(res, res_ab)) %>%
-  mutate(name = case_when(name == "res" ~ "Circadian acceleration",
-                          name == "res_ab" ~ "Circadian misalignment")) %>%
-  ggplot(aes(x = age_recruitment, y = value, color = sex)) + geom_smooth() +
-  facet_wrap(~name, scales = "free_y") +
-  labs(x = "Age", y = "Value", color = "Sex") +
-  theme_classic(base_size = 16) +
-  theme(legend.position.inside = c(0.95, 0.95))
-
-ggsave("plots/FS_sexage_CA.png", ps, width = 10, height = 5)
+# ps <- data %>%
+#   filter(age_recruitment > 40 & age_recruitment < 70) %>%
+#   ggplot(aes(x = age_recruitment, y = res, color = sex)) + geom_smooth() +
+#   labs(x = "Age", y = "Circadian acceleration", color = "Sex") +
+#   theme_classic(base_size = 16) +
+#   theme(legend.position.inside = c(0.95, 0.95))
+#
+# ggsave("plots/FS_sexage_CA.png", ps, width = 8, height = 5)
 
 
+### Plots CHRONO vs SEX
+
+p_chrono <- sleep %>%
+  left_join(covs) %>%
+  filter(age_recruitment > 39 & age_recruitment <= 70) %>%
+  filter(!is.na(chrono)) %>%
+  group_by(age_recruitment,sex,  chrono) %>%
+  count() %>% ungroup() %>%
+  group_by(age_recruitment, sex) %>% mutate(p = n/sum(n)) %>%
+  ggplot(aes(x = age_recruitment, y = p, color = chrono)) +
+  geom_point() +
+  labs(color = "Chronotype", y = "Proportion", x = "Age") +
+  facet_grid(~sex) +
+  theme_classic(base_size = 16)
+
+ggsave("plots/FS_chronotypes_agesex.png", p_chrono, width = 10, height = 5)
+
+
+ca_res <- data %>%
+  filter(!is.na(chrono)) %>%
+  ggplot(aes(x = age_recruitment, y = res, color = sex)) + geom_smooth() +
+  labs(x = "Age", y = "Circadian acceleration", color = "Sex") +
+  facet_grid(~chrono) +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_text(size = 8),
+        legend.position.inside = c(0.95, 0.95))
+
+ggsave("plots/FS_CA_chronotypes_agesex.png", ca_res, width = 10, height = 5)
+
+## associations
+
+m_0 <- tidy(lm(res ~ age_recruitment, data = data %>% filter(sex == "Female")))
+# term            estimate std.error statistic p.value
+# <chr>              <dbl>     <dbl>     <dbl>   <dbl>
+#   1 (Intercept)     -0.0816   0.0504       -1.62   0.106
+# 2 age_recruitment  0.00142  0.000881      1.61   0.107
+
+m_1 <- tidy(lm(res ~ age_recruitment, data = data %>% filter(sex == "Male")))
+# term            estimate std.error statistic p.value
+# <chr>              <dbl>     <dbl>     <dbl>   <dbl>
+#   1 (Intercept)      0.0704   0.0556        1.27   0.205
+# 2 age_recruitment -0.00121  0.000964     -1.26   0.209
+
+m_c <- tidy(lm(res ~ age_recruitment + sex*chrono, data = data))
+m_1_c <- tidy(lm(res ~ age_recruitment*chrono, data = data %>% filter(sex == "Male")))
 
 library(ggplot2)
 
@@ -222,20 +257,18 @@ my_render_cont <- function(x){
 }
 
 
-tab_desc <- table1::table1(~ age_recruitment + sex + TDI + bmi + smoking + chrono + h_sleep + wakeup + ever_insomnia + season + is_dst + shift_work + night_shift ,
+tab_desc <- table1::table1(~ age_recruitment + sex + TDI + bmi + smoking + season + is_weekend + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + shift_work + night_shift + chrono_Nightshift,
                            data = data,
-                           render.cont = my_render_cont)
+                           render.cont = my_render_cont, topclass="Rtable1-grid")
 
 
 # --- 1. Predictor list ---
 vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia",
-          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI")
+          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST", "chrono_Nightshift")
 
 #vars <- colnames(MH)[-1]
 
 covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:10))
-
-#data <- data %>% filter(eth == 1001)
 
 # --- 2. Fit models and extract results ---
 results <- map_dfr(vars, function(v) {

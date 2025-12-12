@@ -11,10 +11,10 @@ install.packages("broom")
 library(stringr)
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
-  filter(smoking != "-3") %>%
   mutate(bmi = weight/(height/100)^2,
          sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
+         assessment_centre = as.factor(assessment_centre)
   )
 
 pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
@@ -33,7 +33,7 @@ cohort <- meds %>%
   #slice(1:1000) %>%
   pivot_longer(-eid) %>%
   filter(!is.na(value)) %>%
-  left_join(X41467_2019_9572_MOESM3_ESM %>% select(Category, `Medication ATC code`, `Coding a`, `Drug name`), by = c("value" = "Coding a")) %>%
+  left_join(X41467_2019_9572_MOESM3_ESM_1_ %>% select(Category, `Medication ATC code`, `Coding a`, `Drug name`), by = c("value" = "Coding a")) %>%
   filter(str_detect(`Medication ATC code`, "N05C") | #sleep medication (sedatives and hypnotics)
            str_detect(`Medication ATC code`, "N03AG01") | # mood stabiliser
            str_detect(`Medication ATC code`, "N03AX09") |  # mood stabiliser
@@ -50,7 +50,7 @@ cohort <- meds %>%
            str_detect(`Medication ATC code`, "C08") | #CALCIUM CHANNEL BLOCKERS
            str_detect(`Medication ATC code`, "C03")) #C03 DIURETICS
 
-cohort_f<- cohort %>%
+cohort_f <- cohort %>%
   mutate(
     N05C = str_detect(`Medication ATC code`, "^N05C"),
     N05A = str_detect(`Medication ATC code`, "^N05A"),
@@ -60,34 +60,29 @@ cohort_f<- cohort %>%
   ) %>%
   group_by(eid) %>%
   summarise(
-    across(c(N05C,N05A, N03, N06, C0), ~ any(.x, na.rm = TRUE)),
+    across(c(N05C, N05A, N03, N06, C0), ~ any(.x, na.rm = TRUE)),
     .groups = "drop"
   )
 
-data <- readRDS("/mnt/project/biomarkers/time.rds") %>%
-  inner_join(readRDS("/mnt/project/olink_int_replication.rds") %>% select(-date_bsampling)) %>%
-  filter(!is.na(time_day)) %>%
+data <- readRDS("olink_internal_time_predictions.rds") %>%
   filter(i == 0) %>%
   left_join(covs) %>%
   left_join(pcs) %>%
-  rowwise() %>%
-  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
   left_join(cohort_f) %>%
   mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
-         antihypertensive = case_when(isTRUE(C0) ~ 1, is.na(C0) | isFALSE(C0) ~ 0),
-         sleep_medication = case_when(isTRUE(N05C) ~ 1, is.na(N05C) | isFALSE(N05C) ~ 0),
-         antidepressants = case_when(isTRUE(N06) ~ 1, is.na(N06) | isFALSE(N06) ~ 0),
-         mood_stabiliser = case_when(isTRUE(N03) ~ 1, is.na(N03) | isFALSE(N03) ~ 0),
-         lithium = case_when(isTRUE(N05A) ~ 1, is.na(N05A) | isFALSE(N05A) ~ 0),
+         antihypertensive = ifelse(!is.na(C0), as.integer(C0 == TRUE), 0),
+         sleep_medication = ifelse(!is.na(N05C), as.integer(N05C == TRUE), 0),
+         antidepressants = ifelse(!is.na(N06), as.integer(N06 == TRUE), 0),
+         mood_stabiliser = ifelse(!is.na(N03), as.integer(N03 == TRUE), 0),
+         lithium = ifelse(!is.na(N05A), as.integer(N05A == TRUE), 0),
          across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
 
 data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
 table(data$has_prescription)
 # 0     1
-# 34868 17678
+# 36222 17763
 
-data %>%
 
 vars <- c("has_prescription",
           "antihypertensive",
@@ -96,14 +91,14 @@ vars <- c("has_prescription",
           "mood_stabiliser",
           "lithium")
 
-covars <- c("sex", "age_recruitment", paste0("PC", 1:10))
+covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:10))
 
 results <- map_dfr(vars, function(v) {
   adj_vars <- if (v %in% c("sex", "age_recruitment")) paste0("PC", 1:10) else covars
 
   # Combine predictor + covariates safely
   rhs <- paste(c(v, adj_vars), collapse = " + ")
-  f <- as.formula(paste("abs(res) ~ ", rhs))
+  f <- as.formula(paste("res ~ ", rhs))
 
   fit <- lm(f, data = data)
 
@@ -122,7 +117,7 @@ results <- map_dfr(vars, function(v) {
     }
 })
 
-saveRDS(results, "data_share/results_associations_medication_CM.rds")
+saveRDS(results, "data_share/results_associations_medication_CA.rds")
 
 
 
@@ -142,6 +137,6 @@ my_render_cont <- function(x){
 
 tab_desc <- table1::table1(~ age_recruitment + sex + has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium,
                            data = data,
-                           render.cont = my_render_cont)
+                           render.cont = my_render_cont, topclass="Rtable1-grid")
 
 

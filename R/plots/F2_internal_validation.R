@@ -6,9 +6,9 @@ library(ggplot2)
 library(purrr)
 install.packages("lightgbm")
 library(lightgbm)
-remotes::install_version("xgboost", version = "1.5.2.1")
+install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
 install.packages("glmnet")
-
+library(xgboost)
 
 time_i0 <- readRDS("/mnt/project/biomarkers/time.rds") %>%
   filter(time_day >= 9 & time_day <= 20)
@@ -16,8 +16,6 @@ time_i0 <- readRDS("/mnt/project/biomarkers/time.rds") %>%
 ###
 
 lgb1 <- lightgbm::lgb.load("data_share/cv.i0_lightgbm_cv1.rds")
-
-data.table::fread("data_share/cv.finngen_xgb_cv1.rds")
 xgb <- xgboost::xgb.load("data_share/cv.finngen_xgb_cv1.rds")
 lasso <- readRDS("data_share/cv.i0_lasso_cv1.rds")
 lassox2 <- readRDS("data_share/cv.i0_lassox2_cv1.rds")
@@ -126,6 +124,15 @@ df <- preds_i0_olink %>% mutate(i = 0) %>%
   group_by(eid) %>% mutate(n = n())  %>% ungroup()
 
 saveRDS(df, "olink_int_replication.rds")
+
+
+# df <- preds_i0_olink %>% mutate(i = 0) %>%
+#   left_join(time_i0 %>% select(eid, date_bsampling)) %>%
+#   bind_rows(readRDS("/mnt/project/olink_int_replication.rds") %>% filter(i!= 0) %>%
+#               rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
+#               unnest())
+#
+# saveRDS(df, "olink_internal_time_predictions.rds")
 
 
 # MODELS NMR
