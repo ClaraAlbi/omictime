@@ -12,7 +12,7 @@ library(forcats)
 library(lubridate)
 library(ggh4x)
 
-pred <- readRDS("olink_internal_time_predictions.rds") %>%
+pred <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
   inner_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
   filter(i == 0) %>%
   filter(!is.na(time_day)) %>%
@@ -24,6 +24,11 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
          assessment_centre = as.factor(assessment_centre)
   )
+
+a <- data.table::fread("/mnt/project/ancestry_new.csv") %>%
+  mutate(p30079 = case_when(p30079 == "" ~ NA_character_,
+                            TRUE ~ p30079),
+         p30079 = relevel(as.factor(p30079), ref = "European ancestry (EUR)"))
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
@@ -158,20 +163,20 @@ df <- pred %>%
 
 data <- df %>%
   left_join(covs) %>%
+  left_join(a) %>%
   left_join(job_vars) %>%
   left_join(sleep) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
-  left_join(vars_join) #%>%
+  left_join(vars_join) %>%
   filter(age_recruitment > 40 & age_recruitment < 70)
 
 data$res <- residuals(lm(pred_mean ~ time_day + as.factor(assessment_centre), data = data))
 
 
-
-
 ### trials
-rs <- broom::tidy(lm(res ~ chrono_Nightshift + sex + age_recruitment + assessment_centre + PC1 +
+
+rs <- broom::tidy(lm(res ~ p30079 + sex + age_recruitment + assessment_centre + PC1 +
                        PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + season, data= data))
 
 ### chrono x night
@@ -257,18 +262,16 @@ my_render_cont <- function(x){
 }
 
 
-tab_desc <- table1::table1(~ age_recruitment + sex + TDI + bmi + smoking + season + is_weekend + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + shift_work + night_shift + chrono_Nightshift,
+tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + is_weekend + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + shift_work + night_shift + chrono_Nightshift,
                            data = data,
                            render.cont = my_render_cont, topclass="Rtable1-grid")
 
 
 # --- 1. Predictor list ---
-vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia",
+vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST", "chrono_Nightshift")
 
-#vars <- colnames(MH)[-1]
-
-covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:10))
+covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:20))
 
 # --- 2. Fit models and extract results ---
 results <- map_dfr(vars, function(v) {
@@ -303,7 +306,7 @@ saveRDS(results, "data_share/results_associations_phenotypes_CA.rds")
 
 
 
-vars <- c("age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia",
+vars <- c("age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI")
 
 covars <- c("sex", "age_recruitment", paste0("PC", 1:10))
