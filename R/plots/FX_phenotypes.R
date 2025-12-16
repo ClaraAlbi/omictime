@@ -304,12 +304,8 @@ saveRDS(results, "data_share/results_associations_phenotypes_CA.rds")
 
 ### PLOT PART
 
-
-
 vars <- c("age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI")
-
-covars <- c("sex", "age_recruitment", paste0("PC", 1:10))
 
 results <- bind_rows(readRDS("data_share/results_associations_phenotypes_CA.rds"),
                      readRDS("data_share/results_associations_medication_CA.rds") %>% filter(str_ends(term, "1")) %>%
@@ -351,7 +347,7 @@ term_order <- list(
   h_sleep = c("Normal (7-9h) (ref)", "Short (<7 h)", "Long (>9h)"),
   ever_insomnia = c("Never/rarely (ref)", "Sometimes", "Usually"),
   shift_work = c("Never/rarely (ref)", "Usually", "Always"),
-  night_shift = c("Never. (ref)", "Sometimes.", "Usually.", "Always."),
+  night_shift = c("Never (ref)", "Sometimes", "Usually", "Always"),
   has_prescription = c("Any"),
   antihypertensive = c("Antihypertensives"),
   antidepressants= c("Antidepressants"),
