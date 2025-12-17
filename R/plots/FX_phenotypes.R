@@ -125,7 +125,7 @@ df <- pred %>%
     ),
     season = factor(season, levels = c("Winter", "Spring", "Summer", "Fall")),
     day_of_week = factor(wday(date_bsampling, label = TRUE, week_start = 1), ordered = F),
-    day_of_week = relevel(day_of_week, ref = "Mon"),
+    day_of_week = relevel(day_of_week, ref = "Wed"),
     is_weekend = wday(date_bsampling, week_start = 1) == 6,
     day_type = if_else(is_weekend, "Weekend", "Weekday"),
     year = y
@@ -162,6 +162,10 @@ df <- pred %>%
   )
 
 
+olink <- readRDS("/mnt/project/circadian/results/models/res_olink_tech_14panels.rds")
+
+scaler <- train_scaler(as.matrix(olink %>% select(-eid)))
+X_train <- bind_cols(eid = olink$eid, apply_scaler(olink %>% select(-eid), scaler))
 
 data <- df %>%
   left_join(covs) %>%
@@ -172,10 +176,20 @@ data <- df %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
   left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
-  filter(age_recruitment > 40 & age_recruitment < 70)
+  filter(age_recruitment > 40 & age_recruitment < 70) %>%
+  left_join(X_train)
 
 data$res <- residuals(lm(pred_mean ~ time_day + as.factor(assessment_centre), data = data))
-data$resl <- residuals(lm(pred_lasso ~ time_day + as.factor(assessment_centre), data = data))
+data$resl <- residuals(lm(paste0("pred_lasso ~ time_day + ", paste0(ps, collapse = " + ")), data = data))
+
+p <- data %>%
+  filter(is_white == 1) %>%
+  filter(rel == 0)
+
+p %>% mutate(FID = eid) %>%
+  select(FID, eid, resl) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "phenotypes_prots.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 
 ### trials
@@ -272,7 +286,7 @@ tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smokin
 
 # --- 1. Predictor list ---
 vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079", #"rmeq_chronotype", "rmeq_score",
-          "is_weekend",
+          "is_weekend", "day_of_week",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST", "chrono_Nightshift")
 
 covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:20))
