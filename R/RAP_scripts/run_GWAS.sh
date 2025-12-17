@@ -8,7 +8,6 @@ for chr in {1..22}; do
     \$HOME/gcta64 --bgen \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.bgen\" \
                         --sample \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.sample\" \
                         --pheno phenotypes_prots.txt \
-#                        --mpheno 2 \
                         --qcovar qcovar.txt \
                         --covar covar.txt \
                         --fastGWA-mlm \
