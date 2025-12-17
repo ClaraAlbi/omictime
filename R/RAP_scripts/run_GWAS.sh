@@ -7,22 +7,22 @@ for chr in {1..22}; do
     cp gcta64 \$HOME/gcta64 && chmod +x \$HOME/gcta64
     \$HOME/gcta64 --bgen \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.bgen\" \
                         --sample \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.sample\" \
-                        --pheno phenotypes_prots.txt \
-                        --qcovar qcovar.txt \
+                        --pheno phenotypes.txt \
+                        --qcovar qcovar_prots.txt \
                         --covar covar.txt \
                         --fastGWA-mlm \
                         --extract ukbEURu_imp_all_v3_impQC_maf01.snpList \
                         --grm-sparse /mnt/project/grm/sp_grm_eur_OX \
                         --covar-maxlevel 110 \
-                        --out res_prots_chr${chr} \
+                        --out res_v3_chr${chr} \
                         --thread-num 8
     "
 
   dx run swiss-army-knife \
       -iin="gcta64" \
-      -iin="${project}:/phenotypes_prots.txt" \
+      -iin="${project}:/phenotypes.txt" \
       -iin="${project}:/covar.txt" \
-      -iin="${project}:/qcovar.txt" \
+      -iin="${project}:/qcovar_prots.txt" \
       -iin="${project}:/grm/ukbEURu_imp_all_v3_impQC_maf01.snpList" \
       -icmd="${run_gcta_fast_GWAS}" \
       --priority high \
