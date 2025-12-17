@@ -5,7 +5,7 @@ project="blood_biomarkers - Jul 01, 2024"
 for chr in {1..22}; do
   run_gcta_fast_GWAS="
     cp gcta64 \$HOME/gcta64 && chmod +x \$HOME/gcta64
-    \$HOME/gcta64 ---bgen \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.bgen\" \
+    \$HOME/gcta64 --bgen \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.bgen\" \
                         --sample \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.sample\" \
                         --pheno phenotypes.txt \
                         --mpheno 2 \
