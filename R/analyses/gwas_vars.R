@@ -11,13 +11,8 @@ rint <- function(x) {
   qnorm((ranks - 0.5) / n)
 }
 
-olink_cohort <- data.table::fread("/mnt/project/olink_instance_0.csv")
+olink_cohort <- readRDS("/mnt/project/circadian/results/models/res_olink_tech_14panels.rds")
 
-olink_cohort %>%
-  select(eid) %>%
-  mutate(IID = eid) %>%
-  rename(FID = eid) %>%
-  data.table::fwrite(., "olink_cohort.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 covs <- data.table::fread("/mnt/project/covariates.tsv") %>%
   mutate(across(c(2,3, 6, 7, 9), as.factor),
@@ -120,7 +115,7 @@ covs %>%
   left_join(gen_covs) %>%
   mutate(FID = eid) %>%
   select(FID, eid,  age_recruitment,contains("PC")) %>%
-  left_join(olink_cohort %>% select(eid, tnr, sema3f, spon2, spink5, relt, gdf15)) %>%
+  left_join(olink %>% select(eid, angpt1, tnr, sema3f, spon2, spink5, relt, gdf15, efna1)) %>%
   rename(IID = eid) %>%
   data.table::fwrite(., "qcovar_prots.txt", sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
