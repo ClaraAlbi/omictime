@@ -161,22 +161,26 @@ df <- pred %>%
     )
   )
 
+
+
 data <- df %>%
   left_join(covs) %>%
   left_join(a) %>%
   left_join(job_vars) %>%
   left_join(sleep) %>%
+  #left_join(sleep_new %>% select(eid, rmeq_score, rmeq_chronotype)) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
-  left_join(vars_join) %>%
+  left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
   filter(age_recruitment > 40 & age_recruitment < 70)
 
 data$res <- residuals(lm(pred_mean ~ time_day + as.factor(assessment_centre), data = data))
+data$resl <- residuals(lm(pred_lasso ~ time_day + as.factor(assessment_centre), data = data))
 
 
 ### trials
 
-rs <- broom::tidy(lm(res ~ p30079 + sex + age_recruitment + assessment_centre + PC1 +
+rs <- broom::tidy(lm(res ~ day_of_week + as.factor(y) + sex + age_recruitment + assessment_centre + PC1 +
                        PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + season, data= data))
 
 ### chrono x night
@@ -262,23 +266,23 @@ my_render_cont <- function(x){
 }
 
 
-tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + is_weekend + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + shift_work + night_shift + chrono_Nightshift,
+tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + is_weekend + day_of_week + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + rmeq_chronotype + rmeq_score + shift_work + night_shift + chrono_Nightshift,
                            data = data,
                            render.cont = my_render_cont, topclass="Rtable1-grid")
 
-
 # --- 1. Predictor list ---
-vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079",
+vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079", #"rmeq_chronotype", "rmeq_score",
+          "is_weekend",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST", "chrono_Nightshift")
 
 covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:20))
 
 # --- 2. Fit models and extract results ---
 results <- map_dfr(vars, function(v) {
-  adj_vars <- if (v %in% c("sex", "age_recruitment")) paste0("PC", 1:10) else covars
+  adj_vars <- if (v %in% c("sex", "age_recruitment")) paste0("PC", 1:20) else covars
 
   rhs <- paste(c(v, adj_vars), collapse = " + ")
-  f <- as.formula(paste("res ~", rhs))
+  f <- as.formula(paste("resl ~", rhs))
 
   fit <- lm(f, data = data)
 

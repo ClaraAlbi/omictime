@@ -32,16 +32,18 @@ gen_covs <- data.table::fread("/mnt/project/genetic_covs.tsv") %>%
 colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel", "batch")
 
 
-df <- readRDS("olink_internal_time_predictions.rds") %>%
+df <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
   filter(i == 0) %>%
-  select(eid, time_day, pred_mean) %>%
+  select(eid, time_day, pred_mean, pred_lasso) %>%
   left_join(gen_covs) %>%
   filter(is_white == 1) %>%
   filter(rel == 0)
 df$res <- residuals(lm(pred_mean ~ time_day, data = df))
+df$resl <- residuals(lm(pred_lasso ~ time_day, data = df))
 
-df %>% mutate(FID = eid, res_abs = abs(res)) %>%
-  select(FID, eid, res, res_abs) %>%
+
+df %>% mutate(FID = eid) %>%
+  select(FID, eid, res, resl) %>%
   rename(IID = eid) %>%
   data.table::fwrite(., "phenotypes.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 

@@ -135,7 +135,7 @@ ggplot(alluvial_data,
   labs(
     y = "Number of Participants"
   ) +
-  theme_minimal() +
+  theme_minimal(base_size = 16) +
   theme(legend.position = "none")
 
 
