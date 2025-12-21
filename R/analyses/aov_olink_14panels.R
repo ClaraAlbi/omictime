@@ -1,12 +1,11 @@
-# --- deps
 library(data.table)
 library(dplyr)
 library(tidyr)
 library(stringr)
 library(glue)
-library(broom)
+install.packages("broom")
 
-type <- "i0"
+type <- "olink_tech_14panels"
 
 # Rank-based inverse normal transform
 rint <- function(x) {
@@ -50,7 +49,7 @@ metadata <- data.table::fread("/mnt/project/olink_instance_0_meta.csv") %>%
   rename_with(~ str_remove(.x, " ")) %>%
   mutate(across(Cardiometabolic:OncologyII, factor), .keep = "all")
 
-prots <- readRDS("/mnt/project/olink_instance_0_QC.rds")
+prots <- readRDS("olink_instance_0_QC_14_panels.rds")
 
 stopifnot("eid" %in% names(prots))
 
@@ -93,16 +92,17 @@ drop_rare_levels <- function(df) {
   df
 }
 
-
-
 # Panel mapping: protein name -> panel column name
 prot_to_panel <- setNames(panel$Panel, panel$prot)
-panel_names   <- unique(panel$Panel)
+panel_names   <- unique(panel$Panel)[1:4]
 panel_names   <- panel_names[panel_names %in% names(metadata)]  # keep only those present in metadata
 
 # Fast access to metadata panel columns
 metadata_dt <- as.data.table(metadata)
 setkey(metadata_dt, eid)
+
+# Terms to exclude from regressions
+exclude_terms <- c("bmi", "smoking")
 
 # --- main pass (no batching)
 current_prots <- setdiff(names(prots), "eid")
@@ -142,39 +142,35 @@ for (k in seq_along(current_prots)) {
   # Drop rare levels for stable factors; and for panel_date specifically (>=50)
   d <- drop_rare_levels(d)
   if ("panel_date" %in% names(d)) {
-    lv <- names(which(table(d$panel_date) >= 50L))
+    lv <- names(which(table(d$panel_date) >= 30L))
     d$panel_date <- droplevels(d$panel_date[d$panel_date %in% lv])
   }
 
   # INT
   d$rint_b <- rint(d$raw)
 
-  # ----- ANOVA (explicit terms, plus sex:age interaction)
-  candidate_terms <- c("time_day","sex","age_recruitment","fasting",
+  # ----- ANOVA (explicit terms) -- EXCLUDING sex, age_recruitment, bmi, smoking
+  candidate_terms <- c("fasting", "sex", "age_recruitment",
                        "assessment_centre","month_attending", pcs,
-                       "Batch","ppp_sel","bmi","smoking","panel_date")
+                       "Batch","ppp_sel","panel_date")
+  # intersect with what is actually present in d
   present_terms <- intersect(candidate_terms, names(d))
 
-  # Build aov formula: (other terms) + sex*age_recruitment if both exist
-  interaction_ok <- all(c("sex","age_recruitment") %in% present_terms)
-  other_terms <- setdiff(present_terms, if (interaction_ok) c("sex","age_recruitment") else character(0))
-  rhs_terms <- if (interaction_ok) c(other_terms, "sex*age_recruitment") else other_terms
-  f_aov <- reformulate(rhs_terms, response = "rint_b")
+  f_aov <- reformulate(present_terms, response = "rint_b")
 
   mod_aov <- aov(f_aov, data = d)
   out_aov <- broom::tidy(mod_aov) %>%
     mutate(pr2 = sumsq / sum(sumsq), phen = var)
   l1[[k]] <- out_aov
 
-  # ----- Residualize OUTSIDE time_day, bmi, smoking (keep sex*age interaction)
-  rhs_res <- setdiff(present_terms, c("time_day","bmi","smoking"))
-  # Ensure interaction included if possible
-  if (interaction_ok && !all(c("sex","age_recruitment") %in% rhs_res)) {
-    rhs_res <- union(rhs_res, c("sex","age_recruitment"))
-  }
-  f_res <- reformulate(c(setdiff(rhs_res, c("sex","age_recruitment")),
-                         if (interaction_ok) "sex*age_recruitment"),
-                       response = "rint_b")
+  # ----- Residualize EXCLUDING sex, age_recruitment, bmi, smoking
+  rhs_res <- intersect(c("fasting", "sex", "age_recruitment",
+                         "assessment_centre","month_attending", pcs,
+                         "Batch","ppp_sel","panel_date"), names(d))
+  # remove excluded terms if any accidentally present (defensive)
+  rhs_res <- setdiff(rhs_res, exclude_terms)
+
+  f_res <- reformulate(rhs_res, response = "rint_b")
 
   m_res  <- lm(f_res, data = d, na.action = na.exclude)
   d$res_rint <- residuals(m_res)
