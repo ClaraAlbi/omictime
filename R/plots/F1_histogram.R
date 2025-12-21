@@ -30,8 +30,10 @@ p_hist <- time %>%
   coord_polar(start = 0) +
   labs(x = "Time of day", y = "N") +
   scale_x_continuous(limits = c(0, 24), breaks = 0:23) +
-  theme_minimal() +
+  theme_classic() +
   theme(text = element_text(size = 20),
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
         axis.text.y = element_text(size = 14),
         panel.grid.minor = element_blank())
 
