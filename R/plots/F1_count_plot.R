@@ -12,13 +12,13 @@ plot_data <- df_r2 %>%
   filter(pval < 0.05) %>%
   mutate(
     nt = case_when(
-    #pr2 > 0.10 ~ ">10",
-    pr2 >= 0.05 & pr2 <= 0.1 ~ "10-5%",
-    pr2 >= 0.01 & pr2 <= 0.05 ~ "5-1%",
-    pr2 >= 0.005 & pr2 <= 0.01 ~ "1-0.5%",
-    pr2 < 0.005 ~ "<0.5%"
+    #t_r2 > 0.10 ~ ">10",
+    t_r2 >= 0.05 & t_r2 < 0.2 ~ "[10-5%]",
+    t_r2 >= 0.01 & t_r2 < 0.05 ~ "(5-1%]",
+    t_r2 >= 0.005 & t_r2 < 0.01 ~ "(1-0.5%]",
+    t_r2 < 0.005 ~ "(0.5-0%]"
   ),
-  nt = fct_relevel(nt, "10-5%", "5-1%", "1-0.5%", "<0.5%")) %>%
+  nt = fct_relevel(nt, "[10-5%]", "(5-1%]", "(1-0.5%]", "(0.5-0%]")) %>%
   group_by(nt, type_clean, color_var) %>%
   summarise(n = n(), .groups = "drop") %>%
   group_by(type_clean, color_var) %>%
@@ -86,10 +86,10 @@ plot_bars_h <- plot_data2 %>%
   paletteer::scale_fill_paletteer_d("LaCroixColoR::Pamplemousse") +
   #guides(fill = guide_legend(ncol = 1, byrow = TRUE)) +
 
-  theme_minimal() +
+  theme_classic() +
   theme(
-    # **zero** space between panels
-    #panel.spacing   = unit(0, "lines"),
+    axis.ticks = element_blank(),
+    axis.line = element_blank(),
 
     strip.placement  = "inside",
     strip.background = element_blank(),
@@ -111,35 +111,52 @@ plot_bars_h <- plot_data2 %>%
 ggsave("plots/plot_vars_v.png", plot_bars_h, height = 6, width = 8)
 
 
-
 df_r2 %>%
-  filter(term == "time_day") %>%
+  filter(term != "Residuals") %>%
+  filter(term %in% c("sex", "time_day", "fasting", "age_recruitment", "assessment_centre", "bmi", "smoking")) %>%
+  group_by(term) %>%
   mutate(pval = p.adjust(p.value)) %>%
   summarise(prop = sum(pval < 0.05)/n(), n_sig = sum(pval < 0.05), n = n())
 
+df_r2 %>%
+  filter(term != "Residuals") %>%
+  filter(term %in% c("time_day")) %>%
+  mutate(pval = p.adjust(p.value)) %>%
+  group_by(type_clean) %>%
+  mutate(pval = p.adjust(p.value)) %>%
+  summarise(prop = sum(pval < 0.05)/n(), n_sig = sum(pval < 0.05), n = n())
+
+
 # TIME IS THE TOP
 max_vs <- df_r2 %>%
+  filter(term != 'Residuals') %>%
   group_by(phen, title, type) %>%
-  slice_max(order_by = pr2, n = 1, with_ties = FALSE) %>%
+  slice_max(order_by = t_r2, n = 1, with_ties = FALSE) %>%
   ungroup() %>%
-  select(phen, title, term, type_clean, pr2) %>%
-  filter(pr2 > 0.01) %>%
+  select(phen, title, term, type_clean, t_r2) %>%
+  filter(t_r2 > 0.01) %>% count(term) %>% arrange(desc(n))
   filter(term == "time_day")
 
+AVG_vs <- df_r2 %>%
+    filter(term != 'Residuals') %>%
+    group_by(term) %>%
+  summarise(mean_r2 = mean(t_r2), n = n()) %>%
+  arrange(desc(mean_r2))
+
 max_vs %>% filter(type_clean == "Proteins") %>%
-  arrange(desc(pr2)) %>% pull(title) %>% toupper() %>% paste0(collapse = ", ")
+  arrange(desc(t_r2)) %>% pull(title) %>% toupper() %>% paste0(collapse = ", ")
 
 
 max_vs %>% filter(type_clean == "Metabolites") %>%
-  arrange(desc(pr2)) %>% pull(title) %>% paste0(collapse = ", ")
+  arrange(desc(t_r2)) %>% pull(title) %>% paste0(collapse = ", ")
 
 max_vs %>% filter(type_clean == "Cell counts") %>%
-  arrange(desc(pr2)) %>% pull(title) %>% paste0(collapse = ", ")
+  arrange(desc(t_r2)) %>% pull(title) %>% paste0(collapse = ", ")
 
 # TOP
 df_r2 %>%
   filter(term == "time_day") %>%
-  filter(pr2 > 0.01)
+  filter(t_r2 > 0.01)
 
 
 

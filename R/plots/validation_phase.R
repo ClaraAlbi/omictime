@@ -228,7 +228,9 @@ ggsave("plots/validation_harmonic_Specht.png", p1, width = 12, height = 6)
 ### Rebecca
 
 ref <- data.table::fread("~/OneDrive - Nexus365/projects/circadian/clara_results_top19.csv") %>%
-  inner_join(df_effects, by = c("Assay" = "title"))
+  inner_join(df_effects, by = c("Assay" = "title")) %>%
+  mutate(acrophase_hr = case_when(acrophase_24hfreq > 20 & acrophase_hr < 4 ~ acrophase_hr + 24,
+                                  TRUE ~ acrophase_hr))
 
 cor.test(ref$acrophase_24hfreq, ref$acrophase_hr)
 
@@ -249,54 +251,74 @@ p_olink <- ref %>%
     label = Assay
   )) +
   geom_abline(linetype = "dashed", color = "grey50") +
-  geom_point(size = 2) +
-  ggrepel::geom_text_repel(size = 5) +
+  geom_point(size = 0.2) +
+  #ggrepel::geom_text_repel(size = 2, max.overlaps = 20) +
+  ggrepel::geom_label_repel(min.segment.length = 0,
+                            fill        = alpha("white", 0.3),
+                            size        = 3,
+                            label.padding = 0.1,
+                            box.padding = 0.1,
+                            label.size  = 0.1,
+                            show.legend = FALSE,
+                            max.overlaps = 40
+  ) +
   scale_y_continuous(
-    "Acrophase from >24h data",
+    "TREASURE acrophase",
     breaks = seq(0, 24, by = 4),
-    limits = c(0, 24),
+    limits = c(0, 28),
     expand = c(0, 0)
   ) +
   scale_x_continuous(
-    "Acrophase from UKB 9am-8pm data",
+    "UKB acrophase",
     breaks = seq(0, 24, by = 4),
     limits = c(0, 24),
     expand = c(0, 0)
   ) +
   coord_fixed() +
-  theme_minimal(base_size = 18) +
-  theme(
+  theme_classic(base_size = 12) +
+  theme(axis.title = element_text(size = 10),
     legend.position = "right",
     panel.grid.minor = element_blank()
   )
+ggsave("plots/acrophase_validation.png", p_olink, width = 4, height = 4)
 
-
-a_olink <- df_effects %>%
-  inner_join(ref, by = c("title" ="Assay")) %>%
+a_olink <- ref %>%
   ggplot(aes(
     x     = amplitude_24hfreq,
     y     = amplitude,
-    label = title
+    label = Assay
   )) +
   geom_abline(linetype = "dashed", color = "grey50") +
-  geom_point(size = 2) +
-  ggrepel::geom_text_repel(size = 5) +
+  geom_point(size = 0.2) +
+  #ggrepel::geom_text_repel(size = 2, max.overlaps = 20) +
+  ggrepel::geom_label_repel(min.segment.length = 0,
+                            fill        = alpha("white", 0.3),
+                            size        = 3,
+                            label.padding = 0.1,
+                            box.padding = 0.1,
+                            label.size  = 0.1,
+                            show.legend = FALSE,
+                            max.overlaps = 40
+  ) +
   scale_y_continuous(
-    "Amplitude from >24h data", limits = c(0, 0.6)
+    "TREASURE amplitude",
+    #breaks = seq(0, 24, by = 4),
+    limits = c(0, 0.7),
+    expand = c(0, 0)
   ) +
   scale_x_continuous(
-    "Amplitude from UKB 9am-8pm data", limits = c(0, 0.6)
+    "UKB amplitude",
+    limits = c(0, 0.7),
+    expand = c(0, 0)
   ) +
   coord_fixed() +
-  theme_minimal(base_size = 18) +
-  theme(
-    legend.position = "right",
-    panel.grid.minor = element_blank()
+  theme_classic(base_size = 12) +
+  theme(axis.title = element_text(size = 10),
+        legend.position = "right",
+        panel.grid.minor = element_blank()
   )
 
-p2 <- cowplot::plot_grid(p_olink, a_olink, ncol = 2, labels = "AUTO")
-
-ggsave("plots/validation_harmonic_olink.png", p2, width = 12, height = 6)
+ggsave("plots/amplitude_validation.png", a_olink, width = 4, height = 4)
 
 
 ### Calculate correlation

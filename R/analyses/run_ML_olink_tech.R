@@ -9,8 +9,6 @@ library(glmnet)
 
 type <- "olink_tech"
 
-# ---- load data
-# DO NOT scale across full data (leakage). We'll scale inside each train fold.
 data_all <- readRDS("/mnt/project/res_olink_tech.rds")
 stopifnot(all(c("eid") %in% names(data_all)))
 

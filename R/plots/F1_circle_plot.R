@@ -52,52 +52,46 @@ plot_round <- labes %>%
   geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
             fill = "lightblue", alpha = 0.2, inherit.aes = FALSE) +
   geom_hline(yintercept = 0.3, linetype = 2, color = "darkgray") +
-  #geom_col(aes(fill = type.x), alpha = 0.2) +
-  geom_point(size = 0.5, alpha = 0.6) +
+  geom_point(size = 0.2, alpha = 0.2) +
   ggrepel::geom_label_repel(min.segment.length = 0,
-    data        = subset(labes, amplitude_24hfreq > 0.3),
+    data        = subset(labes, amplitude_24hfreq > 0.3 | t_r2 > 0.03),
     aes(label   = title, color = type_clean),
-    fill        = alpha("white", 0.3),  # only the box is 50% transparent
+    fill        = alpha("white", 0.7),
     size        = 3,
+    label.padding = 0.1,
+    box.padding = 0.25,
     label.size  = 0.1,
     show.legend = FALSE,
-    max.overlaps = 20
+    max.overlaps = 50
   ) +
-  coord_polar(start = 0) +
+  coord_polar(start = 0, clip = "off") +
   labs(x = "Acrophase", y = "Amplitude") +
-  scale_x_continuous(limits = c(0, 24), breaks = 0:23) +
+  scale_x_continuous(limits = c(0, 24), breaks = 0:23,
+                     expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
   scale_color_manual(
     name   = "Data type",
     values = c(
       "Proteins"  = "#76B041",
       "Metabolites"  = "#2374AB",
-      "Cell counts"       = "#8F3985",
-      "Biochemistry"      = "#E85F5C"
+      "Cell counts" = "#8F3985",
+      "Biochemistry" = "#E85F5C"
     )
   ) +
-  guides(
-    color = guide_legend(
-      override.aes = list(
-        shape = 15,
-        size  = 8
-      ), nrow = 1, byrow = TRUE,
-    )
-  ) +
-  theme_minimal() +
-  theme(legend.position = "bottom", legend.direction = "horizontal", legend.title = element_blank(),
-        text = element_text(size = 12))
+  theme_classic() +
+  theme(text = element_text(size = 12),
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_text(size = 10),
+        axis.title.x = element_text(margin = margin(t = 0, 0, 0, 0), vjust = 5),
+        legend.position = "none",
+        legend.title = element_blank(),
+        plot.margin = margin(0,0,0,0))
 
 ggsave("plots/plot_harmonic.png", plot_round, width = 6, height = 7)
 
+pf <- cowplot::plot_grid(plot_round, p_olink, ncol = 2,
+                   rel_widths = c(1, 1), rel_heights = c(1, 1),
+                   align = "hv", labels = c("A", "B"))
 
-legend_grob <- get_legend(plot_round)
 
-
-legend_plot <- as_ggplot(legend_grob)
-
-ggsave(
-  filename = "plots/legend_only.png",
-  plot     = legend_plot,
-  width    = 6,
-  height   = 1.5
-  )

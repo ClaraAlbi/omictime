@@ -69,13 +69,13 @@ df_lab <- df_plot %>%
   group_by(facet_html, title) %>%
   summarise(
     x_end    = sum(t_r2, na.rm = TRUE),
-    time_var = dplyr::first(time_var),    # common per bar
+    time_var = dplyr::first(time_var),
     .groups  = "drop"
   ) %>%
   filter(!is.na(time_var)) %>%
   mutate(
-    label = paste0(scales::number(time_var, accuracy = 1), "%"),
-    x_lab =  0.01                   # nudge to the right (2%)
+    label = paste0(time_var, "%"),
+    x_lab =  0.01
   )
 plot_bars_v <- ggplot(df_plot, aes(y = title, x = t_r2, fill = model)) +
   geom_col(width = 1) +
@@ -89,8 +89,10 @@ plot_bars_v <- ggplot(df_plot, aes(y = title, x = t_r2, fill = model)) +
   scale_fill_paletteer_d("rcartocolor::Temps") +
   labs(fill = "Covariate", y = "", x = "R2") +
   guides(fill = guide_legend(reverse = TRUE, ncol = 3)) +
-  theme_minimal() +
+  theme_classic() +
   theme(legend.position = "bottom",
+        axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
         axis.text.y = element_blank(),
         axis.text.x = element_text(size = 10),
         strip.background = element_blank(),
