@@ -57,7 +57,6 @@ all_v <- bioquem_cov %>%
   filter(time_day >= 9 & time_day <= 20)
 
 
-#### MAKE TRANS FOR EACH BIOMARK INDIVIDUALLY
 l2 <- list()
 l3 <- list()
 

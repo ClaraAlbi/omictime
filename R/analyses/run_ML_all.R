@@ -6,16 +6,13 @@ library(Matrix)
 library(lightgbm)
 library(xgboost)
 library(glmnet)
-library(bit64)
 
-type <- "all"
+type <- "all_tech"
 
-# ---- load data
-# DO NOT scale across full data (leakage). We'll scale inside each train fold.
-data_all <- readRDS("/mnt/project/biomarkers_3/covariate_res/OLINK/res_olink.rds") %>%
-  inner_join(readRDS("/mnt/project/biomarkers_3/covariate_res/res_nmr.rds")) %>%
-  inner_join(readRDS("/mnt/project/biomarkers_3/covariate_res/res_labs.rds")) %>%
-  inner_join(readRDS("/mnt/project/biomarkers_3/covariate_res/res_counts.rds"))
+data_all <- readRDS("/mnt/project/biomarkers_res/res_olink_tech.rds") %>%
+  inner_join(readRDS("/mnt/project/biomarkers_res/res_nmr_tech.rds")) %>%
+  inner_join(readRDS("/mnt/project/biomarkers_res/res_labs_tech.rds")) %>%
+  inner_join(readRDS("/mnt/project/biomarkers_res/res_counts_tech.rds"))
 stopifnot(all(c("eid") %in% names(data_all)))
 
 col_na_counts <- colSums(is.na(data_all))/nrow(data_all)
