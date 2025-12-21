@@ -64,14 +64,14 @@ data.table::fwrite(variance_table, "tables/ST_time_variances.csv", row.names = F
 
 #### EFFECTS
 
-df_effects <- bind_rows(readRDS("data/effects_labs.rds") %>% mutate(type = "Biochemistry") %>%
+df_effects <- bind_rows(readRDS("data_share/effects_labs_tech.rds") %>% mutate(type = "Biochemistry") %>%
                           left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
-                        readRDS("data/effects_counts.rds") %>% mutate(type = "Cell_counts") %>%
+                        readRDS("data_share/effects_counts_tech.rds") %>% mutate(type = "Cell_counts") %>%
                           left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
-                        readRDS("data/effects_nmr.rds") %>% mutate(type = "Metabolomics-NMR") %>%
+                        readRDS("data_share/effects_nmr_tech.rds") %>% mutate(type = "Metabolomics-NMR") %>%
                           left_join(fields %>% select(field_id, title), by = c("phen" = "field_id"))) %>%
   mutate(phen = as.character(phen)) %>%
-  bind_rows(readRDS("data/effects_olink.rds") %>% mutate(type = "Proteomics-Olink") %>%
+  bind_rows(readRDS("data_share/effects_olink_tech.rds") %>% mutate(type = "Proteomics-Olink") %>%
               mutate(title = toupper(phen))
   ) %>%
   mutate(color_var = case_when(type == "Proteomics-Olink" ~ "#76B041",
@@ -98,7 +98,7 @@ df_effects <- bind_rows(readRDS("data/effects_labs.rds") %>% mutate(type = "Bioc
          q = as.integer(round(acrophase_24hfreq, 0)),
          pvalue_h = pmin(p.value_beta_cos1, p.value_beta_sin1, na.rm = TRUE))
 
-saveRDS(df_effects, "data/combined_effects.rds")
+saveRDS(df_effects, "data/combined_effects_tech.rds")
 
 
 effects_table <- df_effects %>%
@@ -112,5 +112,5 @@ effects_table <- df_effects %>%
          across(contains("value"), ~sprintf("%.1g", .x)))
 
 
-data.table::fwrite(effects_table, "tables/ST_time_effects.csv", row.names = F)
+data.table::fwrite(effects_table, "tables/ST_time_effects_tech.csv", row.names = F)
 
