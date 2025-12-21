@@ -54,7 +54,7 @@ all_v <- bioquem_cov %>%
          bmi,
          batch
   ) %>%
-  filter(time_day >= 8 & time_day <= 20)
+  filter(time_day >= 9 & time_day <= 20)
 
 
 #### MAKE TRANS FOR EACH BIOMARK INDIVIDUALLY
