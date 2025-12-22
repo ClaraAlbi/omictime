@@ -12,9 +12,39 @@ df_effects <- readRDS("data/combined_effects.rds") %>%
 
 # Count how many overnight
 df_effects %>%
-  filter(acrophase_24hfreq < 9 & acrophase_24hfreq > 3) %>%
+  filter(acrophase_24hfreq < 9 | acrophase_24hfreq > 20) %>%
   count()
 
+df_effects %>%
+  filter(acrophase_24hfreq < 8 & acrophase_24hfreq > 0) %>%
+  group_by(type_clean) %>%
+  summarise(m = mean(acrophase_24hfreq),
+            msd = sd(acrophase_24hfreq),
+            n = n())
+
+rats <- df_effects %>%
+  #filter(amplitude_24hfreq > 0.3) %>%
+  #mutate(t = round(acrophase_24hfreq, 0)) %>%
+  #group_by(t, type_clean) %>% count() %>% ungroup() %>%
+  #group_by(type_clean) %>% mutate(total = sum(n)) %>%
+  #ggplot(aes(x = t, y = n/total, color = type_clean)) + geom_smooth() +
+  ggplot(aes(x = acrophase_24hfreq, color = type_clean)) + geom_density() +
+  #facet_grid(~type_clean) +
+  labs(x = "Time of day", y = "Density") +
+  scale_color_manual(
+    name   = "Data type",
+    values = c(
+      "Proteins"  = "#76B041",
+      "Metabolites"  = "#2374AB",
+      "Cell counts" = "#8F3985",
+      "Biochemistry" = "#E85F5C"
+    )
+  ) +
+  scale_x_continuous(limits = c(0, 24)) +
+  scale_y_continuous(limits = c(0.00, 0.2)) +
+  theme_classic()
+
+ggsave("plots/F2S_density_datatype.png", rats, width = 8, height = 6)
 
 
 df_r2 <- readRDS("data/combined_variance.rds") %>%
@@ -42,6 +72,7 @@ df_pha <- readxl::read_xlsx("data/1-s2.0-S2352721823002401-mmc1.xlsx", skip = 1)
       select(Gene, acrophase_24hfreq, phen, type_clean, color_var, title, amplitude_24hfreq),
     by = "Gene"
   )
+length(unique(df_pha$Gene))
 
 
 p_pha <- df_pha %>%
