@@ -1,5 +1,7 @@
 library(tidyverse)
 library(paletteer)
+#install.packages('ggpmisc')
+library(ggpmisc)
 
 fields <- data.table::fread("data/field.tsv")
 
@@ -232,9 +234,9 @@ ref <- data.table::fread("~/OneDrive - Nexus365/projects/circadian/clara_results
   mutate(acrophase_hr = case_when(acrophase_24hfreq > 20 & acrophase_hr < 4 ~ acrophase_hr + 24,
                                   TRUE ~ acrophase_hr))
 
-cor.test(ref$acrophase_24hfreq, ref$acrophase_hr)
+t <- cor.test(ref$acrophase_24hfreq, ref$acrophase_hr, method = "pearson")
 
-cor.test(ref$amplitude_24hfreq, ref$amplitude)
+cor.test(ref$amplitude_24hfreq, ref$amplitude, method = "pearson")
 
 t1 <- to_rad(ref$acrophase_24hfreq)
 t2 <- to_rad(ref$acrophase_hr)
@@ -252,6 +254,11 @@ p_olink <- ref %>%
   )) +
   geom_abline(linetype = "dashed", color = "grey50") +
   geom_point(size = 0.2) +
+  stat_correlation(
+    method = "pearson",
+    aes(label = paste(after_stat(r.label), after_stat(p.value.label), sep = "*\", \"*")),
+    parse = TRUE
+  ) +
   #ggrepel::geom_text_repel(size = 2, max.overlaps = 20) +
   ggrepel::geom_label_repel(min.segment.length = 0,
                             fill        = alpha("white", 0.3),
@@ -274,13 +281,14 @@ p_olink <- ref %>%
     limits = c(0, 24),
     expand = c(0, 0)
   ) +
+  ggtitle("Correlation with external 24h dataset") +
   coord_fixed() +
   theme_classic(base_size = 12) +
   theme(axis.title = element_text(size = 10),
     legend.position = "right",
     panel.grid.minor = element_blank()
   )
-ggsave("plots/acrophase_validation.png", p_olink, width = 4, height = 4)
+ggsave("plots/acrophase_validation.png", p_olink, width = 4, height = 4.5)
 
 a_olink <- ref %>%
   ggplot(aes(
