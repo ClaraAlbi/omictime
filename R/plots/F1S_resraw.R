@@ -10,7 +10,7 @@ install.packages("ggtext")
 
 time <- readRDS("/mnt/project/biomarkers/time.rds")
 
-fields <- data.table::fread("field.tsv")
+fields <- data.table::fread("/mnt/project/Showcase metadata/field.tsv")
 
 df_r2 <- bind_rows(readRDS("/mnt/project/biomarkers_3/covariate_res/aov_labs.rds") %>% mutate(type = "Biochemistry") %>%
                      left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
@@ -95,7 +95,7 @@ res <- prot_res %>%
   pivot_longer(c(-eid, -time_day), names_to = "phen")
 
 
-pl_res<- res %>%
+pl_raw<- raw %>%
   group_by(t = round(time_day, 0), phen) %>%
   summarise(
     n        = n(),               # sample size
@@ -130,8 +130,8 @@ pl_res<- res %>%
       ), nrow = 2, byrow = TRUE
     )
   ) +
-  theme_minimal() +
-  ggtitle("Residualised values") +
+  theme_classic() +
+  ggtitle("Raw values") +
   facet_wrap(~facet_html, scales = "free", ncol = 4) +
   theme(text = element_text(size = 14),
         strip.text = ggtext::element_markdown(size = 14, hjust = 0),
@@ -140,4 +140,4 @@ pl_res<- res %>%
         title = element_text(size = 18), legend.text = element_text(size = 16))
 
 ggsave(plot = pl_raw, filename =  "plots/F1S_raw.png", height = 18, width = 15)
-ggsave(plot = pl_res, filename =  "plots/F1S_res.png", height = 12, width = 15)
+ggsave(plot = pl_res, filename =  "plots/F1S_res.png", height = 18, width = 15)
