@@ -1,5 +1,3 @@
-
-
 library(tidyr)
 library(dplyr)
 library(glue)
@@ -12,7 +10,7 @@ time <- readRDS("/mnt/project/biomarkers/time.rds")
 
 fields <- data.table::fread("/mnt/project/Showcase metadata/field.tsv")
 
-df_r2 <- bind_rows(readRDS("/mnt/project/biomarkers_3/covariate_res/aov_labs.rds") %>% mutate(type = "Biochemistry") %>%
+df_r2 <- bind_rows(readRDS("/mnt/project/biomarkers_3/covariate_res/aov_lab") %>% mutate(type = "Biochemistry") %>%
                      left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
                    readRDS("/mnt/project/biomarkers_3/covariate_res/aov_counts.rds") %>% mutate(type = "Cell_counts") %>%
                      left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
@@ -35,38 +33,32 @@ df_r2 <- bind_rows(readRDS("/mnt/project/biomarkers_3/covariate_res/aov_labs.rds
                            TRUE ~ title)) %>%
   filter(term == "time_day")
 
-df_top <- df_r2 %>%
-  group_by(type, phen) %>%
-  filter(any(p.value < 0.05)) %>%
-  ungroup() %>%
-  distinct(phen, .keep_all = TRUE) %>%
-  arrange(desc(pr2)) %>%
-  slice_head(n = 30) %>%
-  select(phen) %>%
-  inner_join(df_r2, by = "phen") %>%
-  filter(term != "Residuals") %>%
-  group_by(phen, color_var, type, title) %>%
-  summarise(t_r2 = sum(pr2))
+df_top <- c("angptl1" , "23476" ,   "23471",    "30120" ,   "23465",    "spon2" ,   "30810" ,
+            "30000"   , "hs3st3b1" ,"23477"  ,  "23644"    ,"tmprss15", "c1qtnf5" , "ctse"    ,
+            "23630"  ,  "hyal1" ,   "ppy"  ,    "actn2"   , "fam3b"  ,  "tnr" ,     "muc13"  ,
+             "pgf"  ,    "plat"   ,  "fas"   ,   "pla2g10" , "mybpc1"  , "spink5"   ,"23645"   ,
+             "agrp"   ,  "23629")
 
-facet_levels <- df_top %>%
-  arrange(desc(t_r2)) %>%
+facet_levels <- df_r2 %>%
+  filter(phen %in% df_top) %>%
+  arrange(desc(pr2)) %>%
   # recreate the exact HTML string you’ll use below
   mutate(f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title)) %>%
   pull(f_html)
 
 prot <- readRDS("/mnt/project/biomarkers_3/covariate_res/raw_olink.rds") %>%
-  select(eid, any_of(df_top$title))
+  select(eid, any_of(df_top))
 
 cells <- readRDS("/mnt/project/biomarkers_3/covariate_res/raw_counts.rds") %>%
-  select(eid, any_of(df_top$phen)) %>%
+  select(eid, any_of(df_top)) %>%
   filter(eid %in% prot$eid)
 
 nmr <- readRDS("/mnt/project/biomarkers_3/covariate_res/raw_nmr.rds") %>%
-  select(eid, any_of(df_top$phen)) %>%
+  select(eid, any_of(df_top)) %>%
   filter(eid %in% prot$eid)
 
 bio <- readRDS("/mnt/project/biomarkers_3/covariate_res/raw_labs.rds") %>%
-  select(eid, any_of(df_top$phen)) %>%
+  select(eid, any_of(df_top)) %>%
   filter(eid %in% prot$eid)
 
 raw <- prot %>%
@@ -75,18 +67,18 @@ raw <- prot %>%
   pivot_longer(c(-eid, -time_day), names_to = "phen")
 
 prot_res <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_olink.rds") %>%
-  select(eid, any_of(df_top$title))
+  select(eid, any_of(df_top))
 
 cells_res <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_counts.rds") %>%
-  select(eid, any_of(df_top$phen)) %>%
+  select(eid, any_of(df_top)) %>%
   filter(eid %in% prot$eid)
 
 nmr_res <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_nmr.rds") %>%
-  select(eid, any_of(df_top$phen)) %>%
+  select(eid, any_of(df_top)) %>%
   filter(eid %in% prot$eid)
 
 bio_res <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_labs.rds") %>%
-  select(eid, any_of(df_top$phen)) %>%
+  select(eid, any_of(df_top)) %>%
   filter(eid %in% prot$eid)
 
 res <- prot_res %>%
@@ -95,7 +87,7 @@ res <- prot_res %>%
   pivot_longer(c(-eid, -time_day), names_to = "phen")
 
 
-pl_raw<- raw %>%
+pl_res<- res %>%
   group_by(t = round(time_day, 0), phen) %>%
   summarise(
     n        = n(),               # sample size
