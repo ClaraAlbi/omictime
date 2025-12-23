@@ -6,8 +6,7 @@ library(ggplot2)
 library(purrr)
 install.packages("lightgbm")
 library(lightgbm)
-install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
-install.packages("glmnet")
+install.packages('xgboost')
 library(xgboost)
 
 time_i0 <- readRDS("/mnt/project/biomarkers/time.rds") %>%
@@ -15,17 +14,17 @@ time_i0 <- readRDS("/mnt/project/biomarkers/time.rds") %>%
 
 ###
 
-lgb1 <- lightgbm::lgb.load("data_share/cv.i0_lightgbm_cv1.rds")
-xgb <- xgboost::xgb.load("data_share/cv.finngen_xgb_cv1.rds")
-lasso <- readRDS("data_share/cv.i0_lasso_cv1.rds")
-lassox2 <- readRDS("data_share/cv.i0_lassox2_cv1.rds")
+lgb1 <- lightgbm::lgb.load("/mnt/project/biomarkers_res/cv.olink_14_lightgbm_cv1.lgb")
+xgb <- xgboost::xgb.load("cv.olink_14_xgb_cv1.ubj")
+lasso <- readRDS("/mnt/project/biomarkers_res/cv.olink_14_lasso_cv1.rds")
+lassox2 <- readRDS("/mnt/project/biomarkers_res/cv.olink_14_lassox2_cv1.rds")
 
 ### PREDS i0
 
-l <- c(list.files("/mnt/project/circadian/results/models",
+l <- c(list.files("/mnt/project/biomarkers_res",
                   pattern = "predictions", full.names = TRUE))
 
-preds_i0_olink <- tibble(f = l[str_detect(l, "tech_14")]) %>%
+preds_i0_olink <- tibble(f = l[str_detect(l, "14")]) %>%
   mutate(d = map(f, readRDS)) %>%
   unnest(d) %>%
   rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
@@ -34,7 +33,7 @@ preds_i0_olink <- tibble(f = l[str_detect(l, "tech_14")]) %>%
 ### validation
 
 i2_data <- data.table::fread("/mnt/project/OLINK_i2.tsv") %>%
-  select(eid, any_of(readRDS("data_share/olink_panels_1to4_over.rds"))) %>%
+  select(eid, any_of(lasso$glmnet.fit$beta@Dimnames[[1]])) %>%
   mutate(across(-eid, ~scale(.x)[,1]))
 
 row_na_counts <- rowSums(is.na(i2_data))
@@ -62,7 +61,9 @@ preds_i2 <- tibble(eid = i2_meta$eid[match(i2_data$eid, i2_meta$eid)],
                    pred_xgboost = predict(xgb, as.matrix(i2_data %>% select(-eid))),
                    pred_lasso = predict(lasso, i2_imp)[,1],
                    pred_lassox2 = predict(lassox2, i2_imp_x2)[,1]) %>%
-  left_join(i2_meta %>% select(eid, time_day, date_bsampling))
+  left_join(i2_meta %>% select(eid, time_day, date_bsampling)) %>%
+  rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
+  unnest()
 
 out_i2 <- preds_i2 %>%
   pivot_longer(-c(eid, y_test, time_day, date_bsampling)) %>%
@@ -77,7 +78,7 @@ out_i2 <- preds_i2 %>%
 
 # i3
 i3_data <- data.table::fread("/mnt/project/OLINK_i3.tsv") %>%
-  select(eid, any_of(readRDS("data_share/olink_panels_1to4_over.rds"))) %>%
+  select(eid, any_of(lasso$glmnet.fit$beta@Dimnames[[1]])) %>%
   mutate(across(-eid, ~scale(.x)[,1]))
 
 row_na_counts <- rowSums(is.na(i3_data))
@@ -105,7 +106,9 @@ preds_i3 <- tibble(eid = i3_meta$eid[match(i3_data$eid, i3_meta$eid)],
                    pred_xgboost = predict(xgb, as.matrix(i3_data %>% select(-eid))),
                    pred_lasso = predict(lasso, i3_imp)[,1],
                    pred_lassox2 = predict(lassox2, i3_imp_x2)[,1]) %>%
-  left_join(i3_meta %>% select(eid, time_day, date_bsampling))
+  left_join(i3_meta %>% select(eid, time_day, date_bsampling)) %>%
+  rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
+  unnest()
 
 out_i3 <- preds_i3 %>%
   pivot_longer(-c(eid, y_test, time_day, date_bsampling)) %>%
@@ -123,7 +126,7 @@ df <- preds_i0_olink %>% mutate(i = 0) %>%
   bind_rows(preds_i3 %>% mutate(i = 3)  %>% select(-y_test)) %>%
   group_by(eid) %>% mutate(n = n())  %>% ungroup()
 
-saveRDS(df, "olink_int_replication.rds")
+saveRDS(df, "olink_int_replication_v2.rds")
 
 
 # df <- preds_i0_olink %>% mutate(i = 0) %>%

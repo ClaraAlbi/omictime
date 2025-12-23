@@ -7,7 +7,7 @@ install.packages("ggpmisc")
 library(cowplot)
 library(ggplot2)
 
-df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
+df <- readRDS("olink_int_replication_v2.rds") %>%
   filter(!is.na(time_day)) %>%
   mutate(i = case_when(i == 0  ~ "i0: Initial assessment \n(2006-2010)",
                        i == 2  ~ "i2: Imaging \n(2014+)",
@@ -47,8 +47,8 @@ pr <- df %>%
   scale_y_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
   scale_x_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
   labs(
-    x = "Recorded time of day",
-    y = "Predicted Proteomic Time"
+    x = "Recorded time-of-day",
+    y = "Predicted proteomic time"
   ) +
   theme_classic(base_size = 10) +
   theme(
@@ -99,8 +99,8 @@ pr_nmr <- df_nmr %>%
   scale_y_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
   scale_x_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
   labs(
-    x = "Recorded time of day",
-    y = "Predicted Metabolic Time"
+    x = "Recorded time-of-day",
+    y = "Predicted metabolomic time"
   ) +
   theme_classic(base_size =10) +
   theme(
@@ -115,11 +115,9 @@ p_comb <- cowplot::plot_grid(pr, pr_nmr, rel_widths = c(0.7, 0.3))
 
 ggsave("plots/F3_internal.png", p_comb, width = 10, height = 3)
 
-p_f <- plot_grid(pl, p_comb, nrow = 2, labels = c("A", "B"))
+# p_f <- plot_grid(pl, p_comb, nrow = 2, labels = c("A", "B"))
+# ggsave("plots/F3.png", p_f, width = 10, height = 7)
 
-ggsave("plots/F3.png", p_f, width = 10, height = 7)
 
-
-p_f <- plot_grid(pl, p_comb, p_ext, nrow = 3, labels = c("A", "B", "C"))
-
+p_f <- plot_grid(pl, p_comb, p_ext, nrow = 3, labels = c("A", "B", "C"), rel_heights = c(1,1,0.7))
 ggsave("plots/F3.png", p_f, width = 10, height = 10)

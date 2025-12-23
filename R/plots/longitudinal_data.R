@@ -134,10 +134,10 @@ p_long <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
   ) +
   geom_line(aes(y = fitted), color = "red", linewidth = 0.7) +
   labs(
-    title = "Longitudinal data",
-    x = "Recorded time of day",
-    color = "Participant",
-    y = "Predicted Proteomic time"
+    title = "TREASURE",
+    x = "Recorded time-of-day",
+    color = "PID",
+    y = "Predicted proteomic time"
   ) +
   paletteer::scale_color_paletteer_d("dichromat::DarkRedtoBlue_12", direction = -1) +
   guides(
@@ -158,7 +158,8 @@ p_long <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
     legend.box.margin = margin(t = 0, r = 0, b = 0, l = -10, unit = "pt"),
     legend.margin = margin(0, 0, 0, 0),
     #legend.box.spacing = unit(0, "pt"),
-    axis.title = element_text(face = "bold"), legend.position = "right"
+    axis.title = element_text(face = "bold"),
+    legend.position = "right"
   )
 
 
@@ -173,7 +174,7 @@ p1 <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
 blank <- ggplot() + theme_void() + theme(panel.background = element_rect(fill = "white", color = NA))
 
 # combine: main plot on left, white filler on right
-p_ext <- plot_grid(p_long, blank, ncol = 2, rel_widths = c(0.7, 0.3))
+p_ext <- plot_grid(p_long, blank, ncol = 2, rel_widths = c(0.3, 0.7))
 
 
 library(forcats)
@@ -193,7 +194,7 @@ p_c <- d_grouped %>%
   ggplot(aes(x = fct_reorder(as.factor(participantid), m_res), y = resid, fill = participantid)) +
   geom_hline(yintercept = 0, linetype = 2)  +
   geom_boxplot() +
-  labs(y = "Acceleration", x = "Participant ID", title = "Longitudinal") +
+  labs(y = "Acceleration", x = "PID", title = "Longitudinal") +
   paletteer::scale_fill_paletteer_d("dichromat::DarkRedtoBlue_12", direction = -1) +
   theme_classic(base_size = 14) +
   theme(legend.position = 'none',
