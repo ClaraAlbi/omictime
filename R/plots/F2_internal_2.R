@@ -7,7 +7,7 @@ install.packages("ggpmisc")
 library(cowplot)
 library(ggplot2)
 
-df <- readRDS("olink_int_replication_v2.rds") %>%
+df <- readRDS("/mnt/project/olink_int_replication_v2.rds") %>%
   filter(!is.na(time_day)) %>%
   mutate(i = case_when(i == 0  ~ "i0: Initial assessment \n(2006-2010)",
                        i == 2  ~ "i2: Imaging \n(2014+)",

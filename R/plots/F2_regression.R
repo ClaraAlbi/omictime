@@ -138,8 +138,8 @@ pl <- plot_data %>%
     "Biochemistry" = "#E85F5C",
     "Cell counts"  = "#8F3985"
   )) +
-  labs(x     = "Recorded time of day",
-    y     = "Predicted internal time") +
+  labs(x     = "Recorded time-of-day",
+    y     = "Predicted time") +
   theme_classic(base_size = 11) +
   theme(
     strip.background = element_blank(),
