@@ -23,7 +23,7 @@ df_effects %>%
             n = n())
 
 rats <- df_effects %>%
-  #filter(amplitude_24hfreq > 0.3) %>%
+  filter(amplitude_24hfreq > 0.1) %>%
   #mutate(t = round(acrophase_24hfreq, 0)) %>%
   #group_by(t, type_clean) %>% count() %>% ungroup() %>%
   #group_by(type_clean) %>% mutate(total = sum(n)) %>%
@@ -31,6 +31,7 @@ rats <- df_effects %>%
   ggplot(aes(x = acrophase_24hfreq, color = type_clean)) + geom_density() +
   #facet_grid(~type_clean) +
   labs(x = "Time of day", y = "Density") +
+  coord_polar() +
   scale_color_manual(
     name   = "Data type",
     values = c(
@@ -201,21 +202,25 @@ p_best <- df_long %>%
 #     panel.grid.minor = element_blank()
 #   )
 
-#
-# # AMPLITUDE
-# df_cmp <- readxl::read_xlsx("data/1-s2.0-S2352721823002401-mmc1.xlsx", skip = 1) %>%
-#   rename(
-#     amp_fund   = `amplitude of fundamental harmonic in 2-harmonic fit`,
-#     amp_1st    = `amplitude of first (12h) harmonic in 2-harmonic fit`,
-#     amp_1h = `amplitude of 1 harmonic fit`
-#   ) %>%
-#   inner_join(
-#     df_effects %>%
-#       mutate(Gene = toupper(phen)) %>%
-#       select(Gene, acrophase_24hfreq, phen, type_clean, title, amplitude_24hfreq),
-#     by = "Gene"
-#   ) %>%
-#   left_join(df_r2)
+
+# AMPLITUDE
+df_cmp <- readxl::read_xlsx("data/1-s2.0-S2352721823002401-mmc1.xlsx", skip = 1) %>%
+  rename(
+    amp_fund   = `amplitude of fundamental harmonic in 2-harmonic fit`,
+    amp_1st    = `amplitude of first (12h) harmonic in 2-harmonic fit`,
+    amp_1h = `amplitude of 1 harmonic fit`
+  ) %>%
+  inner_join(
+    df_effects %>%
+      mutate(Gene = toupper(phen)) %>%
+      select(Gene, acrophase_24hfreq, phen, type_clean, title, amplitude_24hfreq),
+    by = "Gene"
+  ) %>%
+  left_join(df_r2)
+
+cor.test(df_cmp$amplitude_24hfreq, df_cmp$amp_1h, method = "pearson")
+
+
 #
 # p_amp <- ggplot(df_cmp, aes(
 #   x     = amplitude_24hfreq,
@@ -225,7 +230,7 @@ p_best <- df_long %>%
 # )) +
 #   geom_abline(linetype = "dashed", color = "grey50") +
 #   geom_point(size = 2) +
-#   ggrepel::geom_text_repel(data = df_cmp[df_cmp$amplitude_24hfreq > 0.3,],
+#   ggrepel::geom_text_repel(data = df_cmp[df_cmp$amplitude_24hfreq > 0.3 | df_cmp$amp_1h >0.3,],
 #                            size = 5) +
 #   scale_y_continuous(
 #     "Amplitude SomaScan"
@@ -248,12 +253,11 @@ p_best <- df_long %>%
 #     legend.position = "bottom",
 #     panel.grid.minor = element_blank()
 #   )
+#
+#
+# p1 <- cowplot::plot_grid(p_pha, p_best, ncol = 2, labels = "AUTO")
 
-
-p1 <- cowplot::plot_grid(p_pha, p_best, ncol = 2, labels = "AUTO")
-
-
-ggsave("plots/validation_harmonic_Specht.png", p1, width = 12, height = 6)
+#ggsave("plots/validation_harmonic_Specht.png", p1, width = 12, height = 6)
 
 
 

@@ -25,6 +25,45 @@ length(which(!df_effects$phen %in% df_r2$phen))
 
 length(which(!df_r2$phen %in% df_effects$phen))
 
+secretome <- data.table::fread("../Downloads/proteinatlas.tsv") %>%
+  inner_join(df_effects, by = c("Uniprot" = "UniProt")) %>%
+  inner_join(df_r2, by = c("Uniprot" = "UniProt"))
+
+list_p <- secretome %>%
+  group_by(`Secretome location`) %>%
+  summarise(n=n(),t = list(Gene))
+
+n <- secretome %>%
+  #filter(amplitude_24hfreq > 0.1) %>%
+  filter(`Secretome location` != "") #%>%
+  filter(`Secretome location` == "Secreted in brain")
+
+secretome %>%
+  count(`Secretome location`) %>% arrange(desc(n))
+
+secretome %>%
+  #filter(amplitude_24hfreq > 0.1) %>%
+  #filter(t_r2 > 0.01) %>%
+  #filter(`Secretome location` != "") %>%
+  group_by(`Secretome location`) %>%
+  mutate(n = n()) %>%
+  ungroup() %>%
+  mutate(
+    sec = paste0(`Secretome location`, "\nn=", n),
+    sec = fct_reorder(sec, -n)
+  ) %>%
+  ggplot(aes(x = acrophase_24hfreq, color = sec)) +
+  geom_density() +
+  facet_wrap(~sec) +
+  theme_classic() +
+  theme(legend.position = "none")
+
+secretome %>%
+  ggplot(aes(x = acrophase_24hfreq, y = amplitude_24hfreq, color = `Secretome location`)) +
+  geom_point() +
+  coord_polar()
+### 
+
 tissues <- data.table::fread("data/explore_ukb.csv") %>%
   dplyr::rename(UniProt = `UniProt ID`,
          tissue_info = `Tissue Specificity`) %>%
@@ -46,11 +85,15 @@ unique_prots <- tissues %>%
 unique_prots_all <- assay %>% pull(UniProt) %>% unique()
 
 lookout_effects <- df_effects %>%
+  inner_join(df_r2) %>%
+  filter(amplitude_24hfreq > 0.1) %>%
+  filter(t_r2 > 0.01) %>%
   left_join(tissues) %>%
   count(category)
 
 
 n_tissues <- tissues %>%
+  #left_join(data.table::fread("../Downloads/rna_tissue_gtex_tissues.tsv"), by = c("tissue" ="Tissue"))
   filter(category %in% c("Tissue enriched", "Group enriched")) %>%
   mutate(is_time = UniProt %in% df_effects$UniProt) %>%
   group_by(tissue, is_time) %>%
@@ -96,31 +139,84 @@ prot_set <- df_effects %>%
   filter(amplitude_24hfreq > 0.1)
 
 df <- prot_set %>%
-  inner_join(tissues, by = c("phen" = "Gene")) %>%
-  filter(category %in% c("Tissue enriched")) %>%
-  group_by(tissue) %>% mutate(n = n()) %>% ungroup() %>%
-  mutate(category = factor(category, levels = c("Tissue enriched", "Group enriched")))
-         #tissue = case_when(n < 3 ~ "Other",
-                            #TRUE ~ tissue))
+  left_join(tissues, by = c("phen" = "Gene")) %>%
+  #filter(category %in% c("Tissue enriched", "Group enriched", NA)) %>%
+  group_by(phen, acrophase_24hfreq, amplitude_24hfreq) %>% summarise(p = paste(tissue, collapse = ", ")) %>%
+  mutate(p = paste0("(", p, ")")) %>%
+  unite(col = "t", phen, p, sep = " ", remove = F)
+
+unique(df$phen)
 
 df %>% group_by(tissue) %>% count() %>% arrange(desc(n))
 
-ptissue <- ggplot(df, aes(x = acrophase_24hfreq, y = amplitude_24hfreq, color = tissue, label = paste0(toupper(phen), "_", tissue))) +
-  geom_point(size = 3) +
+ptissue <- ggplot(df, aes(x = acrophase_24hfreq, y = amplitude_24hfreq, label = t)) +
+  geom_point(size = 1) +
   coord_polar() +
-  ggrepel::geom_text_repel(size = 3.5, max.overlaps = 20, box.padding = 0.5) +
+  ggrepel::geom_label_repel(size = 2, max.overlaps = 50, box.padding = 0.1, alpha = 0.7) +
   #scale_color_manual(values = c( "#FC4E07","#00AFBB", "#E7B800")) +
   labs(x = "Acrophase", y = "Amplitude", color = "GTEX tissue") +
   theme_minimal() +
+  scale_y_continuous(limits = c(0, 0.6)) +
   guides(color = guide_legend(ncol = 3)) +
   theme(legend.position = "none", text = element_text(size = 12))
 
-ggsave("plots/FS_tissue_enrichments_circle.png", ptissue, width = 6, height = 6)
+ggsave("plots/FS_tissue_enrichments_circle.png", ptissue, width = 7, height = 7)
 
-ggplot(df, aes(x = acrophase_24hfreq, y = amplitude_24hfreq, shape = category, color = tissue)) +
-  geom_point() +
-  geom_text(data = df[df$amplitude_24hfreq > 0.3,],
-            aes(label = paste0(phen, "_", tissue))) +
+
+
+p_per <- prot_set %>%
+  left_join(tissues, by = c("phen" = "Gene")) %>%
+  group_by(tissue) %>%
+  mutate(n = n()) %>% ungroup() %>%
+  mutate(tissue_2 = fct_reorder(str_to_sentence(paste0(tissue, " n=",n)), -n)) %>%
+  #select(acrophase_24hfreq, amplitude_24hfreq, phen, tissue_2, category) %>%
+  ggplot(aes(x = acrophase_24hfreq, y = amplitude_24hfreq, label = phen, color = category)) +
+  geom_point(size = 1) +
   coord_polar() +
-  theme(legend.position = "none")
+  scale_y_continuous(limits = c(0, 0.8), n.breaks = 4) +
+  scale_x_continuous(breaks = c(24, 6, 12, 18)) +
+  labs(x = "Acrophase", y = "Amplitude", color = "GTEx category") +
+  ggrepel::geom_label_repel(size = 2,
+                            max.overlaps = 70,
+                            box.padding = 0.1, label.padding = 0.1,
+                            alpha = 0.7,
+                            ) +
+  facet_wrap(~tissue_2, ncol = 5) +
+  theme_classic() +
+  theme(panel.border = element_rect(colour = "black", fill = NA),
+        panel.grid.major.y = element_line(color = "grey85", linewidth = 0.3)
+  )
+
+ggsave("plots/FS_tissue_enrichments_circle2.png", p_per, width = 10, height = 15)
+
+
+
+
+
+p_sec <- prot_set %>%
+  left_join(secretome, by = c("UniProt" = "Uniprot")) %>%
+  mutate(`Secretome location`  = case_when(`Secretome location` == "" ~ "Not assigned",
+                                           TRUE ~ `Secretome location`)) %>%
+  group_by(`Secretome location`) %>%
+  mutate(n = n()) %>% ungroup() %>%
+  mutate(tissue_2 = fct_reorder(str_to_sentence(paste0(`Secretome location`, " n=",n)), -n)) %>%
+  ggplot(aes(x = acrophase_24hfreq, y = amplitude_24hfreq, label = phen, color = `Secretome location`)) +
+  geom_point(size = 1) +
+  coord_polar() +
+  scale_y_continuous(limits = c(0, 0.6), n.breaks = 4) +
+  scale_x_continuous(breaks = c(24, 6, 12, 18)) +
+  labs(x = "Acrophase", y = "Amplitude", color = "Secretome category") +
+  ggrepel::geom_label_repel(size = 2,
+                            max.overlaps = 50,
+                            box.padding = 0.1, label.padding = 0.1,
+                            alpha = 0.7) +
+  facet_wrap(~tissue_2, ncol = 3) +
+  theme_classic() +
+  theme(legend.position = "bottom",
+        panel.border = element_rect(colour = "black", fill = NA),
+        panel.grid.major.y = element_line(color = "grey85", linewidth = 0.3)
+  )
+ggsave("plots/FS_tissue_secretions_circle.png", p_sec, width = 10, height = 15)
+
+
 
