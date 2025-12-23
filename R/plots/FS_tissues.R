@@ -10,7 +10,7 @@ df_effects <- readRDS("data/combined_effects.rds") %>%
   mutate(phen = toupper(phen)) %>%
   left_join(assay, by = c("phen" = "Assay")) %>%
   mutate(pval_h = p.adjust(pvalue_h)) %>%
-  filter(pval_h < 0.05) %>%
+  filter(pval_h < 0.05) #%>%
   filter(type_clean == "Proteins")
 
 df_r2 <- readRDS("data/combined_variance.rds") %>%
@@ -18,7 +18,7 @@ df_r2 <- readRDS("data/combined_variance.rds") %>%
   filter(term == "time_day") %>%
   left_join(assay, by = c("phen" = "Assay")) %>%
   mutate(pval = p.adjust(p.value)) %>%
-  filter(pval < 0.05) %>%
+  filter(pval < 0.05) #%>%
   filter(type_clean == "Proteins")
 
 length(which(!df_effects$phen %in% df_r2$phen))
