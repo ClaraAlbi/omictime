@@ -199,20 +199,45 @@ data_plot %>%
 d_grouped <-data_plot %>%
   group_by(participantid) %>% mutate(m_res = mean(resid))
 
-broom::tidy(lm(resid ~ 0 + participantid, data = d_grouped)) %>%
+tests <- broom::tidy(lm(resid ~ 0 + participantid, data = d_grouped)) %>%
   mutate(p_adj = p.adjust(p.value)) %>%
   filter(p_adj < 0.05)
 
+stars <- d_grouped %>%
+  mutate(star = case_when(participantid %in% c(2, 5, 6, 10, 12) ~ "*",
+         TRUE ~ "")) %>%
+  group_by(participantid, star) %>%
+  mutate(y = max(resid) + 0.1)
+
 p_c <- d_grouped %>%
-  ggplot(aes(x = fct_reorder(as.factor(participantid), m_res), y = resid, fill = participantid)) +
+  ggplot(aes(x = fct_reorder(as.factor(participantid), m_res), y = resid, fill = m_res)) +
   geom_hline(yintercept = 0, linetype = 2)  +
   geom_boxplot() +
-  labs(y = "Acceleration", x = "PID", title = "Longitudinal") +
-  paletteer::scale_fill_paletteer_d("dichromat::DarkRedtoBlue_12", direction = -1) +
-  theme_classic(base_size = 14) +
-  theme(legend.position = 'none',
-        plot.title   = element_text(face = "bold", size = 16),
-        axis.title   = element_text(face = "bold"))
+  geom_text(
+    data = stars,
+    aes(x = as.factor(participantid), y = y, label = star),
+    size = 6,
+    fontface = "bold"
+  ) +
+  paletteer::scale_fill_paletteer_c("ggthemes::Orange-Blue Diverging",
+                                     direction = -1,
+                                     limits = c(-2, 2)) +
+  labs(y = "CA", x = "Participant ID", title = "TREASURE") +
+  theme_classic(base_size = 12) +
+  guides(
+    fill = guide_colourbar(
+      title = "Mean CA",
+      title.position = "left",
+      title.hjust    = 1,
+      barwidth       = 1.2,
+      barheight      = 7,
+      reverse = FALSE
+    )
+  ) +
+  theme(#legend.position = 'none',
+    legend.title = element_text(face = "bold", size = 12, angle = 90),
+        plot.title   = element_text(face = "bold", size = 14),
+        axis.title   = element_text(face = "bold", size = 14))
 
 ggsave("plots/F3_long_acc.png", p_c, width = 7, height = 3)
 
