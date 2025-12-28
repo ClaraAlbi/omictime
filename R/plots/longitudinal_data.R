@@ -171,12 +171,23 @@ p1 <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
   theme_classic()
 
 # blank white plot
-blank <- ggplot() + theme_void() + theme(panel.background = element_rect(fill = "white", color = NA))
-blank2 <- ggplot() + theme_void() + theme(panel.background = element_rect(fill = "white", color = NA))
+blank <- ggplot() + labs(title = "   FinnGen",
+                         y = "Predicted proteomic time",
+                         x = "Recorded time-of-day") +
+  theme_classic() +
+  theme(plot.title = element_text(face = "bold", size = 12),
+        axis.title = element_text(face = "bold", size = 10),
+        strip.background = element_blank())
 
+blank2 <- ggplot() + labs(title = "   CKB",
+                          y = "Predicted proteomic time",
+                          x = "Recorded time-of-day") +
+  theme_classic() +
+  theme(plot.title = element_text(face = "bold", size = 12),
+        axis.title = element_text(face = "bold", size = 10),
+        strip.background = element_blank())
 
-# combine: main plot on left, white filler on right
-p_ext <- plot_grid(p_long, blank, blank2, ncol = 3, labels = c("", "E", "F"))
+p_ext <- plot_grid(p_long, blank, blank2, ncol = 3, labels = c("D", "E", "F"))
 
 
 library(forcats)
