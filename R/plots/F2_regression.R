@@ -4,6 +4,7 @@ library(dplyr)
 library(ggplot2)
 library(purrr)
 library(scales)
+install.packages("cowplot")
 install.packages("ggpmisc")
 
 files <- c(list.files("/mnt/project/biomarkers_3",

@@ -7,7 +7,7 @@ install.packages("ggpmisc")
 library(cowplot)
 library(ggplot2)
 
-df <- readRDS("/mnt/project/olink_int_replication_v2.rds") %>%
+df <- readRDS("/mnt/project/biomarkers_res/olink_int_replication_v2.rds") %>%
   filter(!is.na(time_day)) %>%
   mutate(i = case_when(i == 0  ~ "i0: Initial assessment \n(2006-2010)",
                        i == 2  ~ "i2: Imaging \n(2014+)",
@@ -111,7 +111,7 @@ pr_nmr <- df_nmr %>%
 
 ggsave("plots/F3_internal_nmr.png", pr_nmr, width = 3, height = 3)
 
-p_comb <- cowplot::plot_grid(pr, pr_nmr, rel_widths = c(0.7, 0.3))
+p_comb <- cowplot::plot_grid(pr, pr_nmr, rel_widths = c(0.7, 0.3), labels = c("", "C"))
 
 ggsave("plots/F3_internal.png", p_comb, width = 10, height = 3)
 
@@ -119,5 +119,5 @@ ggsave("plots/F3_internal.png", p_comb, width = 10, height = 3)
 # ggsave("plots/F3.png", p_f, width = 10, height = 7)
 
 
-p_f <- plot_grid(pl, p_comb, p_ext, nrow = 3, labels = c("A", "B", "C"), rel_heights = c(1,1,0.7))
+p_f <- cowplot::plot_grid(pl, p_comb, p_ext, nrow = 3, labels = c("A", "B", "D"), rel_heights = c(1,1,0.7))
 ggsave("plots/F3.png", p_f, width = 10, height = 10)

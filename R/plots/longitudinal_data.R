@@ -172,9 +172,11 @@ p1 <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
 
 # blank white plot
 blank <- ggplot() + theme_void() + theme(panel.background = element_rect(fill = "white", color = NA))
+blank2 <- ggplot() + theme_void() + theme(panel.background = element_rect(fill = "white", color = NA))
+
 
 # combine: main plot on left, white filler on right
-p_ext <- plot_grid(p_long, blank, ncol = 2, rel_widths = c(0.3, 0.7))
+p_ext <- plot_grid(p_long, blank, blank2, ncol = 3, labels = c("", "E", "F"))
 
 
 library(forcats)
