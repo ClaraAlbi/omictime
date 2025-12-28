@@ -44,8 +44,9 @@ pr <- df %>%
     size = 4,
     color = "black"
   ) +
-  scale_y_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
-  scale_x_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
+  scale_y_continuous(breaks = c(10, 15, 20)) +
+  scale_x_continuous(breaks = c(10, 15, 20)) +
+  coord_cartesian(xlim = c(9, 20), ylim = c(9, 20)) +
   labs(
     x = "Recorded time-of-day",
     y = "Predicted proteomic time"
@@ -96,8 +97,9 @@ pr_nmr <- df_nmr %>%
     size = 4,
     color = "black"
   ) +
-  scale_y_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
-  scale_x_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
+  scale_y_continuous(breaks = c(10, 15, 20)) +
+  scale_x_continuous(breaks = c(10, 15, 20)) +
+  coord_cartesian(xlim = c(9, 20), ylim = c(9, 20)) +
   labs(
     x = "Recorded time-of-day",
     y = "Predicted metabolomic time"

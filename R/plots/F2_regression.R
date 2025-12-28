@@ -128,10 +128,9 @@ pl <- plot_data %>%
     color = "black"
   ) +
   # scales & styling
-  #scale_y_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
-  scale_y_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
-  #scale_x_continuous(breaks = c(9, 12, 15, 18, 21), limits = c(9,21)) +
-  scale_x_continuous(breaks = c(10, 15, 20), limits = c(9, 20)) +
+  scale_y_continuous(breaks = c(10, 15, 20)) +
+  scale_x_continuous(breaks = c(10, 15, 20)) +
+  coord_cartesian(xlim = c(9, 20), ylim = c(9, 20)) +
   scale_color_manual(values = c(
     "All"          = "gray",
     "Proteomics"   = "#76B041",
