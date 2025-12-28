@@ -6,11 +6,9 @@ library(purrr)
 install.packages("broom")
 install.packages("table1")
 install.packages("forcats")
-install.packages("ggh4x")
 library(broom)
 library(forcats)
 library(lubridate)
-library(ggh4x)
 
 pred <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
   inner_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
@@ -24,11 +22,6 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
          assessment_centre = as.factor(assessment_centre)
   )
-
-a <- data.table::fread("/mnt/project/ancestry_new.csv") %>%
-  mutate(p30079 = case_when(p30079 == "" ~ NA_character_,
-                            TRUE ~ p30079),
-         p30079 = relevel(as.factor(p30079), ref = "European ancestry (EUR)"))
 
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
@@ -72,7 +65,8 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
     chrono = factor(chrono, levels = c("Definitely morning", "Rather morning", "Don't know", "Rather evening", "Definitely evening")),
     ever_insomnia = case_when(ever_insomnia == 1 ~ "Never/rarely",
                               ever_insomnia == 2 ~ "Sometimes",
-                              ever_insomnia == 3 ~ "Usually"),
+                              ever_insomnia == 3 ~ "Usually",
+                              TRUE ~ NA_character_),
     ever_insomnia = factor(ever_insomnia, levels = c("Never/rarely", "Sometimes", "Usually")),
     h_sleep = case_when(h_sleep > 0 & h_sleep < 7 ~ "Short (<7 h)",
                         h_sleep >= 7 & h_sleep <=9 ~ "Normal (7-9h)",
@@ -161,35 +155,34 @@ df <- pred %>%
     )
   )
 
-
-olink <- readRDS("/mnt/project/circadian/results/models/res_olink_tech_14panels.rds")
-
-scaler <- train_scaler(as.matrix(olink %>% select(-eid)))
-X_train <- bind_cols(eid = olink$eid, apply_scaler(olink %>% select(-eid), scaler))
-
 data <- df %>%
   left_join(covs) %>%
   left_join(a) %>%
   left_join(job_vars) %>%
   left_join(sleep) %>%
-  #left_join(sleep_new %>% select(eid, rmeq_score, rmeq_chronotype)) %>%
+  left_join(sleep_new %>% select(eid, rmeq_score, rmeq_chronotype)) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
   left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
-  filter(age_recruitment > 40 & age_recruitment < 70) %>%
-  left_join(X_train)
+  left_join(cohort_f) %>%
+  mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
+         antihypertensive = ifelse(!is.na(C0), as.integer(C0 == TRUE), 0),
+         sleep_medication = ifelse(!is.na(N05C), as.integer(N05C == TRUE), 0),
+         antidepressants = ifelse(!is.na(N06), as.integer(N06 == TRUE), 0),
+         mood_stabiliser = ifelse(!is.na(N03), as.integer(N03 == TRUE), 0),
+         lithium = ifelse(!is.na(N05A), as.integer(N05A == TRUE), 0),
+         across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
 
-data$res <- residuals(lm(pred_mean ~ time_day + as.factor(assessment_centre), data = data))
-data$resl <- residuals(lm(paste0("pred_lasso ~ time_day + ", paste0(ps, collapse = " + ")), data = data))
+data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
 p <- data %>%
   filter(is_white == 1) %>%
   filter(rel == 0)
 
-p %>% mutate(FID = eid) %>%
-  select(FID, eid, resl) %>%
-  rename(IID = eid) %>%
-  data.table::fwrite(., "phenotypes_prots.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+# p %>% mutate(FID = eid) %>%
+#   select(FID, eid, resl) %>%
+#   rename(IID = eid) %>%
+#   data.table::fwrite(., "phenotypes_prots.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 
 ### trials
@@ -219,7 +212,6 @@ data %>%
 
 
 ### Plots CHRONO vs SEX
-
 p_chrono <- sleep %>%
   left_join(covs) %>%
   filter(age_recruitment > 39 & age_recruitment <= 70) %>%
@@ -252,14 +244,14 @@ ggsave("plots/FS_CA_chronotypes_agesex.png", ca_res, width = 10, height = 5)
 m_0 <- tidy(lm(res ~ age_recruitment, data = data %>% filter(sex == "Female")))
 # term            estimate std.error statistic p.value
 # <chr>              <dbl>     <dbl>     <dbl>   <dbl>
-#   1 (Intercept)     -0.0816   0.0504       -1.62   0.106
-# 2 age_recruitment  0.00142  0.000881      1.61   0.107
+#   1 (Intercept)     -0.0840   0.0524       -1.60   0.109
+# 2 age_recruitment  0.00146  0.000915      1.60   0.110
 
 m_1 <- tidy(lm(res ~ age_recruitment, data = data %>% filter(sex == "Male")))
 # term            estimate std.error statistic p.value
 # <chr>              <dbl>     <dbl>     <dbl>   <dbl>
-#   1 (Intercept)      0.0704   0.0556        1.27   0.205
-# 2 age_recruitment -0.00121  0.000964     -1.26   0.209
+#   1 (Intercept)      0.0715    0.0581       1.23   0.218
+# 2 age_recruitment -0.00123   0.00101     -1.22   0.221
 
 m_c <- tidy(lm(res ~ age_recruitment + sex*chrono, data = data))
 m_1_c <- tidy(lm(res ~ age_recruitment*chrono, data = data %>% filter(sex == "Male")))
@@ -273,21 +265,27 @@ my_render_cont <- function(x){
     c(
       "",
       `Mean (SD)` = sprintf("%s (%s)", MEAN, SD),
-      `Median [Q1, Q3]` = sprintf("%s [%s, %s]",
-                                  MEDIAN, Q1, Q3)
+      `Median [Q1, Q3]` = sprintf("%s [%s, %s]", MEDIAN, Q1, Q3),
+      `Min, Max` = sprintf("%s, %s", MIN, MAX)
     )
   )
 }
 
 
-tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + is_weekend + day_of_week + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + rmeq_chronotype + rmeq_score + shift_work + night_shift + chrono_Nightshift,
+tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + is_weekend + day_of_week + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + rmeq_chronotype + rmeq_score + shift_work + night_shift + chrono_Nightshift +has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium,
                            data = data,
                            render.cont = my_render_cont, topclass="Rtable1-grid")
 
 # --- 1. Predictor list ---
 vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079", #"rmeq_chronotype", "rmeq_score",
           "is_weekend", "day_of_week",
-          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST", "chrono_Nightshift")
+          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST", "chrono_Nightshift",
+          "has_prescription",
+          "antihypertensive",
+          "sleep_medication",
+          "antidepressants",
+          "mood_stabiliser",
+          "lithium")
 
 covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:20))
 
@@ -296,7 +294,7 @@ results <- map_dfr(vars, function(v) {
   adj_vars <- if (v %in% c("sex", "age_recruitment")) paste0("PC", 1:20) else covars
 
   rhs <- paste(c(v, adj_vars), collapse = " + ")
-  f <- as.formula(paste("resl ~", rhs))
+  f <- as.formula(paste("res ~", rhs))
 
   fit <- lm(f, data = data)
 
@@ -314,8 +312,6 @@ results <- map_dfr(vars, function(v) {
       } else .
     }
 })
-
-
 
 saveRDS(results, "data_share/results_associations_phenotypes_CA.rds")
 

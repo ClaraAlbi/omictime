@@ -1,37 +1,142 @@
+library(tidyr)
+library(lubridate)
+library(dplyr)
+library(glue)
+library(purrr)
+library(ggplot2)
+install.packages("forcats")
+library(forcats)
+install.packages("janitor")
+install.packages("broom")
+library(stringr)
 
-
-
-results <- bind_rows(readRDS("data_share/results_associations_sleep_depression_CA.rds") %>% mutate(type = "CA"),
-                     readRDS("data_share/results_associations_sleep_depression_CM.rds") %>% mutate(type = "CM"))
-
-plot_data <- results %>%
-  add_column(n = c(c(1628, 392, 410, 345, 201, 801, 904, 3229), c(1628, 392, 410, 345, 201, 801, 904, 3229)),
-             o = c(c(1, 8, 2, 5, 6, 3, 4, 7), c(1, 8, 2, 5, 6, 3, 4, 7))) %>%
-  mutate(lower = ifelse(reference, 0, estimate - 1.96 * std.error),
-         upper = ifelse(reference, 0, estimate + 1.96 * std.error),
-         term = str_remove(term, "sleep_depression"),
-    display_term = ifelse(reference,
-                          paste0(term, " (ref)"), term),
-    display_term = paste0(display_term, "\n", n),
-    display_term = fct_reorder(display_term, -o),
-    is_ref = if_else(estimate == 0 & is.na(p.value), TRUE, FALSE),
-    FDR = p.adjust(p.value)
-    )
-
-p_dep <- plot_data %>%
-  ggplot(aes(x = estimate, y = display_term, alpha = FDR < 0.05, color = type)) +
-
-  geom_pointrange(aes(xmin = lower, xmax = upper), position = position_dodge(width = 0.2), size = 1, fatten = 1.5) +
-  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey40") +
-  scale_color_manual(values = c("#2ca02c", "#9467bd")) +
-  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.35), guide = "none") +
-  labs(title = "Sleep changed during sadness/depression \nor loss of interest",
-       x = "Effect size (SE)",
-       y = NULL, color = " ", alpha = "FDR < 5%") +
-  theme_classic(base_size = 14) +
-  theme(
-    panel.grid.major.x = element_line(linewidth = 0.1),
-    axis.ticks.y = element_blank(), legend.position = "right"
+covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
+  mutate(bmi = weight/(height/100)^2,
+         sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
+         smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
+         assessment_centre = as.factor(assessment_centre)
   )
 
-ggsave("plots/F8_depression_sleep.png", p_dep, width = 7, height = 5)
+pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
+  select(eid = 1, contains("PC"))
+
+
+meds <- data.table::fread("/mnt/project/medications.tsv")
+
+# https://www.sciencedirect.com/science/article/abs/pii/S1389945717302757?via%3Dihub
+# Current medications were self-reported to the research nurse, and the participants were dichotomised according to whether they were taking:
+#   sleep medication (sedatives and hypnotics),
+#   any other psychotropic medication (mood stabilisers, antidepressants, and antipsychotics) or
+#   antihypertensive medication (ACE inhibitors, angiotensin II antagonists, beta blockers, calcium channel blockers, and diuretics).
+
+cohort <- meds %>%
+  #slice(1:1000) %>%
+  pivot_longer(-eid) %>%
+  filter(!is.na(value)) %>%
+  left_join(X41467_2019_9572_MOESM3_ESM %>% select(Category, `Medication ATC code`, `Coding a`, `Drug name`), by = c("value" = "Coding a")) %>%
+  filter(str_detect(`Medication ATC code`, "N05C") | #sleep medication (sedatives and hypnotics)
+           str_detect(`Medication ATC code`, "N03AG01") | # mood stabiliser
+           str_detect(`Medication ATC code`, "N03AX09") |  # mood stabiliser
+           str_detect(`Medication ATC code`, "N03AF01") |  # mood stabiliser
+           str_detect(`Medication ATC code`, "N03AF02") |  # mood stabiliser
+           str_detect(`Medication ATC code`, "N05AN01") |  # lithium
+
+           str_detect(`Medication ATC code`, "N06A") | # N06A ANTIDEPRESSANTS
+
+
+           str_detect(`Medication ATC code`, "C09A") | # ACE inhibitors, plain
+           str_detect(`Medication ATC code`, "C09C") | # ANGIOTENSIN II RECEPTOR BLOCKERS (ARBs), PLAIN
+           str_detect(`Medication ATC code`, "C07") | # BETA BLOCKING AGENTS
+           str_detect(`Medication ATC code`, "C08") | #CALCIUM CHANNEL BLOCKERS
+           str_detect(`Medication ATC code`, "C03")) #C03 DIURETICS
+
+cohort_f <- cohort %>%
+  mutate(
+    N05C = str_detect(`Medication ATC code`, "^N05C"),
+    N05A = str_detect(`Medication ATC code`, "^N05A"),
+    N03 = str_detect(`Medication ATC code`, "^N03"),
+    N06 = str_detect(`Medication ATC code`, "^N06"),
+    C0 = str_detect(`Medication ATC code`, "^C0")
+  ) %>%
+  group_by(eid) %>%
+  summarise(
+    across(c(N05C, N05A, N03, N06, C0), ~ any(.x, na.rm = TRUE)),
+    .groups = "drop"
+  )
+
+data <- readRDS("/mnt/project/olink_internal_time_predictions.rds")  %>%
+  filter(i == 0) %>%
+  left_join(covs) %>%
+  left_join(pcs) %>%
+  left_join(cohort_f) %>%
+  mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
+         antihypertensive = ifelse(!is.na(C0), as.integer(C0 == TRUE), 0),
+         sleep_medication = ifelse(!is.na(N05C), as.integer(N05C == TRUE), 0),
+         antidepressants = ifelse(!is.na(N06), as.integer(N06 == TRUE), 0),
+         mood_stabiliser = ifelse(!is.na(N03), as.integer(N03 == TRUE), 0),
+         lithium = ifelse(!is.na(N05A), as.integer(N05A == TRUE), 0),
+         across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
+
+data$res <- residuals(lm(pred_mean ~ time_day, data = data))
+
+table(data$has_prescription)
+# 0     1
+# 34347 17372
+
+
+vars <- c("has_prescription",
+          "antihypertensive",
+          "sleep_medication",
+          "antidepressants",
+          "mood_stabiliser",
+          "lithium")
+
+covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:10))
+
+results <- map_dfr(vars, function(v) {
+  adj_vars <- if (v %in% c("sex", "age_recruitment")) paste0("PC", 1:10) else covars
+
+  # Combine predictor + covariates safely
+  rhs <- paste(c(v, adj_vars), collapse = " + ")
+  f <- as.formula(paste("res ~ ", rhs))
+
+  fit <- lm(f, data = data)
+
+  broom::tidy(fit) %>%
+    filter(str_detect(term, paste0("^", v))) %>%
+    mutate(predictor = v, reference = FALSE) %>%
+    {
+      if (is.factor(data[[v]])) {
+        ref <- tibble(
+          term = paste0(v, levels(data[[v]])[1]),
+          estimate = 0, std.error = NA, statistic = NA, p.value = NA,
+          predictor = v, reference = TRUE
+        )
+        bind_rows(ref, .)
+      } else .
+    }
+})
+
+saveRDS(results, "data_share/results_associations_medication_CA.rds")
+
+
+
+library(table1)
+my_render_cont <- function(x){
+  with(
+    stats.apply.rounding(stats.default(x)),
+    c(
+      "",
+      `Mean (SD)` = sprintf("%s (%s)", MEAN, SD),
+      `Median [Q1, Q3]` = sprintf("%s [%s, %s]",
+                                  MEDIAN, Q1, Q3)
+    )
+  )
+}
+
+
+tab_desc <- table1::table1(~ age_recruitment + sex + has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium,
+                           data = data,
+                           render.cont = my_render_cont, topclass="Rtable1-grid")
+
+
