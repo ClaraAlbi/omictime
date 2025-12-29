@@ -26,21 +26,23 @@ gen_covs <- data.table::fread("/mnt/project/genetic_covs.tsv") %>%
   select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`, `22000-0.0`)
 colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel", "batch")
 
+anc <- data.table::fread("/mnt/project/ancestry_new.csv") %>%
+  select(eid, p30079) %>%
+  filter(p30079 == "European ancestry (EUR)")
 
-df <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
+df <- readRDS("/mnt/project/biomarkers_res/olink_int_replication_v2.rds") %>%
   filter(i == 0) %>%
   select(eid, time_day, pred_mean, pred_lasso) %>%
   left_join(gen_covs) %>%
-  filter(is_white == 1) %>%
+  inner_join(anc) %>%
+  #filter(is_white == 1) %>%
   filter(rel == 0)
 df$res <- residuals(lm(pred_mean ~ time_day, data = df))
-df$resl <- residuals(lm(pred_lasso ~ time_day, data = df))
-
 
 df %>% mutate(FID = eid) %>%
-  select(FID, eid, res, resl) %>%
+  select(FID, eid, res) %>%
   rename(IID = eid) %>%
-  data.table::fwrite(., "phenotypes.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+  data.table::fwrite(., "phenotypes_eur_unrel.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 
 # FEMALES ONLY
@@ -63,7 +65,7 @@ df %>% mutate(FID = eid, res_abs = abs(res)) %>%
 # Chronotype
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
-  filter(!eid %in% olink_cohort$eid) %>%
+  filter(!eid %in% df$eid) %>%
   select(eid,
          chrono = `1180-0.0`) %>%
   mutate(chrono = case_when(
@@ -72,15 +74,16 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
     chrono == -1~ 0,
     chrono == 3 ~ -1,
     chrono == 4 ~ -2)) %>%
-  left_join(gen_covs %>% select(eid, is_white)) %>%
-  filter(is_white == 1)
+  left_join(gen_covs %>% select(eid, rel)) %>%
+  inner_join(anc) #%>%
+  filter(rel == 0)
 
 table(sleep$chrono)
 
 sleep %>% mutate(FID = eid) %>%
   rename(IID = eid) %>%
   select(FID, IID, chrono) %>%
-  data.table::fwrite(., "phenotypes_chrono.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+  data.table::fwrite(., "phenotypes_chrono_eur.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 ### gcta
 
