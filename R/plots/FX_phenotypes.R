@@ -23,6 +23,11 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
          assessment_centre = as.factor(assessment_centre)
   )
 
+a <- data.table::fread("/mnt/project/ancestry_new.csv") %>%
+  mutate(p30079 = case_when(p30079 == "" ~ NA_character_,
+                            TRUE ~ p30079),
+         p30079 = relevel(as.factor(p30079), ref = "European ancestry (EUR)"))
+
 job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
   mutate(night_shift = case_when(`3426-0.0` == 1 ~ "Never",
                                  `3426-0.0` == 2 ~ "Sometimes",
@@ -122,6 +127,9 @@ df <- pred %>%
     day_of_week = relevel(day_of_week, ref = "Wed"),
     is_weekend = wday(date_bsampling, week_start = 1) == 6,
     day_type = if_else(is_weekend, "Weekend", "Weekday"),
+    day_type = factor(day_type, levels = c("Weekday", "Weekend")),
+    fri_sun = if_else(day_of_week == "Fri", "Fri", if_else(is_weekend, "Sat", if_else(day_of_week == "Mon", "Mon",NA_character_))),
+    fri_sun = factor(fri_sun, levels = c("Sat", "Fri", "Mon")),
     year = y
   ) %>%
   left_join(dst_transitions, by = "year") %>%
@@ -130,28 +138,28 @@ df <- pred %>%
 
     # SPRING DST classification
     springDST = case_when(
-      date_bsampling %in% c(spring_dst - 2, spring_dst - 1) ~ "before_spring_DST",
-      date_bsampling %in% c(spring_dst + 1, spring_dst + 2) ~ "after_spring_DST",
-      between(date_bsampling, spring_dst - 14, spring_dst - 3) ~ "baseline_spring",
+      date_bsampling %in% c(spring_dst - 2, spring_dst - 1) ~ "Before spring DST",
+      date_bsampling %in% c(spring_dst + 1, spring_dst + 2) ~ "After spring DST",
+      between(date_bsampling, spring_dst - 14, spring_dst - 3) ~ "Baseline spring",
       TRUE ~ NA_character_  # Set all other values to NA
     ),
 
     # AUTUMN DST classification
     autumnDST = case_when(
-      date_bsampling %in% c(fall_dst - 2, fall_dst - 1) ~ "before_fall_DST",
-      date_bsampling %in% c(fall_dst + 1, fall_dst + 2) ~ "after_fall_DST",
-      between(date_bsampling, fall_dst - 14, fall_dst - 3) ~ "baseline_fall",
+      date_bsampling %in% c(fall_dst - 2, fall_dst - 1) ~ "Before autumn DST",
+      date_bsampling %in% c(fall_dst + 1, fall_dst + 2) ~ "After autumn DST",
+      between(date_bsampling, fall_dst - 14, fall_dst - 3) ~ "Baseline autumn",
       TRUE ~ NA_character_
     ),
 
     # Optional: convert to factors (NA is preserved)
     springDST = factor(
       springDST,
-      levels = c("baseline_spring", "before_spring_DST", "after_spring_DST")
+      levels = c("Baseline spring", "Before spring DST", "After spring DST")
     ),
     autumnDST = factor(
       autumnDST,
-      levels = c("baseline_fall", "before_fall_DST", "after_fall_DST")
+      levels = c("Baseline autumn", "Before autumn DST", "After autumn DST")
     )
   )
 
@@ -272,7 +280,7 @@ my_render_cont <- function(x){
 }
 
 
-tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + is_weekend + day_of_week + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + rmeq_chronotype + rmeq_score + shift_work + night_shift + chrono_Nightshift +has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium,
+tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + day_type + fri_sun + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + rmeq_chronotype + rmeq_score + shift_work + night_shift + chrono_Nightshift +has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium,
                            data = data,
                            render.cont = my_render_cont, topclass="Rtable1-grid")
 
@@ -280,6 +288,7 @@ tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smokin
 vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079", #"rmeq_chronotype", "rmeq_score",
           "is_weekend", "day_of_week",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST", "chrono_Nightshift",
+          "day_type", "fri_sun",
           "has_prescription",
           "antihypertensive",
           "sleep_medication",
