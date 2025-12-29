@@ -12,24 +12,19 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   mutate(bmi = weight/(height/100)^2,
          smoking = case_when(smoking == -3 ~NA, TRUE ~ smoking),
          smoking = as.factor(smoking),
-         sex = as.factor(sex))
+         sex = as.factor(sex),
+         assessment_centre = as.factor(assessment_centre))
 
 pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
   select(eid = 1, contains("PC"))
 
-df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
-  filter(!is.na(time_day)) %>%
+df <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
   filter(i == 0) %>%
-  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
-  rowwise() %>%
-  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
-  ungroup()
+  separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T)
 
 data <- df %>%
   left_join(covs) %>%
-  left_join(pcs) %>%
-  mutate(h = round(time_day, 0)) %>%
-  filter(age_recruitment > 39)
+  left_join(pcs)
 
 data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
@@ -54,14 +49,14 @@ d_counts <-
 
 # Combine
 data1 <- data %>%
-  select(eid, res, sex, age_recruitment, smoking, bmi, any_of(paste0("PC", 1:10))) %>%
+  select(eid, res, sex, age_recruitment,assessment_centre, smoking, bmi, any_of(paste0("PC", 1:20))) %>%
   left_join(dis2 %>% select(eid, contains(d_counts$name)))
 
 
 
 vars <- d_counts$name
 
-base_covars   <- c("sex","age_recruitment", paste0("PC", 1:10))
+base_covars   <- c("sex","age_recruitment", "assessment_centre",paste0("PC", 1:20))
 
 extra_covars <- c("smoking", "bmi")
 
@@ -70,15 +65,15 @@ results <- map_dfr(vars, function(v) {
   # formula for abs(res) only
 
   f_prev1 <- as.formula(
-    paste0("`", v, "` ~ abs(res)")
+    paste0("`", v, "` ~ res")
   )
 
   # formula for abs(res) + covariates
   f_prev2 <- as.formula(
-    paste0("`", v, "` ~ abs(res) + ",
+    paste0("`", v, "` ~ res + ",
            paste(base_covars, collapse = " + ")))
   f_prev3 <- as.formula(
-    paste0("`", v, "` ~ abs(res) + ",
+    paste0("`", v, "` ~ res + ",
            paste(c(base_covars, extra_covars), collapse = " + ")))
 
 
@@ -91,7 +86,6 @@ results <- map_dfr(vars, function(v) {
   bind_rows(
     broom::tidy(m1, conf.int = F, exponentiate = TRUE) %>%
       mutate(model = "Model1", outcome = v),
-
     broom::tidy(m2, conf.int = F, exponentiate = TRUE) %>%
       mutate(model = "Model2", outcome = v),
     broom::tidy(m3, conf.int = F, exponentiate = TRUE) %>%
@@ -100,7 +94,7 @@ results <- map_dfr(vars, function(v) {
 })
 
 saveRDS(results %>%
-          left_join(d_counts %>% rename(outcome = name)), "data_share/association_results_disease_CM.rds")
+          left_join(d_counts %>% rename(outcome = name)), "data_share/association_results_disease_CA.rds")
 
 
 
