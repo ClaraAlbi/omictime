@@ -100,6 +100,11 @@ saveRDS(results %>%
 
 ###
 
+olink <- readRDS("/mnt/project/cir") %>%
+  select(eid, angpt1, tnr, sema3f, spon2, spink5, relt, gdf15, efna1)
+
+
+
 library(tidyverse)
 library(forcats)
 
