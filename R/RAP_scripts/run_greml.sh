@@ -2,23 +2,22 @@
 
 project="blood_biomarkers - Jul 01, 2024"
 
-#for chr in {1..22}; do
-  run_gcta_fast_GWAS="
+
+run_gcta_fast_GWAS="
     cp gcta64 \$HOME/gcta64 && chmod +x \$HOME/gcta64
     \$HOME/gcta64 --reml  --grm-adj 0  --grm-cutoff 0.05 \
-                        --pheno phenotypes.txt \
+                        --pheno phenotypes_eur.txt \
                         --qcovar qcovar.txt \
                         --covar covar.txt \
                         --extract ukbEURu_imp_all_v3_impQC_maf01.snpList \
                         --grm /mnt/project/grm/sp_grm_eur_OX \
-                        --covar-maxlevel 110 \
                         --out reml_res \
                         --thread-num 8
     "
 
-  dx run swiss-army-knife \
+dx run swiss-army-knife \
       -iin="gcta64" \
-      -iin="${project}:/phenotypes.txt" \
+      -iin="${project}:/phenotypes_eur.txt" \
       -iin="${project}:/covar.txt" \
       -iin="${project}:/qcovar.txt" \
       -iin="${project}:/grm/ukbEURu_imp_all_v3_impQC_maf01.snpList" \
@@ -30,4 +29,3 @@ project="blood_biomarkers - Jul 01, 2024"
       --tag res_chr${chr} \
       -y \
       --brief
-#done
