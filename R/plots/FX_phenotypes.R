@@ -183,88 +183,6 @@ data <- df %>%
 
 data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
-p <- data %>%
-  filter(is_white == 1) %>%
-  filter(rel == 0)
-
-# p %>% mutate(FID = eid) %>%
-#   select(FID, eid, resl) %>%
-#   rename(IID = eid) %>%
-#   data.table::fwrite(., "phenotypes_prots.txt", sep = "\t", quote = FALSE, row.names = FALSE)
-
-
-### trials
-
-rs <- broom::tidy(lm(res ~ day_of_week + as.factor(y) + sex + age_recruitment + assessment_centre + PC1 +
-                       PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + season, data= data))
-
-### chrono x night
-r <- broom::tidy(lm(res ~ chrono*night_shift + sex + age_recruitment + assessment_centre + PC1 +
-     PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + year, data= data))
-
-rs <- broom::tidy(lm(res ~ chrono*shift_work, data= data))
-
-data %>%
-  count(chrono, night_shift)
-
-### PLOT DESC
-
-# ps <- data %>%
-#   filter(age_recruitment > 40 & age_recruitment < 70) %>%
-#   ggplot(aes(x = age_recruitment, y = res, color = sex)) + geom_smooth() +
-#   labs(x = "Age", y = "Circadian acceleration", color = "Sex") +
-#   theme_classic(base_size = 16) +
-#   theme(legend.position.inside = c(0.95, 0.95))
-#
-# ggsave("plots/FS_sexage_CA.png", ps, width = 8, height = 5)
-
-
-### Plots CHRONO vs SEX
-p_chrono <- sleep %>%
-  left_join(covs) %>%
-  filter(age_recruitment > 39 & age_recruitment <= 70) %>%
-  filter(!is.na(chrono)) %>%
-  group_by(age_recruitment,sex,  chrono) %>%
-  count() %>% ungroup() %>%
-  group_by(age_recruitment, sex) %>% mutate(p = n/sum(n)) %>%
-  ggplot(aes(x = age_recruitment, y = p, color = chrono)) +
-  geom_point() +
-  labs(color = "Chronotype", y = "Proportion", x = "Age") +
-  facet_grid(~sex) +
-  theme_classic(base_size = 16)
-
-ggsave("plots/FS_chronotypes_agesex.png", p_chrono, width = 10, height = 5)
-
-
-ca_res <- data %>%
-  filter(!is.na(chrono)) %>%
-  ggplot(aes(x = age_recruitment, y = res, color = sex)) + geom_smooth() +
-  labs(x = "Age", y = "Circadian acceleration", color = "Sex") +
-  facet_grid(~chrono) +
-  theme_classic(base_size = 12) +
-  theme(axis.text.x = element_text(size = 8),
-        legend.position.inside = c(0.95, 0.95))
-
-ggsave("plots/FS_CA_chronotypes_agesex.png", ca_res, width = 10, height = 5)
-
-## associations
-
-m_0 <- tidy(lm(res ~ age_recruitment, data = data %>% filter(sex == "Female")))
-# term            estimate std.error statistic p.value
-# <chr>              <dbl>     <dbl>     <dbl>   <dbl>
-#   1 (Intercept)     -0.0840   0.0524       -1.60   0.109
-# 2 age_recruitment  0.00146  0.000915      1.60   0.110
-
-m_1 <- tidy(lm(res ~ age_recruitment, data = data %>% filter(sex == "Male")))
-# term            estimate std.error statistic p.value
-# <chr>              <dbl>     <dbl>     <dbl>   <dbl>
-#   1 (Intercept)      0.0715    0.0581       1.23   0.218
-# 2 age_recruitment -0.00123   0.00101     -1.22   0.221
-
-m_c <- tidy(lm(res ~ age_recruitment + sex*chrono, data = data))
-m_1_c <- tidy(lm(res ~ age_recruitment*chrono, data = data %>% filter(sex == "Male")))
-
-library(ggplot2)
 
 library(table1)
 my_render_cont <- function(x){
@@ -284,7 +202,7 @@ tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smokin
                            data = data,
                            render.cont = my_render_cont, topclass="Rtable1-grid")
 
-# --- 1. Predictor list ---
+
 vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079", #"rmeq_chronotype", "rmeq_score",
           "is_weekend", "day_of_week",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST", "chrono_Nightshift",
@@ -298,7 +216,7 @@ vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insom
 
 covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:20))
 
-# --- 2. Fit models and extract results ---
+
 results <- map_dfr(vars, function(v) {
   adj_vars <- if (v %in% c("sex", "age_recruitment")) paste0("PC", 1:20) else covars
 
@@ -323,138 +241,4 @@ results <- map_dfr(vars, function(v) {
 })
 
 saveRDS(results, "data_share/results_associations_phenotypes_CA.rds")
-
-
-### PLOT PART
-
-vars <- c("age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079",
-          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI")
-
-results <- bind_rows(readRDS("data_share/results_associations_phenotypes_CA.rds"),
-                     readRDS("data_share/results_associations_medication_CA.rds") %>% filter(str_ends(term, "1")) %>%
-                       mutate(term = str_remove(term, "1")))
-
-
-# Define pretty labels and colors
-pretty_predictor <- c(
-  age_recruitment = "Age at Recruitment", sex = "Sex",
-  chrono = "Chronotype", h_sleep = "Sleep Duration", ever_insomnia = "Insomnia",
-  season = "Season", is_dst = "Daylight Savings", night_shift = "Night Shift",
-  smoking = "Smoking", wakeup = "Waking Easiness", bmi = "BMI",
-  shift_work = "Shift Work", TDI = "Townsend DI",
-  has_prescription = "Any",
-  antidepressants = "Antidepressants", antihypertensive = "Antihypertensives", sleep_medication = "Sedatives and hypnotics", mood_stabiliser = "Mood stabilisers", lithium = "Lithium")
-
-domain_colors <- c(
-  "Demographics" = "#d62728", "Job" = "#1f77b4",
-  "Season" = "#9467bd", "Sleep \nquestionnaire" = "#ff7f0e", "Sleep medication" = "darkgreen")
-
-# Define predictor order (standard names)
-predictor_order <- c("sex", "age_recruitment", "bmi", "smoking", "TDI",
-                     "season", "is_dst", "chrono", "wakeup", "h_sleep", "ever_insomnia",
-                     "shift_work", "night_shift",
-                     "has_prescription","sleep_medication", "antihypertensive", "antidepressants", "mood_stabiliser", "lithium")
-
-# Define term order for each predictor
-term_order <- list(
-  sex = c("Female (ref)", "Male"),
-  age_recruitment = c("Age at Recruitment"),
-  bmi = c("BMI"),
-  smoking = c("Never (ref)", "Previous", "Current"),
-  TDI = c("Townsend DI"),
-  season = c("Winter (ref)", "Spring", "Summer", "Fall"),
-  is_dst = c("No (ref)", "Yes"),
-  chrono = c("Definitely morning (ref)", "Rather morning", "Don't know",
-             "Rather evening", "Definitely evening"),
-  wakeup = c("Very easy (ref)", "Fairly easy", "Not very easy", "Not at all easy"),
-  h_sleep = c("Normal (7-9h) (ref)", "Short (<7 h)", "Long (>9h)"),
-  ever_insomnia = c("Never/rarely (ref)", "Sometimes", "Usually"),
-  shift_work = c("Never/rarely (ref)", "Usually", "Always"),
-  night_shift = c("Never (ref)", "Sometimes", "Usually", "Always"),
-  has_prescription = c("Any"),
-  antihypertensive = c("Antihypertensives"),
-  antidepressants= c("Antidepressants"),
-  sleep_medication = c("Sedatives and hypnotics"),
-  mood_stabiliser= c("Mood stabilisers"),
-  lithium= c("Lithium")
-)
-
-# Create ordered dataframe
-order_df <- imap_dfr(term_order, ~ tibble(
-  predictor = .y,
-  display_term = .x,
-  term_rank = seq_along(.x))) %>%
-  mutate(predictor = factor(predictor, levels = predictor_order)) %>%
-  arrange(predictor, term_rank) %>%
-  mutate(y_order = row_number())
-
-# Process results - filter out time_day
-res <- results %>%
-  filter(predictor != "time_day") %>%
-  mutate(term = case_when(
-    str_detect(term, "night_shift") ~ paste0(term, "."),
-    TRUE ~ term
-  )) %>%
-  mutate(
-    lower = ifelse(reference, 0, estimate - 1.96 * std.error),
-    upper = ifelse(reference, 0, estimate + 1.96 * std.error),
-    Category = case_when(
-      predictor %in% c("age_recruitment", "sex", "bmi", "smoking", "TDI") ~ "Demographics",
-      predictor %in% c("chrono", "h_sleep", "ever_insomnia", "wakeup") ~ "Sleep \nquestionnaire",
-      predictor %in% c("season", "is_dst") ~ "Season",
-      predictor %in% c("shift_work", "night_shift") ~ "Job",
-      TRUE ~ "Sleep medication"
-    ),
-    predictor_label = pretty_predictor[predictor],
-    level = str_remove(term, paste0("^", predictor)),
-    display_term = ifelse(reference,
-                          paste0(level, " (ref)"),
-                          ifelse(level %in% c(""), predictor_label, level))
-  ) %>%
-  mutate(predictor = factor(predictor, levels = predictor_order))
-
-# Join with order_df and create plot data
-plot_data <- res %>%
-  right_join(order_df, by = c("predictor", "display_term")) %>%
-  mutate(
-    is_ref = if_else(estimate == 0 & is.na(p.value), TRUE, FALSE),
-    FDR = p.adjust(p.value),
-    predictor_label = pretty_predictor[as.character(predictor)],
-    Category = factor(Category, levels = c("Demographics", "Season", "Sleep \nquestionnaire", "Job", "Sleep medication"))
-  ) %>%
-  arrange(y_order) %>%
-  mutate(
-    display_term = fct_reorder(display_term, -y_order))
-
-p1 <- plot_data %>%
-  ggplot(aes(x = estimate, y = display_term, color = Category, alpha = FDR < 0.05)) +
-  geom_vline(xintercept = 0, linetype = "dashed") +
-  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.1) +
-  geom_point(aes(shape = reference), size = 3, fill = "white") +
-  scale_shape_manual(values = c(`FALSE` = 19, `TRUE` = 21), guide = "none") +
-  scale_color_manual(values = domain_colors) +
-  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.4)) +
-  #scale_y_discrete(labels = term_labels) +
-  #scale_x_continuous(limits = c(0.5, 1.2)) +
-  facet_nested(
-    rows = vars(Category, factor(predictor_label, levels=unique(plot_data$predictor_label))),
-    scales = "free_y",
-    space = "free_y"
-  ) +
-  labs(title = "Circadian acceleration", x = "Effect size (SE)", y = NULL, color = " ", alpha = "FDR < 5%") +
-  theme_classic(base_size = 14) +
-  theme(
-    # Keep outer strip styling as fallback if needed
-    strip.text.y.right = element_text(angle = 0, hjust = 0.5, face = "bold", size = 12),
-    strip.background = element_rect(fill = "antiquewhite2", color = "black", linewidth = 0.8),
-    panel.grid.major.x = element_line(linewidth = 0.1),
-    axis.ticks.y = element_blank(),
-    legend.position = "none"
-  )
-p1
-
-
-ggsave("plots/FX_phenotypes_CA.png", p1, width = 10, height = 10)
-
-
 

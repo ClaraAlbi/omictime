@@ -4,17 +4,25 @@ library(patchwork)
 
 ### PLOT PART
 
+demo <- c("age_recruitment", "sex", "p30079", "bmi", "smoking", "TDI")
+sleep <- c("chrono", "wakeup", "h_sleep", "ever_insomnia")
+season <- c("season", "day_type", "fri_sun", "springDST", "autumnDST")
+meds <- c("has_prescription","sleep_medication", "antihypertensive", "antidepressants", "mood_stabiliser", "lithium")
+shift <- c("shift_work", "night_shift")
+
 results <- readRDS("data_share/results_associations_phenotypes_CA.rds") %>%
   filter(!str_ends(term, "0")) %>%
   mutate(predictor = case_when(str_detect(term, "p30079") ~ "p30079",
                                TRUE ~ predictor),
          term = str_remove(term, "1"),
-         in_mins = estimate * 60)
+         in_mins = estimate * 60) %>%
+  filter(predictor %in% c(demo, sleep, season, meds, shift)) %>%
+  mutate(FDR = p.adjust(p.value))
+
+
 
 
 # 1. demographics
-
-demo <- c("age_recruitment", "sex", "p30079", "bmi", "smoking", "TDI")
 
 pretty_predictor <- c(
   age_recruitment = "Age at Recruitment", sex = "Sex",
@@ -58,7 +66,6 @@ plot_data_demo <- res %>%
   right_join(order_df, by = c("predictor", "display_term")) %>%
   mutate(
     is_ref = if_else(estimate == 0 & is.na(p.value), TRUE, FALSE),
-    FDR = p.adjust(p.value),
     predictor_label = pretty_predictor[as.character(predictor)]) %>%
   arrange(y_order) %>%
   mutate(
@@ -77,8 +84,9 @@ p1 <- plot_data_demo %>%
     scales = "free_y",
     space = "free_y"
   ) +
-  labs(title = "Socio-demographics", x = "Effect size", y = NULL,  alpha = "FDR < 5%") +
+  labs(title = "Socio-demographics", x = "CA (β, 95% CI)", y = NULL,  alpha = "FDR < 5%") +
   theme_classic(base_size = 10) +
+  guides(alpha = "none") +
   theme(
     # Keep outer strip styling as fallback if needed
     strip.text.y.right = element_text(angle = 0, hjust = 0.5, face = "bold", size = 8),
@@ -91,7 +99,6 @@ p1
 
 # 2. SLEEP
 
-sleep <- c("chrono", "wakeup", "h_sleep", "ever_insomnia")
 
 pretty_predictor <- c(
   chrono = "Chronotype", h_sleep = "Sleep Duration", ever_insomnia = "Insomnia", wakeup = "Easiness to wake up")
@@ -131,7 +138,6 @@ plot_data_sleep <- res %>%
   right_join(order_df, by = c("predictor", "display_term")) %>%
   mutate(
     is_ref = if_else(estimate == 0 & is.na(p.value), TRUE, FALSE),
-    FDR = p.adjust(p.value),
     predictor_label = pretty_predictor[as.character(predictor)]) %>%
   arrange(y_order) %>%
   mutate(
@@ -151,8 +157,9 @@ p2 <- plot_data_sleep %>%
     space = "free_y"
   ) +
   scale_x_continuous(limits = c(-1, 1)) +
-  labs(title = "Sleep questionnaire", x = "Effect size", y = NULL,  alpha = "FDR < 5%") +
+  labs(title = "Sleep questionnaire", x = "CA (β, 95% CI)", y = NULL,  alpha = "FDR < 5%") +
   theme_classic(base_size = 10) +
+  guides(alpha = "none") +
   theme(
     # Keep outer strip styling as fallback if needed
     strip.text.y.right = element_text(angle = 0, hjust = 0.5, face = "bold", size = 8),
@@ -165,18 +172,18 @@ p2
 
 ### Seasonality
 
-season <- c("season", "is_weekend","springDST", "autumnDST")
 
 pretty_predictor <- c(
-  season = "Season", is_weekend = "Social jetlag",
+  season = "Season", day_type = "Social jetlag",
+  fri_sun = "Week day",
   autumnDST = "Fall DST", springDST = "Spring DST")
 
 term_order <- list(
   season = c("Winter (ref)", "Spring", "Summer", "Fall"),
-  is_weekend = c("TRUE"),
-  autumnDST = c("baseline_fall (ref)", "before_fall_DST", "after_fall_DST"),
-  springDST = c("baseline_spring (ref)", "before_spring_DST", "after_spring_DST"))
-
+  day_type = c("Weekday (ref)", "Weekend"),
+  fri_sun = c("Sat (ref)", "Fri", "Mon"),
+  autumnDST = c("Baseline autumn (ref)", "Before autumn DST", "After autumn DST"),
+  springDST = c("Baseline spring (ref)", "Before spring DST", "After spring DST"))
 
 
 # Create ordered dataframe
@@ -207,7 +214,6 @@ plot_data_season <- res %>%
   right_join(order_df, by = c("predictor", "display_term")) %>%
   mutate(
     is_ref = if_else(estimate == 0 & is.na(p.value), TRUE, FALSE),
-    FDR = p.adjust(p.value),
     predictor_label = pretty_predictor[as.character(predictor)]) %>%
   arrange(y_order) %>%
   mutate(
@@ -227,8 +233,9 @@ p3 <- plot_data_season %>%
     space = "free_y"
   ) +
   scale_x_continuous(limits = c(-1, 1)) +
-  labs(title = "Seasonal effects", x = "Effect size", y = NULL,  alpha = "FDR < 5%") +
+  labs(title = "Seasonal effects", x = "CA (β, 95% CI)", y = NULL,  alpha = "FDR < 5%") +
   theme_classic(base_size = 10) +
+  guides(alpha = "none") +
   theme(
     # Keep outer strip styling as fallback if needed
     strip.text.y.right = element_text(angle = 0, hjust = 0.5, face = "bold", size = 8),
@@ -242,7 +249,6 @@ p3
 
 ### MEDICATION
 
-meds <- c("has_prescription","sleep_medication", "antihypertensive", "antidepressants", "mood_stabiliser", "lithium")
 
 pretty_predictor <- c(
   has_prescription = "Any",
@@ -285,7 +291,6 @@ plot_data_med <- res %>%
   right_join(order_df, by = c("predictor", "display_term")) %>%
   mutate(
     is_ref = if_else(estimate == 0 & is.na(p.value), TRUE, FALSE),
-    FDR = p.adjust(p.value),
     predictor_label = pretty_predictor[as.character(predictor)]) %>%
   arrange(y_order) %>%
   mutate(
@@ -305,8 +310,9 @@ p4 <- plot_data_med %>%
     scales = "free_y",
     space = "free_y"
   ) +
-  labs(title = "Sleep presciptions", x = "Effect size", y = NULL,  alpha = "FDR < 5%") +
+  labs(title = "Sleep prescriptions", x = "CA (β, 95% CI)", y = NULL,  alpha = "FDR < 5%") +
   theme_classic(base_size = 10) +
+  guides(alpha = "none") +
   theme(
     # Keep outer strip styling as fallback if needed
     strip.text.y.right = element_text(angle = 0, hjust = 0.5, face = "bold", size = 8),
@@ -320,7 +326,6 @@ p4
 
 #### JOB
 
-shift <- c("shift_work", "night_shift")
 
 pretty_predictor <- c(shift_work = "Shift Work", night_shift = "Night Shift")
 
@@ -364,7 +369,6 @@ plot_data_shift <- res %>%
     y_id = factor(y_id, levels = unique(y_id)),
     # compute any plotting flags
     is_ref = if_else(estimate == 0 & is.na(p.value), TRUE, FALSE),
-    FDR = p.adjust(p.value),
     predictor_label = pretty_predictor[as.character(predictor)]
   ) %>% arrange(y_order) %>%
   mutate(
@@ -384,31 +388,48 @@ p5 <- ggplot(plot_data_shift, aes(x = estimate, y = y_id, alpha = FDR < 0.05)) +
     space = "free_y",
   ) +
   scale_x_continuous(limits = c(-1, 1)) +
-  labs(title = "Employment - shift work", x = "Effect size", y = NULL,  alpha = "FDR < 5%") +
+  labs(title = "Employment - shift work", x = "CA (β, 95% CI)", y = NULL,  alpha = "FDR < 5%") +
   theme_classic(base_size = 10) +
+  scale_alpha_manual(
+    values = c(`TRUE` = 1, `FALSE` = 0.4),
+    breaks = c(TRUE, FALSE),
+    labels = c("Yes", "No"),
+    na.translate = FALSE,
+    guide = guide_legend(
+      override.aes = list(
+        colour = "black",   # or NA if you want no outline
+        fill = "black",     # ensures solid neutral legend key
+        shape = 16
+      )
+    )) +
   theme(
     strip.text.y.right = element_text(angle = 0, hjust = 0.5, face = "bold", size = 8),
     strip.background = element_rect(fill = alpha("#A9CBB7", 0.4), color = "black", linewidth = 0.8),
     panel.grid.major.x = element_line(linewidth = 0.1),
     axis.ticks.y = element_blank(),
-    legend.position = "none"
+    legend.position = "bottom"
   ) +
   # replace y-axis labels with just the display_term part (after "___")
   scale_y_discrete(labels = function(x) sub(".*___", "", x))
 p5
 
 
+p1 <- p1 + labs(tag = "A")
+p3 <- p3 + labs(tag = "B")
+p2 <- p2 + labs(tag = "C")
+p5 <- p5 + labs(tag = "D")
+p4 <- p4 + labs(tag = "E")
 
 ### COMBINE
-
 all_ps <-
-(p1 | p2) /
+  (p1 | p2) /
   (p3 | (p5 / p4)) +
-  plot_layout(
-    guides = "collect"
-  ) &
+  plot_layout(guides = "collect")  &
   theme(
-    plot.margin = margin(5, 5, 5, 5)
+    legend.position = "bottom",
+    plot.tag = element_text(size = 16, face = "bold"),
+    plot.tag.position = c(0.01, 0.99),
+    plot.margin = margin(8, 8, 8, 8)
   )
 
 ggsave("plots/FX_phenotypes.png", all_ps, width = 10, height = 8)
