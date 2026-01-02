@@ -52,7 +52,8 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
          h_sleep = `1160-0.0`,
          chrono = `1180-0.0`,
          ever_insomnia = `1200-0.0`,
-         wakeup = `1170-0.0`) %>%
+         wakeup = `1170-0.0`,
+         snoring = `1210-0.0`) %>%
   mutate(chrono = case_when(
     chrono == 1 ~ "Definitely morning",
     chrono == 2 ~ "Rather morning",

@@ -18,13 +18,24 @@ covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
 pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
   select(eid = 1, contains("PC"))
 
+chrono <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
+  select(eid, chrono = `1180-0.0`) %>%
+  mutate(chrono = case_when(
+  chrono == 1 ~ "Definitely morning",
+  chrono == 2 ~ "Rather morning",
+  chrono == -1~ "Don't know",
+  chrono == 3 ~ "Rather evening",
+  chrono == 4 ~ "Definitely evening",
+  TRUE ~ NA_character_))
+
 df <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
   filter(i == 0) %>%
   separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T)
 
 data <- df %>%
   left_join(covs) %>%
-  left_join(pcs)
+  left_join(pcs) %>%
+  left_join(chrono)
 
 data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
@@ -49,14 +60,12 @@ d_counts <-
 
 # Combine
 data1 <- data %>%
-  select(eid, res, sex, age_recruitment,assessment_centre, smoking, bmi, any_of(paste0("PC", 1:20))) %>%
+  select(eid, res, sex, age_recruitment,assessment_centre, smoking, bmi, chrono, any_of(paste0("PC", 1:20))) %>%
   left_join(dis2 %>% select(eid, contains(d_counts$name)))
-
-
 
 vars <- d_counts$name
 
-base_covars   <- c("sex","age_recruitment", "assessment_centre",paste0("PC", 1:20))
+base_covars   <- c("sex","age_recruitment", "assessment_centre", paste0("PC", 1:20))
 
 extra_covars <- c("smoking", "bmi")
 
@@ -67,28 +76,27 @@ results <- map_dfr(vars, function(v) {
   f_prev1 <- as.formula(
     paste0("`", v, "` ~ res")
   )
-
-  # formula for abs(res) + covariates
-  f_prev2 <- as.formula(
-    paste0("`", v, "` ~ res + ",
-           paste(base_covars, collapse = " + ")))
   f_prev3 <- as.formula(
     paste0("`", v, "` ~ res + ",
            paste(c(base_covars, extra_covars), collapse = " + ")))
 
+  f_prev4 <- as.formula(
+    paste0("`", v, "` ~ res + ",
+           paste(c(base_covars, extra_covars, "chrono"), collapse = " + ")))
+
 
   # fit models
   m1 <- glm(f_prev1, data = data1, family = binomial)
-  m2 <- glm(f_prev2, data = data1, family = binomial)
   m3 <- glm(f_prev3, data = data1, family = binomial)
+  m4 <- glm(f_prev4, data = data1, family = binomial)
 
   # collect results
   bind_rows(
     broom::tidy(m1, conf.int = F, exponentiate = TRUE) %>%
       mutate(model = "Model1", outcome = v),
-    broom::tidy(m2, conf.int = F, exponentiate = TRUE) %>%
-      mutate(model = "Model2", outcome = v),
     broom::tidy(m3, conf.int = F, exponentiate = TRUE) %>%
+      mutate(model = "Model2", outcome = v),
+    broom::tidy(m4, conf.int = F, exponentiate = TRUE) %>%
       mutate(model = "Model3", outcome = v)
   )
 })
@@ -97,24 +105,18 @@ saveRDS(results %>%
           left_join(d_counts %>% rename(outcome = name)), "data_share/association_results_disease_CA.rds")
 
 
-
 ###
-
-olink <- readRDS("/mnt/project/cir") %>%
-  select(eid, angpt1, tnr, sema3f, spon2, spink5, relt, gdf15, efna1)
-
-
 
 library(tidyverse)
 library(forcats)
 
-results <- readRDS("data_share/association_results_disease_CA.rds") %>%
-  bind_rows(readRDS("data_share/association_results_disease_CM.rds"))
+results <- readRDS("data_share/association_results_disease_CA.rds")
 
-fields <- data.table::fread("data/field.tsv")
+fields <- data.table::fread("/mnt/project/Showcase metadata//field.tsv")
 
 r <- results %>%
   filter(term %in% c("res", "abs(res)")) %>%
+  left_join(d_counts, by = c("outcome" = "name")) %>%
   mutate(expo = case_when(term == "res" ~ "Circadian Acceleration",
                           term == "abs(res)" ~ "Circadian Misalignment"),
     outcome = str_remove(outcome, "-0.0_prevalent"),
@@ -126,8 +128,8 @@ r <- results %>%
          disorder = sub(".*\\((.*)\\).*", "\\1", title),
          disorder = str_remove(disorder, "\\)"),
          disorder = str_to_sentence(disorder)) %>%
-  filter(!field_id  %in% c(130898, 130902, 130932, 130944, 130852)) %>%
-  filter(!family %in% c("F4", "F5", "F6", "F1" )) %>%
+  #filter(!field_id  %in% c(130898, 130902, 130932, 130944, 130852)) %>%
+  filter(!family %in% c("F5", "F6", "F1", "FO" )) %>%
   distinct(field_id, model, expo, .keep_all = TRUE)
 
 r %>%
@@ -144,17 +146,12 @@ p_res <-
     y = estimate,
     ymin = estimate - std.error, ymax = estimate + std.error,
     color = model,
-    alpha = p.adjust(p.value) < 0.05
+    shape = p.adjust(p.value) < 0.05
   )) +
   # points with vertical error bars (dodge by model)
   geom_pointrange(position = position_dodge(width = 0.8), size = 1, fatten = 1.5) +
   coord_flip() +
-  facet_nested(
-    cols = vars(expo),
-    rows = vars(family),
-    scales = "free_y",
-    space = "free_y"
-  ) +
+  facet_wrap(~family, scales = "free", ncol = 3) +
   geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40") +
   scale_color_manual(values = c("#2ca02c", "#9467bd", "#ff7f0e")) +
   scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.35), guide = "none") +
@@ -163,7 +160,7 @@ p_res <-
   theme_classic(base_size = 14) +
   theme(
     # place legend inside plot at top-right
-    legend.position = c(0.6, 1),
+    #legend.position = c(0.6, 1),
     legend.justification = c("right", "top"),
     strip.background = element_rect(fill = "antiquewhite2", color = "black", linewidth = 0.8),
     legend.title = element_blank(),
@@ -175,7 +172,7 @@ p_res <-
   guides(color = guide_legend(nrow = 3, byrow = TRUE, reverse = TRUE))
 
 
-ggsave("plots/F7_diseases_log.png", p_res, width = 10, height = 11)
+ggsave("plots/F7_diseases_log.png", p_res, width = 20, height = 14)
 
 
 
