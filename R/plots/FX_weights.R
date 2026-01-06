@@ -158,6 +158,7 @@ extract_weights_from_model <- function(path, obj) {
 
 # === locate your model files ===
 model_dir <- "/mnt/project/biomarkers_3/covariate_res/MODELS"
+model_dir <- "data_share/"
 model_files <- list.files(model_dir, pattern = "^cv\\.all_.*\\.rds$", full.names = TRUE)[-16]
 
 # optionally, restrict to the five folds of lasso/lassox2/lightgbm user supplied --
