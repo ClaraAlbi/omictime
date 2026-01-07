@@ -1,3 +1,10 @@
+library(stringr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(purrr)
+install.packages("broom")
+library(broom)
 
 ukbppp <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
   filter(i == 0)
@@ -43,12 +50,21 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
     chrono == 3 ~ "Rather evening",
     chrono == 4 ~ "Definitely evening",
     TRUE ~ NA_character_),
-    chrono = factor(chrono, levels = c("Definitely morning", "Rather morning", "Don't know", "Rather evening", "Definitely evening")))
+    wakeup = case_when(
+      wakeup == 1 ~ "Not at all easy",
+      wakeup == 2 ~ "Not very easy",
+      wakeup == -1 ~ "Do not know",
+      wakeup == 3 ~ "Fairly easy",
+      wakeup == 4 ~ "Very easy"),
+    chrono = factor(chrono, levels = c("Definitely morning", "Rather morning", "Don't know", "Rather evening", "Definitely evening")),
+    wakeup = factor(wakeup, levels = c("Very easy", "Fairly easy",  "Not very easy", "Not at all easy")))
 
-prs <- data.table::fread("PRS_CA_allchr.profile") %>% mutate(eid = as.numeric(IID)) %>%
-  filter(!FID %in% ukbppp$eid) %>%
-  filter(FID %in% a$eid) %>%
+prs <- data.table::fread("/mnt/project/PRS_CA_allchr.profile") %>% mutate(eid = as.numeric(IID)) %>% select(eid, PRS_SUM) %>%
+  left_join(data.table::fread("/mnt/project/prs_prots_allchr.sscore") %>% mutate(eid = as.numeric(IID)) %>% select(-FID, -IID), by = c("eid")) %>%
+  filter(!eid %in% ukbppp$eid) %>%
+  filter(eid %in% a$eid) %>%
   mutate(CA_prs = scale(PRS_SUM)[,1]) %>%
+  mutate(across(ends_with("AVG"), ~scale(.x)[,1])) %>%
   left_join(sleep) %>%
   left_join(covs) %>%
   left_join(gen_covs) %>%
@@ -56,7 +72,9 @@ prs <- data.table::fread("PRS_CA_allchr.profile") %>% mutate(eid = as.numeric(II
 
 hist(prs$CA_prs)
 
-summary(lm(paste0("CA_prs ~ ", paste0(c("chrono", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = prs))
+""
+
+tidy(lm(paste0("CA_prs ~ ", paste0(c("chrono", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = prs))
 summary(lm(paste0("CA_prs ~ ", paste0(c("wakeup", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = prs))
 
 summary(lm(CA_prs ~ night_shift, data = prs))

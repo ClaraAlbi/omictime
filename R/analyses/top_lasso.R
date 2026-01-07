@@ -1,4 +1,4 @@
-library(dplyr)
+library(glmnet)
 
 m <- readRDS("data_share/cv.olink_14_lasso_cv1.rds")
 
@@ -12,4 +12,5 @@ d <- data.frame(
 )
 
 d %>%
-  arrange(desc(abs(weight)))
+  arrange(desc(abs(weight))) %>%
+  slice(1:20)
