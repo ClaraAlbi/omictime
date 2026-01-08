@@ -1,5 +1,5 @@
 
-
+fields <- data.table::fread("data/field.tsv")
 
 ### Download RAP SLEEP
 
@@ -39,4 +39,19 @@ for (c in cats) {
 
 paste(c("dx run table-exporter -idataset_or_cohort_or_dashboard=record-Gp1BZyjJY95YyKkqg1XqQ70f -ioutput=physical  -ientity=participant --tag=table_exporter  --name=table_exporter --brief -y ",
         paste("-ifield_names", c("eid", "p4080_i0_a0", "p4080_i0_a1", "p4079_i0_a0", "p4079_i0_a1", "p46_i0", "p47_i0", "p20023_i0", "p20016_i0", "p20532", "p20534", "p20533", "p20535"), sep = "=")), collapse = " ")
+
+
+
+fields %>%
+    filter(main_category %in% c(141, 142, 140, 138, 147,139, 137, 100060, 146, 145, 144 ))
+
+ids <- fields %>%
+  filter(main_category == "100060") %>%
+  filter(!field_id %in% c(10721, 20122, 20123, 20124, 20125, 20126, 20127)) %>%
+  pull(field_id)
+
+paste(c("dx run table-exporter -idataset_or_cohort_or_dashboard=record-Gp1BZyjJY95YyKkqg1XqQ70f -ioutput=mh_i1  -ientity=participant --tag=table_exporter  --name=table_exporter --brief -y ",
+        paste("-ifield_names", c("eid", paste0("p", ids, "_i", 1)), sep = "=")), collapse = " ")
+
+paste0("p", ids, "_i", 0)
 
