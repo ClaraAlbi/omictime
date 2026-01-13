@@ -5,6 +5,7 @@ library(ggplot2)
 library(purrr)
 install.packages("broom")
 library(broom)
+library(data.table)
 
 ukbppp <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
   filter(i == 0)
@@ -59,6 +60,44 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
     chrono = factor(chrono, levels = c("Definitely morning", "Rather morning", "Don't know", "Rather evening", "Definitely evening")),
     wakeup = factor(wakeup, levels = c("Very easy", "Fairly easy",  "Not very easy", "Not at all easy")))
 
+
+dis2 <- bind_cols(fread("/mnt/project/top_diseases_IEFG.csv"), fread("/mnt/project/immune.csv") %>% select(-eid)) %>%
+  mutate(across(-eid, as_date))
+
+
+dis_prev <- dis2 %>%
+  select(eid, 1:10,
+         contains("130894"),
+         contains("130814"),
+         contains("131848")) %>%
+  left_join(
+    readRDS("/mnt/project/biomarkers/time.rds") %>%
+      select(eid, date_bsampling),
+    by = "eid"
+  ) %>%
+  mutate(
+    date_bsampling = as.Date(date_bsampling),
+    across(contains("13"), as.Date)
+  ) %>%
+  mutate(
+    across(
+      contains("13"),
+      list(
+        prev = ~ if_else(!is.na(.x) & .x < date_bsampling, 1L, 0L),
+        prev_lt5y = ~ if_else(
+          !is.na(.x) &
+            .x < date_bsampling &
+            .x >= (date_bsampling - years(5)),
+          1L, 0L
+        )
+      ),
+      .names = "{.col}_{.fn}"
+    )
+  ) %>%
+  select(eid, contains("prev"))
+
+
+
 prs <- data.table::fread("/mnt/project/PRS_CA_allchr.profile") %>% mutate(eid = as.numeric(IID)) %>% select(eid, PRS_SUM) %>%
   left_join(data.table::fread("/mnt/project/prs_prots_allchr.sscore") %>% mutate(eid = as.numeric(IID)) %>% select(-FID, -IID), by = c("eid")) %>%
   filter(!eid %in% ukbppp$eid) %>%
@@ -68,14 +107,26 @@ prs <- data.table::fread("/mnt/project/PRS_CA_allchr.profile") %>% mutate(eid = 
   left_join(sleep) %>%
   left_join(covs) %>%
   left_join(gen_covs) %>%
-  left_join(job_vars)
+  left_join(job_vars) %>%
+  left_join(dis_prev)
 
 hist(prs$CA_prs)
 
-""
+res <- prs %>%
+  pivot_longer(starts_with("p13")) %>%
+  group_by(name) %>%
+  nest() %>%
+  mutate(d = map(data, ~tidy(lm(paste0("value ~ ", paste0(c("CA_prs", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = .x)))) %>%
+  select(name, d) %>% unnest(d)
 
-tidy(lm(paste0("CA_prs ~ ", paste0(c("chrono", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = prs))
+""
+m <- lm(paste0("CA_prs ~ ", paste0(c("chrono", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = prs)
+tidy(m)
+summary(m)
 summary(lm(paste0("CA_prs ~ ", paste0(c("wakeup", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = prs))
 
 summary(lm(CA_prs ~ night_shift, data = prs))
 summary(lm(CA_prs ~ sex, data = prs))
+
+
+tidy(lm(paste0("lip ~ ", paste0(c("CA_prs", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = prs))
