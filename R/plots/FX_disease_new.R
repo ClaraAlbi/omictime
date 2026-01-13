@@ -5,6 +5,7 @@ library(purrr)
 library(survival)
 library(ggplot2)
 library(stringr)
+library(lubridate)
 install.packages("broom")
 library(ggh4x)
 
@@ -58,12 +59,47 @@ d_counts <-
   group_by(name) %>% count(value) %>%
   filter(value == 1 & n > 40)
 
+#new
+
+dis2 <- bind_cols(fread("/mnt/project/top_diseases_IEFG.csv"), fread("/mnt/project/immune.csv") %>% select(-eid)) %>%
+  mutate(across(-eid, as_date))
+
+dis_prev <- dis2 %>%
+  left_join(
+    readRDS("/mnt/project/biomarkers/time.rds") %>%
+      select(eid, date_bsampling),
+    by = "eid"
+  ) %>%
+  mutate(
+    date_bsampling = as.Date(date_bsampling),
+    across(contains("13"), as.Date)
+  ) %>%
+  mutate(
+    across(
+      contains("13"),
+      list(
+        prev = ~ if_else(!is.na(.x) & .x < date_bsampling, 1L, 0L),
+        prev_lt1y = ~ if_else(
+          !is.na(.x) &
+            .x < date_bsampling &
+            .x >= (date_bsampling - years(1)),
+          1L, 0L
+        )
+      ),
+      .names = "{.col}_{.fn}"
+    )
+  ) %>%
+  select(eid, contains("prev"))
+
+
 # Combine
 data1 <- data %>%
   select(eid, res, sex, age_recruitment,assessment_centre, smoking, bmi, chrono, any_of(paste0("PC", 1:20))) %>%
-  left_join(dis2 %>% select(eid, contains(d_counts$name)))
+  left_join(dis_prev)
 
-vars <- d_counts$name
+vars <- colnames(dis_prev)[-1][7:20]
+
+vars <- colnames(dis_prev)[str_detect(colnames(dis_prev), "lt1y")]
 
 base_covars   <- c("sex","age_recruitment", "assessment_centre", paste0("PC", 1:20))
 
@@ -103,6 +139,53 @@ results <- map_dfr(vars, function(v) {
 
 saveRDS(results %>%
           left_join(d_counts %>% rename(outcome = name)), "data_share/association_results_disease_CA.rds")
+
+
+counts_d <-
+  dis_prev %>%
+  select(vars) %>%
+  pivot_longer(everything()) %>%
+  group_by(name) %>% count(value)
+
+r <- results %>%
+  filter(term %in% c("res", "abs(res)")) %>%
+  left_join(counts_d %>% filter(value == 1), by = c("outcome" = "name")) %>%
+  mutate(expo = case_when(term == "res" ~ "Circadian Acceleration",
+                          term == "abs(res)" ~ "Circadian Misalignment"),
+         t = map_chr(outcome, ~str_split(.x, "prev_")[[1]][2]),
+         outcome = map_chr(outcome, ~str_split(.x, "_prev_")[[1]][1]),
+         outcome = str_remove(outcome, "p"),
+         field_id = as.numeric(outcome)) %>%
+  left_join(fields %>% select(field_id, title)) %>%
+  mutate(family = str_extract(title, "(?<=Date )\\S+(?= first reported)"),
+         family = str_sub(family, 1, 2),
+         disorder = sub(".*\\((.*)\\).*", "\\1", title),
+         disorder = str_remove(disorder, "\\)"),
+         disorder = str_to_sentence(disorder))
+
+
+data1 %>% mutate(
+  bmi_cat = case_when(
+    bmi < 18.5            ~ "Underweight",
+    bmi >= 18.5 & bmi < 25 ~ "Normal weight",
+    bmi >= 25   & bmi < 30 ~ "Overweight",
+    bmi >= 30             ~ "Obese"
+  )
+) %>%
+  mutate(
+    bmi_cat = factor(
+      bmi_cat,
+      levels = c("Normal weight", "Overweight", "Obese", "Underweight")
+    )
+  ) %>%
+  count(p130792_prev_lt5y, p131306_prev, bmi_cat)
+
+model_int <- glm(
+  p131306_prev ~ res * p130792_prev_lt5y +
+    age + sex + smoking + BMI,
+  family = binomial,
+  data = dat
+)
 
 
 ###
