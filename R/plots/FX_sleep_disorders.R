@@ -2,7 +2,7 @@
 
 phase <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
   filter(i == 0) %>%
-  left_join(data.table::fread("sleep_phase.csv")) %>%
+  left_join(data.table::fread("/mnt/project/sleep_phase.csv")) %>%
   left_join(data.table::fread("/mnt/project/chronotype2.tsv") %>%
               select(eid, chrono = `1180-0.0`) %>%
               mutate(chrono = case_when(
