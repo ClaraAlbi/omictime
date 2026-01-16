@@ -1,6 +1,9 @@
 
 library(ggplot2)
-
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tibble)
 
 olink_cohort <- data.table::fread("/mnt/project/olink_instance_0.csv")
 
@@ -34,3 +37,71 @@ summary(lm(chrono ~ gdf15, data = d))
 
   ggplot(aes(x = chrono, y = spon2)) + geom_point()
 
+
+
+
+
+olink_t <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds")
+
+cor_pmat <- function(mat, method = "pearson") {
+    vars <- colnames(mat)
+
+    expand.grid(prot1 = vars, prot2 = vars, stringsAsFactors = FALSE) %>%
+      rowwise() %>%
+      mutate(
+        test = list(cor.test(
+          mat[, prot1],
+          mat[, prot2],
+          method = method
+        )),
+        r = test$estimate,
+        p = test$p.value
+      ) %>%
+      ungroup() %>%
+      select(-test)
+  }
+
+
+target_prots <- c(
+    "MYOC","HYAL1","EFNA1","TNR","FAS","RELT","CD276",
+    "SPON2","SPINK5","GDF15","PGF","ANGPTL1",
+    "KLK12","LGALS1","HS3ST3B1", "KLK13"
+  )
+
+mat <- olink_t %>%
+  rename_with(tolower) %>%
+  select(any_of(tolower(target_prots))) %>%
+  as.matrix()
+
+cs_long <- cor_pmat(mat) %>%
+  mutate(pfdr = p.adjust(p))
+
+
+ggplot(cs_long, aes(x = prot1, y = prot2, fill = r)) +
+  geom_tile(color = "white") +
+  #geom_text(aes(label = ifelse(pfdr < 0.05, "*", "")), size = 5) +
+  scale_fill_gradient2(
+    low = "blue",
+    mid = "white",
+    high = "red",
+    midpoint = 0,
+    name = "r"
+  ) +
+  theme_classic(base_size = 16) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title = element_blank()
+  )
+
+
+time <- readRDS("/mnt/project/biomarkers/time.rds")
+
+olink_t %>%
+  rename_with(tolower) %>%
+  select(eid, any_of(tolower(target_prots))) %>%
+  left_join(time) %>%
+  filter(time_day > 9 & time_day < 20) %>%
+  pivot_longer(2:17) %>%
+  ggplot(aes(x = time_day, y = value, color = name)) +
+  geom_smooth() +
+  theme_classic(base_size = 16)

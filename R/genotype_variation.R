@@ -1,8 +1,31 @@
 
-# dx download file-J4jkKpjJ4p252G83Xvj8yz1G
-# dx download file-J4jkJZjJYF20Jy0zQQx46qk2
-dx download file-J4jkGY8J3JFX14J2f3K2xfKz
-dx download file-J4jk9qQJzk1k6bBjkfkj3y1x
+target_prots <- c(
+  "MYOC","HYAL1","EFNA1","TNR","FAS","RELT","CD276",
+  "SPON2","SPINK5","GDF15","PGF","ANGPTL1",
+  "KLK12","LGALS1","HS3ST3B1", "KLK13"
+)
+
+
+rsid <- data.table::fread("CA_cojo_combined_rs.txt")
+
+olink_t <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds")
+
+
+olink_t %>%
+  rename_with(tolower) %>%
+  select(eid, any_of(tolower(target_prots))) %>%
+  left_join(time) %>%
+  filter(time_day > 9 & time_day < 20) %>%
+  left_join(rsid, by = c("eid" = "FID")) %>%
+
+  pivot_longer(2:17) %>%
+  ggplot(aes(x = time_day, y = value, color = name)) +
+  geom_smooth() +
+  theme_classic(base_size = 16)
+
+
+
+
 
 chr1 <- data.table::fread("/mnt/project/snps/subset_cojo_pQTL_chr1.raw") %>%
   filter(IID %in% olink$eid) %>%
