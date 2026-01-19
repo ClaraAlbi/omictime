@@ -5,12 +5,67 @@ library(purrr)
 library(survival)
 library(ggplot2)
 library(stringr)
+library(scales)
 library(lubridate)
 library(data.table)
 install.packages("broom")
 install.packages("forcats")
 library(broom)
 library(forcats)
+
+d <- readRDS("/mnt/project/diseases_circadian.rds")
+
+outcomes <- colnames(d)[-1]
+
+
+
+# count how many diagnoses happened >15 years ago (per row)
+d_long <- d %>%
+  mutate(across(all_of(diag_cols), as.Date)) %>%
+  left_join(readRDS("/mnt/project/biomarkers/time.rds") %>% select(eid, date_bsampling)) %>%
+  mutate(
+    date_bsampling = ymd(date_bsampling),
+    across(all_of(diag_cols), ymd)
+  ) %>%
+  pivot_longer(
+    cols = all_of(diag_cols),
+    names_to = "diagnosis",
+    values_to = "earliest_dx_date"
+  )
+
+d_long <- d_long %>%
+  mutate(
+    case_15y = case_when(
+      !is.na(earliest_dx_date) &
+        earliest_dx_date >= date_bsampling %m-% years(15) &
+        earliest_dx_date <= date_bsampling ~ 1L,
+
+      is.na(earliest_dx_date) ~ 0L,
+
+      TRUE ~ NA_integer_
+    )
+  )
+
+d_15_cc <- d_long %>%
+  select(eid, date_bsampling, diagnosis, case_15y) %>%
+  pivot_wider(
+    id_cols = c(eid, date_bsampling),
+    names_from = diagnosis,
+    values_from = case_15y
+  )
+
+
+d_long %>%
+  group_by(diagnosis) %>%
+  summarise(
+    cases = sum(case_15y == 1, na.rm = TRUE),
+    controls = sum(case_15y == 0, na.rm = TRUE),
+    excluded = sum(is.na(case_15y))
+  )
+
+
+##############
+
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   mutate(bmi = weight/(height/100)^2,
@@ -58,9 +113,12 @@ data1 <- data %>%
            ),
            .names = "{.col}_prevalent"
     )
-  ) 
+  )
 
 
+data1 <- data %>%
+  select(eid, res, sex, age_recruitment,assessment_centre, smoking, bmi, chrono, any_of(paste0("PC", 1:20))) %>%
+  left_join(d_15_cc)
 
 data1 <- data1 %>%
   mutate(
@@ -108,6 +166,7 @@ middle_quintile <- 3
 outcomes <- names(data1) %>%
   grep("_prevalent$", ., value = TRUE)
 
+outcomes <- colnames(d)[-1]
 
 covariates <- c(
   "sex",
@@ -121,24 +180,24 @@ covariates <- c(
 quintiles <- 1:5
 
 res_quintile_vs_mid <- map_dfr(quintiles, function(q) {
-  
+
   if (q == middle_quintile) return(NULL)
-  
+
   map_dfr(outcomes, function(outcome) {
-    
+
     df <- data1 %>%
       filter(ca_quintile %in% c(q, middle_quintile)) %>%
       mutate(q_case = if_else(ca_quintile == q, 1L, 0L))
-    
+
     fit <- run_logistic(
       as.formula(
         paste(outcome, "~ q_case +", paste(covariates, collapse = " + "))
       ),
       df
     )
-    
+
     if (is.null(fit)) return(NULL)
-    
+
     tidy(fit, exponentiate = TRUE) %>%
       filter(term == "q_case") %>%
       mutate(
@@ -158,16 +217,16 @@ data1 <- data1 %>%
   mutate(res_z = as.numeric(scale(res)))
 
 res_quant <- map_dfr(outcomes, function(outcome) {
-  
+
   fit <- run_logistic(
     as.formula(
       paste(outcome, "~ res_z +", paste(covariates, collapse = " + "))
     ),
     data1
   )
-  
+
   if (is.null(fit)) return(NULL)
-  
+
   tidy(fit, exponentiate = TRUE) %>%
     filter(term == "res_z") %>%
     mutate(
@@ -213,6 +272,8 @@ res_all %>%
       levels = c("Q1_vs_Q3", "Q2_vs_Q3", "Q4_vs_Q3", "Q5_vs_Q3", "CA_per_SD")
     )
   ) %>%
+  filter(contrast == "CA_per_SD") %>%
+  mutate(pfdr = p.adjust(p.value))
   ggplot(aes(x = estimate, y = outcome, color = contrast)) +
   geom_vline(xintercept = 1, linetype = "dashed", color = "grey60") +
   geom_errorbarh(
@@ -259,187 +320,4 @@ res_all %>%
     axis.text.y = element_text(size = 14)
   )
 
-d <- readRDS("diseases_circadian.rds") %>%
-  left_join(readRDS("/mnt/project/biomarkers/time.rds") %>% select(eid, date_bsampling))
 
-
-data1 <- data %>%
-  select(eid, res, sex, age_recruitment,assessment_centre, smoking, bmi, chrono, any_of(paste0("PC", 1:20))) %>%
-  left_join(d) %>%
-  mutate(
-    across(29:40,
-           ~ if_else(
-             !is.na(na_if(as.character(.x), "")) &
-          as.Date(na_if(as.character(.x), "")) <= date_bsampling,
-        1L,
-        0L
-      ),
-      .names = "{.col}_prevalent"
-    )
-  ) 
-
-
-
-  mutate(
-    ca_decile = ntile(res, 10),
-    ca_top10 = if_else(ca_decile == 10, 1L, 0L),
-    ca_bottom10 = if_else(ca_decile == 1, 1L, 0L),
-    ca_extreme = case_when(
-      ca_decile == 10 ~ "Top10",
-      ca_decile == 1  ~ "Bottom10",
-      TRUE            ~ "Middle"
-    )
-  )
-
-data_extremes <- data1 %>%
-  filter(ca_decile %in% c(1, 10)) %>%
-  mutate(
-    ca_group = if_else(ca_decile == 10, "Top10", "Bottom10")
-  )
-
-q10 <- quantile(data1$res, probs = 0.10, na.rm = TRUE)
-q90 <- quantile(data1$res, probs = 0.90, na.rm = TRUE)
-
-data1 <- data1 %>%
-  mutate(
-    ca_extreme = case_when(
-      res <= q10 ~ "Bottom10",
-      res >= q90 ~ "Top10",
-      TRUE       ~ "Middle"
-    ),
-    ca_top10 = if_else(res >= q90, 1L, 0L),
-    ca_bottom10 = if_else(res <= q10, 1L, 0L)
-  )
-
-
-
-outcomes <- names(data1) %>%
-  grep("_prevalent$", ., value = TRUE)
-
-
-case_counts <- data1 %>%
-  select(ca_extreme, all_of(outcomes)) %>%
-  pivot_longer(
-    cols = all_of(outcomes),
-    names_to = "outcome",
-    values_to = "case"
-  ) %>%
-  group_by(outcome, ca_extreme) %>%
-  summarise(
-    n_cases = sum(case == 1, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-
-covariates <- c(
-  "sex",
-  "age_recruitment",
-  "bmi",
-  "smoking",
-#  "chrono",
-  paste0("PC", 1:20)
-)
-
-run_logistic <- function(formula, data) {
-  tryCatch(
-    glm(formula, data = data, family = binomial),
-    error = function(e) NULL
-  )
-}
-
-res_top_vs_mid <- map_dfr(outcomes, function(outcome) {
-
-  df <- data1 %>%
-    filter(ca_extreme %in% c("Top10", "Middle")) %>%
-    mutate(ca_top = if_else(ca_extreme == "Top10", 1L, 0L))
-
-  fit <- run_logistic(
-    as.formula(
-      paste(outcome, "~ ca_top +", paste(covariates, collapse = " + "))
-    ),
-    df
-  )
-
-  if (is.null(fit)) return(NULL)
-
-  tidy(fit, conf.int = FALSE, exponentiate = TRUE) %>%
-    filter(term == "ca_top") %>%
-    mutate(
-      outcome = outcome,
-      contrast = "Top10_vs_Middle"
-    )
-})
-
-res_bottom_vs_mid <- map_dfr(outcomes, function(outcome) {
-
-  df <- data1 %>%
-    filter(ca_extreme %in% c("Bottom10", "Middle")) %>%
-    mutate(ca_bottom = if_else(ca_extreme == "Bottom10", 1L, 0L))
-
-  fit <- run_logistic(
-    as.formula(
-      paste(outcome, "~ ca_bottom +", paste(covariates, collapse = " + "))
-    ),
-    df
-  )
-
-  if (is.null(fit)) return(NULL)
-
-  tidy(fit, conf.int = FALSE, exponentiate = TRUE) %>%
-    filter(term == "ca_bottom") %>%
-    mutate(
-      outcome = outcome,
-      contrast = "Bottom10_vs_Middle"
-    )
-})
-
-
-
-res_all <- bind_rows(res_top_vs_mid, res_bottom_vs_mid) %>%
-  left_join(
-    case_counts %>%
-      mutate(term = case_when(
-        ca_extreme == "Bottom10" ~ "ca_bottom",
-        ca_extreme == "Top10"    ~ "ca_top"
-      )),
-    by = c("outcome", "term")
-  ) %>%
-  filter(n_cases > 10) %>%
-  mutate(
-    conf.low  = exp(log(estimate) - 1.96 * std.error),
-    conf.high = exp(log(estimate) + 1.96 * std.error)
-  )
-
-
-
-res_all %>%
-  mutate(
-    outcome = forcats::fct_reorder(outcome, estimate)
-  ) %>%
-  ggplot(aes(x = estimate, y = outcome, color = contrast)) +
-  geom_vline(xintercept = 1, linetype = "dashed", color = "grey60") +
-  geom_errorbarh(
-    aes(xmin = conf.low, xmax = conf.high),
-    height = 0.25,
-    position = position_dodge(width = 0.6)
-  ) +
-  geom_point(
-    size = 2.2,
-    position = position_dodge(width = 0.6)
-  ) +
-  scale_x_log10(
-    breaks = c(0.5, 0.75, 1, 1.5, 2),
-    labels = label_number(accuracy = 0.01)
-  ) +
-  labs(
-    x = "Odds Ratio (log scale)",
-    y = NULL,
-    color = NULL
-  ) +
-  theme_minimal(base_size = 10) +
-  theme(
-    panel.grid.minor = element_blank(),
-    panel.grid.major.y = element_blank(),
-    legend.position = "top",
-    axis.text.y = element_text(size = 12)
-  )

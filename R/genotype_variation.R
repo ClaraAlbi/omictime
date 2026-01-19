@@ -1,29 +1,90 @@
 
-target_prots <- c(
-  "MYOC","HYAL1","EFNA1","TNR","FAS","RELT","CD276",
-  "SPON2","SPINK5","GDF15","PGF","ANGPTL1",
-  "KLK12","LGALS1","HS3ST3B1", "KLK13"
+target_prots <- tribble(~prot, ~snp,
+  "MYOC", "rs2234926",
+  "HYAL1", "rs116482870",
+  "EFNA1", "rs4390169",
+  "TNR", "rs7515728",
+  "FAS", "rs3781202",
+  "RELT", "rs12099129",
+  "CD276", "rs74026250",
+  "SPON2", "rs7678661",
+  "SPINK5", "rs2400477",
+  "GDF15", "rs1054221",
+  "PGF", 'rs6574205',
+  "ANGPTL1", "rs1018669",
+  "KLK12", "rs2569459",
+  "KLK13", "rs2569459",
+  "LGALS1", "rs62236671",
+  "HS3ST3B1","rs62053895"
 )
 
-
-rsid <- data.table::fread("CA_cojo_combined_rs.txt")
+rsid <- data.table::fread("/mnt/project/CA_cojo_combined_rs.txt")
 
 olink_t <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds")
 
 
-olink_t %>%
+olink_long <- olink_t %>%
   rename_with(tolower) %>%
-  select(eid, any_of(tolower(target_prots))) %>%
-  left_join(time) %>%
+  select(eid, any_of(tolower(target_prots$prot))) %>%
+  pivot_longer(
+    -eid,
+    names_to = "prot",
+    values_to = "q"
+  )
+
+rs_long <- rsid %>%
+  rename(eid = FID) %>%
+  select(eid, contains(target_prots$snp)) %>%
+  pivot_longer(
+    -eid,
+    names_to = "snp",
+    values_to = "genotype"
+  ) %>%
+  filter(!is.na(genotype)) %>%
+  mutate(snp = sub("_.*$", "", snp))
+
+
+paired_data <- target_prots %>% mutate(prot = tolower(prot)) %>%
+  left_join(olink_long, by = "prot") %>%
+  left_join(rs_long, by = c("eid", "snp"))
+
+
+
+paired_data %>%
+  slice(1:1000000) %>%
+  left_join(time %>% select(eid, time_day)) %>%
   filter(time_day > 9 & time_day < 20) %>%
-  left_join(rsid, by = c("eid" = "FID")) %>%
-
-  pivot_longer(2:17) %>%
-  ggplot(aes(x = time_day, y = value, color = name)) +
+  filter(!is.na(genotype)) %>%
+  ggplot(aes(x = time_day, y = q, color = as.factor(genotype))) +
   geom_smooth() +
-  theme_classic(base_size = 16)
+  facet_wrap(~prot+snp,scales = "free") +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none")
 
 
+geno_mat <- paired_data %>%
+  select(eid, snp, genotype) %>%
+  distinct() %>%
+  pivot_wider(
+    names_from = snp,
+    values_from = genotype
+  ) %>%
+  column_to_rownames("eid") %>%
+  as.matrix()
+
+geno_mat[is.na(geno_mat)] <- apply(geno_mat, 2, mean, na.rm = TRUE)
+
+
+geno_scaled <- scale(geno_mat)
+
+pca <- prcomp(geno_scaled, center = TRUE, scale. = FALSE)
+
+pca_df <- as.data.frame(pca$x[, 1:2])
+pca_df$eid <- rownames(pca_df)
+
+ggplot(pca_df, aes(PC1, PC2)) +
+  geom_point(alpha = 0.6) +
+  theme_classic(base_size = 14)
 
 
 

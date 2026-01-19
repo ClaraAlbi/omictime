@@ -241,5 +241,14 @@ p_c <- d_grouped %>%
 
 ggsave("plots/F3_long_acc.png", p_c, width = 7, height = 3)
 
+### ICC
+
+
+m2 <- lmer(
+  resid ~ time_day + (1 | participantid),
+  data = data_plot
+)
+
+p2 <- performance::icc(m2)
 
 
