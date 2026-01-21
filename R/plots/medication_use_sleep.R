@@ -10,6 +10,8 @@ install.packages("janitor")
 install.packages("broom")
 library(stringr)
 
+dx download file-J4y3QpQJk8K76J9q0Y30zVQP
+
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   mutate(bmi = weight/(height/100)^2,
          sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
@@ -33,7 +35,7 @@ cohort <- meds %>%
   #slice(1:1000) %>%
   pivot_longer(-eid) %>%
   filter(!is.na(value)) %>%
-  left_join(X41467_2019_9572_MOESM3_ESM %>% select(Category, `Medication ATC code`, `Coding a`, `Drug name`), by = c("value" = "Coding a")) %>%
+  left_join(X41467_2019_9572_MOESM3_ESM_1_ %>% select(Category, `Medication ATC code`, `Coding a`, `Drug name`), by = c("value" = "Coding a")) %>%
   filter(str_detect(`Medication ATC code`, "N05C") | #sleep medication (sedatives and hypnotics)
            str_detect(`Medication ATC code`, "N03AG01") | # mood stabiliser
            str_detect(`Medication ATC code`, "N03AX09") |  # mood stabiliser

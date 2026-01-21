@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>body{background-color:white;}</style>
+<style type="text/css">.Rtable1 table, table.Rtable1 {font-family: "Arial", Arial, sans-serif;font-size: 10pt;border-collapse: collapse;padding: 0px;margin: 0px;}.Rtable1 td {white-space:nowrap;}.Rtable1 th, .Rtable1 td {border: 0;text-align: center;padding: 0.5ex 1.5ex;margin: 0px;}.Rtable1 thead>tr:first-child>th {border-top: 2pt solid black;}.Rtable1 thead>tr:last-child>th {border-bottom: 1pt solid black;}.Rtable1 tbody>tr:last-child>td {border-bottom: 2pt solid black;}.Rtable1 th.grouplabel {padding-left: 0;padding-right: 0;}.Rtable1 th.grouplabel>div {margin-left: 1.5ex;margin-right: 1.5ex;border-bottom: 1pt solid black;}.Rtable1 th.grouplabel:last-child>div {margin-right: 0;}.Rtable1 .rowlabel {text-align: left;padding-left: 2.5ex;}.Rtable1 .firstrow.rowlabel {padding-left: 0.5ex;font-weight: bold;}.Rtable1-zebra tbody tr:nth-child(odd) {background-color: #eee;}table.Rtable1-times {font-family: "Times New Roman", Times, serif;}.Rtable1-shade th {background-color: #ccc;}.Rtable1-grid th, .Rtable1-grid td {border-left: 1pt solid black;border-right: 1pt solid black;}.Rtable1-grid thead>tr:first-child>th {border-top: 1pt solid black;}.Rtable1-grid thead>tr:last-child>th {border-bottom: 1pt solid black;}.Rtable1-grid tbody>tr:last-child>td {border-bottom: 1pt solid black;}.Rtable1-grid .firstrow, .Rtable1-grid .firstrow ~ td {border-top: 1pt solid black;}.Rtable1-grid th.grouplabel>div {margin-left: 0;margin-right: 0;border-bottom: 0;}.Rtable1-center td.rowlabel, .Rtable1-center td.firstrow.rowlabel {font-weight: bold;text-align: center;padding: 0.5ex 1.5ex;}.Rtable1 .Rtable1-footnote {font-size: smaller;padding: 0px;margin: 0px;text-align: left;white-space: normal;}</style>
+
+</head>
+<body>
+<div class="Rtable1"><table class="Rtable1-grid">
+<thead>
+<tr>
+<th class="rowlabel firstrow lastrow"></th>
+<th class="firstrow lastrow"><span class="stratlabel">Middle<br /><span class="stratn">(N=46492)</span></span></th>
+<th class="firstrow lastrow"><span class="stratlabel">Accelerated<br /><span class="stratn">(N=2566)</span></span></th>
+<th class="firstrow lastrow"><span class="stratlabel">Delayed<br /><span class="stratn">(N=2661)</span></span></th>
+<th class="firstrow lastrow"><span class="stratlabel">P (Acc vs Mid)</span></th>
+<th class="firstrow lastrow"><span class="stratlabel">P (Del vs Mid)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">age_recruitment</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">&lt;0.001</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">Mean (SD)</td>
+<td>56.9 (8.21)</td>
+<td>56.0 (8.13)</td>
+<td>55.8 (8.27)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Median [Q1, Q3]</td>
+<td>58.0 [50.0, 64.0]</td>
+<td>57.0 [49.3, 63.0]</td>
+<td>57.0 [49.0, 63.0]</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Min, Max</td>
+<td class="lastrow">39.0, 70.0</td>
+<td class="lastrow">40.0, 70.0</td>
+<td class="lastrow">40.0, 70.0</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">sex</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">&lt;0.001</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">Female</td>
+<td>25309 (54.4%)</td>
+<td>1279 (49.8%)</td>
+<td>1354 (50.9%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Male</td>
+<td class="lastrow">21183 (45.6%)</td>
+<td class="lastrow">1287 (50.2%)</td>
+<td class="lastrow">1307 (49.1%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">p30079</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.425</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">European ancestry (EUR)</td>
+<td>40263 (86.6%)</td>
+<td>2180 (85.0%)</td>
+<td>2104 (79.1%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Admixed American ancestry (AMR)</td>
+<td>80 (0.2%)</td>
+<td>7 (0.3%)</td>
+<td>10 (0.4%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">African ancestry (AFR)</td>
+<td>776 (1.7%)</td>
+<td>42 (1.6%)</td>
+<td>73 (2.7%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Central/South Asian ancestry (CSA)</td>
+<td>786 (1.7%)</td>
+<td>34 (1.3%)</td>
+<td>81 (3.0%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">East Asian ancestry (EAS)</td>
+<td>212 (0.5%)</td>
+<td>16 (0.6%)</td>
+<td>28 (1.1%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Middle Eastern ancestry (MID)</td>
+<td>254 (0.5%)</td>
+<td>15 (0.6%)</td>
+<td>28 (1.1%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">4121 (8.9%)</td>
+<td class="lastrow">272 (10.6%)</td>
+<td class="lastrow">337 (12.7%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">TDI</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">&lt;0.001</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">Mean (SD)</td>
+<td>-1.22 (3.16)</td>
+<td>-0.926 (3.36)</td>
+<td>-0.832 (3.39)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Median [Q1, Q3]</td>
+<td>-2.08 [-3.63, 0.670]</td>
+<td>-1.84 [-3.58, 1.32]</td>
+<td>-1.70 [-3.55, 1.54]</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Min, Max</td>
+<td>-6.26, 10.4</td>
+<td>-6.26, 9.87</td>
+<td>-6.26, 9.74</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">54 (0.1%)</td>
+<td class="lastrow">5 (0.2%)</td>
+<td class="lastrow">3 (0.1%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">bmi</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">&lt;0.001</td>
+<td class="firstrow">0.52</td>
+</tr>
+<tr>
+<td class="rowlabel">Mean (SD)</td>
+<td>27.5 (4.80)</td>
+<td>27.8 (5.00)</td>
+<td>27.4 (4.75)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Median [Q1, Q3]</td>
+<td>26.8 [24.2, 29.9]</td>
+<td>27.1 [24.4, 30.4]</td>
+<td>26.8 [24.1, 29.9]</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Min, Max</td>
+<td>14.3, 69.0</td>
+<td>15.7, 54.9</td>
+<td>15.2, 57.4</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">221 (0.5%)</td>
+<td class="lastrow">18 (0.7%)</td>
+<td class="lastrow">16 (0.6%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">smoking</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">&lt;0.001</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">Never</td>
+<td>25233 (54.3%)</td>
+<td>1331 (51.9%)</td>
+<td>1415 (53.2%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Previous</td>
+<td>16294 (35.0%)</td>
+<td>886 (34.5%)</td>
+<td>864 (32.5%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Current</td>
+<td>4751 (10.2%)</td>
+<td>333 (13.0%)</td>
+<td>364 (13.7%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">214 (0.5%)</td>
+<td class="lastrow">16 (0.6%)</td>
+<td class="lastrow">18 (0.7%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">season</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">&lt;0.001</td>
+<td class="firstrow">0.113</td>
+</tr>
+<tr>
+<td class="rowlabel">Winter</td>
+<td>9290 (20.0%)</td>
+<td>624 (24.3%)</td>
+<td>526 (19.8%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Spring</td>
+<td>13301 (28.6%)</td>
+<td>703 (27.4%)</td>
+<td>791 (29.7%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Summer</td>
+<td>12646 (27.2%)</td>
+<td>596 (23.2%)</td>
+<td>751 (28.2%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Fall</td>
+<td class="lastrow">11255 (24.2%)</td>
+<td class="lastrow">643 (25.1%)</td>
+<td class="lastrow">593 (22.3%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">day_type</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.728</td>
+<td class="firstrow">0.0153</td>
+</tr>
+<tr>
+<td class="rowlabel">Weekday</td>
+<td>39930 (85.9%)</td>
+<td>2197 (85.6%)</td>
+<td>2240 (84.2%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Weekend</td>
+<td class="lastrow">6562 (14.1%)</td>
+<td class="lastrow">369 (14.4%)</td>
+<td class="lastrow">421 (15.8%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">fri_sun</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.0433</td>
+<td class="firstrow">0.076</td>
+</tr>
+<tr>
+<td class="rowlabel">Sat</td>
+<td>6562 (14.1%)</td>
+<td>369 (14.4%)</td>
+<td>421 (15.8%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Fri</td>
+<td>7622 (16.4%)</td>
+<td>425 (16.6%)</td>
+<td>422 (15.9%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Mon</td>
+<td>7151 (15.4%)</td>
+<td>339 (13.2%)</td>
+<td>450 (16.9%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">25157 (54.1%)</td>
+<td class="lastrow">1433 (55.8%)</td>
+<td class="lastrow">1368 (51.4%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">autumnDST</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.458</td>
+<td class="firstrow">0.751</td>
+</tr>
+<tr>
+<td class="rowlabel">Baseline autumn</td>
+<td>1534 (3.3%)</td>
+<td>67 (2.6%)</td>
+<td>86 (3.2%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Before autumn DST</td>
+<td>145 (0.3%)</td>
+<td>9 (0.4%)</td>
+<td>10 (0.4%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">After autumn DST</td>
+<td>262 (0.6%)</td>
+<td>15 (0.6%)</td>
+<td>17 (0.6%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">44551 (95.8%)</td>
+<td class="lastrow">2475 (96.5%)</td>
+<td class="lastrow">2548 (95.8%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">springDST</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.00201</td>
+<td class="firstrow">0.245</td>
+</tr>
+<tr>
+<td class="rowlabel">Baseline spring</td>
+<td>1121 (2.4%)</td>
+<td>71 (2.8%)</td>
+<td>57 (2.1%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Before spring DST</td>
+<td>181 (0.4%)</td>
+<td>23 (0.9%)</td>
+<td>9 (0.3%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">After spring DST</td>
+<td>269 (0.6%)</td>
+<td>10 (0.4%)</td>
+<td>21 (0.8%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">44921 (96.6%)</td>
+<td class="lastrow">2462 (95.9%)</td>
+<td class="lastrow">2574 (96.7%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">chrono</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">&lt;0.001</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">Definitely morning</td>
+<td>11122 (23.9%)</td>
+<td>814 (31.7%)</td>
+<td>408 (15.3%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Rather morning</td>
+<td>14564 (31.3%)</td>
+<td>863 (33.6%)</td>
+<td>621 (23.3%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Don&#39;t know</td>
+<td>4986 (10.7%)</td>
+<td>248 (9.7%)</td>
+<td>288 (10.8%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Rather evening</td>
+<td>11865 (25.5%)</td>
+<td>471 (18.4%)</td>
+<td>871 (32.7%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Definitely evening</td>
+<td>3603 (7.7%)</td>
+<td>131 (5.1%)</td>
+<td>414 (15.6%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">352 (0.8%)</td>
+<td class="lastrow">39 (1.5%)</td>
+<td class="lastrow">59 (2.2%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">h_sleep</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">&lt;0.001</td>
+<td class="firstrow">0.00235</td>
+</tr>
+<tr>
+<td class="rowlabel">Normal (7-9h)</td>
+<td>33885 (72.9%)</td>
+<td>1719 (67.0%)</td>
+<td>1871 (70.3%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Short (&lt;7 h)</td>
+<td>11263 (24.2%)</td>
+<td>763 (29.7%)</td>
+<td>677 (25.4%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Long (&gt;9h)</td>
+<td>958 (2.1%)</td>
+<td>56 (2.2%)</td>
+<td>77 (2.9%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">386 (0.8%)</td>
+<td class="lastrow">28 (1.1%)</td>
+<td class="lastrow">36 (1.4%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">wakeup</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">&lt;0.001</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">Very easy</td>
+<td>15111 (32.5%)</td>
+<td>994 (38.7%)</td>
+<td>613 (23.0%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Fairly easy</td>
+<td>22713 (48.9%)</td>
+<td>1161 (45.2%)</td>
+<td>1240 (46.6%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Not very easy</td>
+<td>6521 (14.0%)</td>
+<td>311 (12.1%)</td>
+<td>552 (20.7%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Not at all easy</td>
+<td>1842 (4.0%)</td>
+<td>62 (2.4%)</td>
+<td>194 (7.3%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">305 (0.7%)</td>
+<td class="lastrow">38 (1.5%)</td>
+<td class="lastrow">62 (2.3%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">ever_insomnia</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.839</td>
+<td class="firstrow">0.393</td>
+</tr>
+<tr>
+<td class="rowlabel">Never/rarely</td>
+<td>11057 (23.8%)</td>
+<td>618 (24.1%)</td>
+<td>639 (24.0%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Sometimes</td>
+<td>22083 (47.5%)</td>
+<td>1201 (46.8%)</td>
+<td>1228 (46.1%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Usually</td>
+<td>13259 (28.5%)</td>
+<td>736 (28.7%)</td>
+<td>785 (29.5%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">93 (0.2%)</td>
+<td class="lastrow">11 (0.4%)</td>
+<td class="lastrow">9 (0.3%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">shift_work</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.521</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">Never/rarely</td>
+<td>20791 (44.7%)</td>
+<td>1250 (48.7%)</td>
+<td>1055 (39.6%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Sometimes</td>
+<td>1873 (4.0%)</td>
+<td>117 (4.6%)</td>
+<td>127 (4.8%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Usually</td>
+<td>554 (1.2%)</td>
+<td>39 (1.5%)</td>
+<td>50 (1.9%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Always</td>
+<td>2018 (4.3%)</td>
+<td>109 (4.2%)</td>
+<td>217 (8.2%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">21256 (45.7%)</td>
+<td class="lastrow">1051 (41.0%)</td>
+<td class="lastrow">1212 (45.5%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">night_shift</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.612</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">Never</td>
+<td>2211 (4.8%)</td>
+<td>122 (4.8%)</td>
+<td>141 (5.3%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Sometimes</td>
+<td>1306 (2.8%)</td>
+<td>81 (3.2%)</td>
+<td>105 (3.9%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Usually</td>
+<td>356 (0.8%)</td>
+<td>26 (1.0%)</td>
+<td>49 (1.8%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Always</td>
+<td>600 (1.3%)</td>
+<td>36 (1.4%)</td>
+<td>98 (3.7%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">42019 (90.4%)</td>
+<td class="lastrow">2301 (89.7%)</td>
+<td class="lastrow">2268 (85.2%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">chrono_Nightshift</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.603</td>
+<td class="firstrow">&lt;0.001</td>
+</tr>
+<tr>
+<td class="rowlabel">Morning_Never</td>
+<td>1259 (2.7%)</td>
+<td>71 (2.8%)</td>
+<td>59 (2.2%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Don&#39;t know_Always</td>
+<td>90 (0.2%)</td>
+<td>5 (0.2%)</td>
+<td>11 (0.4%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Don&#39;t know_Never</td>
+<td>233 (0.5%)</td>
+<td>19 (0.7%)</td>
+<td>20 (0.8%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Don&#39;t know_Sometimes</td>
+<td>160 (0.3%)</td>
+<td>9 (0.4%)</td>
+<td>15 (0.6%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Evening_Always</td>
+<td>257 (0.6%)</td>
+<td>15 (0.6%)</td>
+<td>56 (2.1%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Evening_Never</td>
+<td>719 (1.5%)</td>
+<td>32 (1.2%)</td>
+<td>62 (2.3%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Evening_Sometimes</td>
+<td>448 (1.0%)</td>
+<td>23 (0.9%)</td>
+<td>55 (2.1%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Morning_Always</td>
+<td>253 (0.5%)</td>
+<td>16 (0.6%)</td>
+<td>31 (1.2%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel">Morning_Sometimes</td>
+<td>698 (1.5%)</td>
+<td>49 (1.9%)</td>
+<td>35 (1.3%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">Missing</td>
+<td class="lastrow">42375 (91.1%)</td>
+<td class="lastrow">2327 (90.7%)</td>
+<td class="lastrow">2317 (87.1%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">has_prescription</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.623</td>
+<td class="firstrow">0.129</td>
+</tr>
+<tr>
+<td class="rowlabel">0</td>
+<td>30899 (66.5%)</td>
+<td>1718 (67.0%)</td>
+<td>1730 (65.0%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">1</td>
+<td class="lastrow">15593 (33.5%)</td>
+<td class="lastrow">848 (33.0%)</td>
+<td class="lastrow">931 (35.0%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">antihypertensive</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.134</td>
+<td class="firstrow">0.859</td>
+</tr>
+<tr>
+<td class="rowlabel">0</td>
+<td>35372 (76.1%)</td>
+<td>1986 (77.4%)</td>
+<td>2020 (75.9%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">1</td>
+<td class="lastrow">11120 (23.9%)</td>
+<td class="lastrow">580 (22.6%)</td>
+<td class="lastrow">641 (24.1%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">sleep_medication</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.918</td>
+<td class="firstrow">0.0564</td>
+</tr>
+<tr>
+<td class="rowlabel">0</td>
+<td>46148 (99.3%)</td>
+<td>2548 (99.3%)</td>
+<td>2632 (98.9%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">1</td>
+<td class="lastrow">344 (0.7%)</td>
+<td class="lastrow">18 (0.7%)</td>
+<td class="lastrow">29 (1.1%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">antidepressants</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.0264</td>
+<td class="firstrow">0.097</td>
+</tr>
+<tr>
+<td class="rowlabel">0</td>
+<td>42845 (92.2%)</td>
+<td>2333 (90.9%)</td>
+<td>2428 (91.2%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">1</td>
+<td class="lastrow">3647 (7.8%)</td>
+<td class="lastrow">233 (9.1%)</td>
+<td class="lastrow">233 (8.8%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">mood_stabiliser</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">1</td>
+<td class="firstrow">0.109</td>
+</tr>
+<tr>
+<td class="rowlabel">0</td>
+<td>46112 (99.2%)</td>
+<td>2545 (99.2%)</td>
+<td>2631 (98.9%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">1</td>
+<td class="lastrow">380 (0.8%)</td>
+<td class="lastrow">21 (0.8%)</td>
+<td class="lastrow">30 (1.1%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+<tr>
+<td class="rowlabel firstrow"><span class="varlabel">lithium</span></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow"></td>
+<td class="firstrow">0.219</td>
+<td class="firstrow">1</td>
+</tr>
+<tr>
+<td class="rowlabel">0</td>
+<td>46407 (99.8%)</td>
+<td>2558 (99.7%)</td>
+<td>2656 (99.8%)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td class="rowlabel lastrow">1</td>
+<td class="lastrow">85 (0.2%)</td>
+<td class="lastrow">8 (0.3%)</td>
+<td class="lastrow">5 (0.2%)</td>
+<td class="lastrow"></td>
+<td class="lastrow"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</body>
+</html>
