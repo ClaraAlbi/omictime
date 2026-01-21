@@ -289,7 +289,29 @@ p_qs_inc <- ggplot(plot_df_inc, aes(x = estimate, y = outcome_full, color = fct_
 ggsave("plots/FX_disease_q_future15y.png", p_qs_inc, width = 6, height = 8)
 
 
-install.packages("patchwork")
 
+library(patchwork)
 p_qs + p_qs_inc
 
+p_qs_noleg <- p_qs +
+  scale_y_discrete(position = "right") +
+  guides(
+    color  = guide_legend(order = 1, reverse  = TRUE, override.aes = list(size = 4))
+  ) +
+  theme(
+    legend.position = "bottom",
+    axis.text.y.right = element_text(hjust = 0.5),
+    plot.margin = margin(10, 5, 10, 10)   # smaller right margin
+  )
+
+p_qs_inc_tight <- p_qs_inc +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_blank(),
+    plot.margin = margin(10, 10, 10, 5)   # smaller left margin
+  )
+
+p_qs_noleg + p_qs_inc_tight
+
+
+ggsave("plots/FX_disease_q_both.png", p_qs_noleg + p_qs_inc_tight, width = 10, height = 8)
