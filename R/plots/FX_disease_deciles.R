@@ -80,7 +80,7 @@ data <- df %>%
   left_join(sleep) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
-  left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
+  left_join(vars_join %>% select(eid, chrono_Nightshift)) #%>%
   left_join(cohort_f) %>%
   mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
          antihypertensive = ifelse(!is.na(C0), as.integer(C0 == TRUE), 0),
@@ -181,7 +181,7 @@ tab_desc <- table1::table1(
 
 
 
-covariates <- c("sex", "age_recruitment", "chrono", "season","TDI", "assessment_centre", paste0("PC", 1:20))
+covariates <- c("sex", "age_recruitment", "chrono", "season", "TDI", "bmi", "smoking", "assessment_centre", paste0("PC", 1:20))
 
 res_continuous <- map_dfr(outcomes, function(outcome) {
   fit <- glm(

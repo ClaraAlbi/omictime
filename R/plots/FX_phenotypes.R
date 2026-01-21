@@ -171,9 +171,9 @@ data <- df %>%
   left_join(sleep) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
-  left_join(phy) %>%
-  left_join(mh)
-  left_join(sleep_new %>% select(eid, rmeq_score, rmeq_chronotype)) %>%
+  #left_join(phy) %>%
+  #left_join(mh)
+  #left_join(sleep_new %>% select(eid, rmeq_score, rmeq_chronotype)) %>%
   left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
   left_join(cohort_f) %>%
   mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
@@ -201,14 +201,14 @@ my_render_cont <- function(x){
 }
 
 
-tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + day_type + fri_sun + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + rmeq_chronotype + rmeq_score + shift_work + night_shift + chrono_Nightshift +has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium,
+tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + day_type + fri_sun + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + shift_work + night_shift + chrono_Nightshift +has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium,
                            data = data,
                            render.cont = my_render_cont, topclass="Rtable1-grid")
 
 
 vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079", #"rmeq_chronotype", "rmeq_score",
           "is_weekend", "day_of_week",
-          "sbp", "dbp", "rec_rest", "rec_dep", "rec_tired", "rec_enth",
+          #"sbp", "dbp", "rec_rest", "rec_dep", "rec_tired", "rec_enth",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST",
           "day_type", "fri_sun",
           "chrono_Nightshift",
