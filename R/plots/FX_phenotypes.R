@@ -169,9 +169,11 @@ data <- df %>%
   left_join(a) %>%
   left_join(job_vars) %>%
   left_join(sleep) %>%
-  left_join(sleep_new %>% select(eid, rmeq_score, rmeq_chronotype)) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
+  left_join(phy) %>%
+  left_join(mh)
+  left_join(sleep_new %>% select(eid, rmeq_score, rmeq_chronotype)) %>%
   left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
   left_join(cohort_f) %>%
   mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
@@ -206,8 +208,10 @@ tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smokin
 
 vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079", #"rmeq_chronotype", "rmeq_score",
           "is_weekend", "day_of_week",
-          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST", "chrono_Nightshift",
+          "sbp", "dbp", "rec_rest", "rec_dep", "rec_tired", "rec_enth",
+          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST",
           "day_type", "fri_sun",
+          "chrono_Nightshift",
           "has_prescription",
           "antihypertensive",
           "sleep_medication",
