@@ -35,3 +35,45 @@ bp <- tribble(~condition, ~vocab_id, ~code,
 
 diagnosis_list <- get_diagnoses(bp)
 diagnosis_df <- get_df(diagnosis_list, group_by="condition")
+
+
+
+
+dis <- c(131850, # Date M06 first reported (other rheumatoid arthritis)
+         131848, # Date M05 first reported (seropositive rheumatoid arthritis)
+
+         131286, #	Date I10 first reported (essential (primary) hypertension)
+         130814, #	Date E78 first reported (disorders of lipoprotein metabolism and other lipidaemias)
+
+         130894, # 	Date F32 first reported (depressive episode)
+         130896, # Date F33 first reported (recurrent depressive disorder)
+         131306, # Date I25 first reported (chronic ischaemic heart disease)
+         130792, #	Date E66 first reported (obesity)
+         130708, #	Date E11 first reported (non-insulin-dependent diabetes mellitus)
+
+         130842, #	Date F03 first reported (unspecified dementia)
+         130892, #	Date F31 first reported (bipolar affective disorder)
+         130874) #	Date F20 first reported (schizophrenia)
+
+dis2 <- left_join(fread("/mnt/project/top_diseases_IEFG.csv"), fread("/mnt/project/immune.csv")) %>%
+  select(eid, any_of(paste0("p",dis)))
+
+outcome_labels <- c(
+  ra_date = "Rheumatoid arthritis",
+  hyp     = "Hypertension",
+  dys     = "Dyslipidaemia",
+  dep_ep  = "Depression (episode)",
+  chd     = "Chronic heart disease",
+  obe     = "Obesity",
+  t2d     = "Type 2 diabetes",
+  dem     = "Dementia",
+  dep_rec = "Depression (recurrent)",
+  bip     = "Bipolar disorder",
+  scz     = "Schizophrenia",
+  liv     = "Chronic liver disease"
+)
+
+saveRDS(dis2, "diseases_circadian.rds")
+
+
+
