@@ -2,11 +2,28 @@ library(tidyverse)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
+library(readxl)
+library(stringr)
+library(lubridate)
 install.packages("paletteer")
 install.packages("ggmisc")
+library(ggmisc)
 install.packages("forcats")
 
-data <- readRDS("data_share/predictions_internal_time_updated.rds") %>%
+### changes
+data_x <- readRDS("data_share/predictions_internal_time_updated.rds") %>%
+  mutate(visitnumber = as.numeric(visitnumber),
+         participantid = as.numeric(participantid))
+
+data_2 <- data_x %>% filter(participantid == 2) %>%
+  select(eid, starts_with("pred"), visitnumber, visitday)
+
+data <- read_xlsx("data/modified_dates_long.xlsx") %>%
+  mutate(visitnumber = as.numeric(str_remove(visit_num, "V")),
+         time_day = hour(ymd_hms(time_h)) + minute(ymd_hms(time_h))/60,
+         participantid = 2) %>% select(-date, -x, -time_h, -visit_num) %>%
+  left_join(data_2) %>%
+  bind_rows(., data_x %>% filter(participantid != 2)) %>%
   mutate(time_extended = time_day + 24 * (as.numeric(visitday) - 1))
 
 data <- data %>%
@@ -92,6 +109,8 @@ ggplot(data, aes(x = time_day, y = pred_scaled)) +
 
 fit <- lm(pred_mean ~ sin(2*pi*time_extended/24) + cos(2*pi*time_extended/24),
           data = data)
+
+summary(fit)
 
 # Add fitted values and residuals to data
 data_plot <- data %>%
