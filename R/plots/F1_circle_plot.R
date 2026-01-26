@@ -3,8 +3,19 @@ library(cowplot)
 library(ggpubr)
 
 df_effects <- readRDS("data/combined_effects.rds") %>%
-  mutate(pval_h = p.adjust(pvalue_h)) %>%
-  filter(pval_h < 0.05)
+  mutate(pfdr = p.adjust(pvalue_h)) #%>%
+  filter(pfdr < 0.05)
+
+write_xlsx(df_effects %>% select(phen,title, type_clean,
+                                 amplitude_24hfreq,
+                                 acrophase_24hfreq,
+                                 pvalue_h,
+                                 pfdr,
+                                 starts_with("estimate"),
+                                 starts_with("p.value"),
+                                 starts_with("std.error")),
+           path = "tables/sd2.xlsx")
+
 
 df_effects %>% group_by(type_clean) %>% count()
 df_effects %>% group_by(type_clean) %>% summarise(mean_amplitude = mean(amplitude_24hfreq),

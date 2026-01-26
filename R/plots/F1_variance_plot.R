@@ -4,15 +4,27 @@ library(tidyverse)
 library(forcats)
 library(ggtext)
 library(paletteer)
+library(writexl)
 
 fields <- data.table::fread("data/field.tsv")
 
-df_r2 <- readRDS("data/combined_variance.rds")
+df_r2 <- readRDS("data/combined_variance.rds") %>%
+  mutate(pfdr = p.adjust(p.value))
+
+write_xlsx(df_r2 %>% select(phen, type, title, term, t_r2, p.value, pfdr),
+           path = "tables/sd1.xlsx")
+
+# per cov
+
+df_r2 %>%
+  filter(pfdr < 0.05) %>%
+  group_by(term) %>%
+  summarise(p = n()/length(unique(df_r2$phen))) %>%
+  arrange(desc(p))
 
 df_top <- df_r2 %>%
   filter(term == "time_day") %>%
-  mutate(pval = p.adjust(p.value)) %>%
-  filter(pval < 0.05) %>%
+  filter(pfdr < 0.05) %>%
   distinct(phen, .keep_all = TRUE) %>%
   arrange(desc(t_r2)) %>%
   slice_head(n = 30) %>%
@@ -20,7 +32,7 @@ df_top <- df_r2 %>%
   inner_join(df_r2, by = "phen") %>%
   filter(term != "Residuals") %>%
   mutate(model = case_when(!term %in% c("bmi", "sex", "age_recruitment", "fasting",
-                                        "smoking", "time_day") ~ "technical",
+                                        "smoking","PCs","month_attending",  "time_day") ~ "technical",
                            TRUE ~ term)) %>%
   group_by(phen, model, color_var, type, title) %>%
   summarise(t_r2 = sum(t_r2))
@@ -57,10 +69,12 @@ df_plot <- df_top %>%
                       model == "smoking" ~ "Smoking",
                       model == "sex" ~ "Sex",
                       model == "bmi" ~ "BMI",
+                      model == "month_attending" ~ "Month",
+                      model == "PCs"  ~ "20 genetic PCs",
                       model == "fasting" ~ "Fasting"),
     model = factor(
       model,
-      levels = c("Fasting", "BMI", "Smoking", "Sex", "Age", "Technical",  "Time of day")
+      levels = c("Technical", "Fasting", "BMI", "Smoking", "Sex", "Age", "20 genetic PCs", "Month",  "Time of day")
     )
   ) %>%
   left_join(time_lookup)
@@ -86,7 +100,7 @@ plot_bars_v <- ggplot(df_plot, aes(y = title, x = t_r2, fill = model)) +
     hjust = 0, size = 3.3
   ) +
   facet_wrap(~facet_html, scales = "free_y", nrow = 20, ncol = 2) +
-  scale_fill_paletteer_d("rcartocolor::Temps") +
+  scale_fill_paletteer_d("trekcolors::tholian") +
   labs(fill = "Covariate", y = "", x = "R2") +
   guides(fill = guide_legend(reverse = TRUE, ncol = 3)) +
   theme_classic() +
