@@ -75,7 +75,15 @@ sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
     chrono == 3 ~ -1,
     chrono == 4 ~ -2)) %>%
   left_join(gen_covs %>% select(eid, rel)) %>%
-  inner_join(anc) #%>%
+  inner_join(anc) %>%
+  mutate(
+    chrono_b = case_when(
+      chrono %in% c(1, 2)    ~ "morning",
+      chrono %in% c(-1, -2)  ~ "evening",
+      TRUE                   ~ NA_character_
+    )
+  ) %>%
+  left_join(gen_covs %>% select(eid, rel))
   filter(rel == 0)
 
 table(sleep$chrono)
@@ -84,6 +92,12 @@ sleep %>% mutate(FID = eid) %>%
   rename(IID = eid) %>%
   select(FID, IID, chrono) %>%
   data.table::fwrite(., "phenotypes_chrono_eur.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+sleep %>% mutate(FID = eid) %>%
+  rename(IID = eid) %>%
+  select(FID, IID, chrono_b) %>%
+  data.table::fwrite(., "phenotypes_chronob_eur.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
 
 ### gcta
 
