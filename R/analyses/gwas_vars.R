@@ -96,6 +96,10 @@ sleep %>% mutate(FID = eid) %>%
 sleep %>% mutate(FID = eid) %>%
   rename(IID = eid) %>%
   select(FID, IID, chrono_b) %>%
+  mutate(chrono_b2 = case_when(chrono_b == "morning" ~ 1,
+                               chrono_b == "evening" ~ 0,
+                               TRUE ~ NA)) %>% #count(chrono_b2)
+  select(FID, IID, chrono_b2) %>%
   data.table::fwrite(., "phenotypes_chronob_eur.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 
