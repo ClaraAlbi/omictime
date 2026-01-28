@@ -7,20 +7,22 @@ library(lightgbm)
 library(xgboost)
 library(glmnet)
 
-type <- "olink_fem"
+type <- "olink_fem_tech"
 
 # ---- load data
 # DO NOT scale across full data (leakage). We'll scale inside each train fold.
 f <- readRDS("/mnt/project/biomarkers/covs.rds") %>% filter(sex == 0)
-data_all <- readRDS("/mnt/project/biomarkers_3/covariate_res/OLINK/raw_olink.rds") %>%
+
+data_all <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds") %>%
   filter(eid %in% f$eid)
 stopifnot(all(c("eid") %in% names(data_all)))
 
 time <- readRDS("/mnt/project/biomarkers/time.rds") %>%
-  select(eid, time_day)
+  select(eid, time_day) %>%
+  filter(time_day > 9 & time_day < 20)
 
 dat <- data_all %>%
-  left_join(time, by = "eid") %>%
+  inner_join(time, by = "eid") %>%
   relocate(eid, time_day)
 
 # feature names once

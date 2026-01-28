@@ -5,7 +5,7 @@ library(stringr)
 library(purrr)
 library(ggplot2)
 install.packages("broom")
-install.packages("broom")
+
 
 rs <- data.table::fread("data_share/supplementary_data1.csv") %>%
   mutate(pfdr = p.adjust(p.value_time_day)) %>%
@@ -97,7 +97,7 @@ base_formula <- function(outcome) {
   ))
 }
 
-interaction_vars <- c("sex", "age_group")
+interaction_vars <- c("sex")
 
 results <- map(
   biomarkers,
@@ -113,97 +113,16 @@ results <- map(
 anova_table <- map_dfr(
   results,
   ~ map_dfr(.x, "anova")
-)
+) %>% mutate(pfdr = p.adjust(p_value)) %>%
+  filter(pfdr < 0.05)
+
 estimate_table <- map_dfr(
   results,
   ~ map_dfr(.x, "estimates")
-)
+) %>% filter(outcome %in% anova_table$outcome)
 
-interaction_flags <- map_dfr(
-  results,
-  ~ map_dfr(.x, ~ tibble(
-    outcome = .x$anova$outcome,
-    interaction = .x$anova$interaction,
-    interaction_kept = .x$interaction_kept
-  ))
-)
 
-#
-time_coefs <- estimate_table %>%
-  filter(grepl("cos_time|sin_time", term))
 
-groups <- expand_grid(
-  sex = levels(d$sex),
-  age_group = levels(d$age_group)
-)
 
-get_group_cos_sin <- function(df, sex, age_group) {
 
-  cos <- df %>%
-    filter(
-      term == "cos_time" |
-        term == paste0("cos_time:sex", sex) |
-        term == paste0("cos_time:age_group", age_group)
-    ) %>%
-    summarise(val = sum(estimate)) %>%
-    pull(val)
 
-  sin <- df %>%
-    filter(
-      term == "sin_time" |
-        term == paste0("sin_time:sex", sex) |
-        term == paste0("sin_time:age_group", age_group)
-    ) %>%
-    summarise(val = sum(estimate)) %>%
-    pull(val)
-
-  tibble(cos = cos, sin = sin)
-}
-
-amp_phase <- estimate_table %>%
-  filter(grepl("cos_time|sin_time", term)) %>%
-  group_by(outcome, model) %>%
-  group_modify(~ {
-    expand_grid(
-      sex = levels(d$sex),
-      age_group = levels(d$age_group)
-    ) %>%
-      rowwise() %>%
-      mutate(
-        cs = list(get_group_cos_sin(.x, sex, age_group)),
-        cos = cs$cos,
-        sin = cs$sin,
-        amplitude = sqrt(cos^2 + sin^2),
-        acrophase = (atan2(-sin, cos) * 24 / (2 * pi)) %% 24
-      ) %>%
-      ungroup() %>%
-      select(-cs, -cos, -sin)
-  }) %>%
-  ungroup()
-
-### plot
-
-biomarkers_to_plot <- interaction_flags %>%
-  filter(interaction_kept) %>%
-  distinct(outcome) %>%
-  pull(outcome)
-
-biomarkers_to_plot <- interaction_flags %>%
-  filter(interaction == "age_group") %>%
-  filter(interaction_kept) %>%
-  pull(outcome)
-
-data_s <- olink %>% select(eid, any_of(biomarkers_to_plot)) %>%
-  left_join(covs) %>%
-  mutate(t = round(time_day, 0)) %>%
-  pivot_longer(all_of(biomarkers_to_plot)) %>%
-  group_by(name, age_group, t) %>%
-  summarise(m_b = mean(value, na.rm = T),
-            n = n())
-
-p <- data_s %>% ggplot(aes(x = t, y = m_b, color = age_group)) +
-  geom_point() +
-  facet_wrap(~name) +
-  theme_minimal()
-
-ggsave(plot = p, filename  = "plots/time_age.png", height = 15, width = 10)

@@ -2,7 +2,7 @@
 library(dplyr)
 library(tidyr)
 library(glue)
-library(Matrix)   # sparse-friendly ops if needed
+library(Matrix)
 library(lightgbm)
 library(xgboost)
 library(glmnet)
@@ -10,15 +10,15 @@ library(glmnet)
 type <- "olink_tech_14"
 
 # ---- load data
-# DO NOT scale across full data (leakage). We'll scale inside each train fold.
-data_all <- readRDS("res_olink_tech_14panels.rds")
+data_all <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds")
 stopifnot(all(c("eid") %in% names(data_all)))
 
 time <- readRDS("/mnt/project/biomarkers/time.rds") %>%
-  select(eid, time_day)
+  select(eid, time_day) %>%
+  filter(time_day > 9 & time_day < 20)
 
 dat <- data_all %>%
-  left_join(time, by = "eid") %>%
+  inner_join(time, by = "eid") %>%
   relocate(eid, time_day)
 
 # feature names once

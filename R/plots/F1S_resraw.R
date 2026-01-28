@@ -10,7 +10,7 @@ time <- readRDS("/mnt/project/biomarkers/time.rds")
 
 fields <- data.table::fread("/mnt/project/Showcase metadata/field.tsv")
 
-df_r2 <- bind_rows(readRDS("/mnt/project/biomarkers_3/covariate_res/aov_lab") %>% mutate(type = "Biochemistry") %>%
+df_r2 <- bind_rows(readRDS("/mnt/project/biomarkers_3/covariate_res/aov_labs.rds") %>% mutate(type = "Biochemistry") %>%
                      left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
                    readRDS("/mnt/project/biomarkers_3/covariate_res/aov_counts.rds") %>% mutate(type = "Cell_counts") %>%
                      left_join(fields %>% select(field_id, title), by = c("phen" = "field_id")),
@@ -33,11 +33,16 @@ df_r2 <- bind_rows(readRDS("/mnt/project/biomarkers_3/covariate_res/aov_lab") %>
                            TRUE ~ title)) %>%
   filter(term == "time_day")
 
+df_top <-df_r2 %>%
+  filter(pr2 >= 0.01) %>% pull(phen)
+
 df_top <- c("angptl1" , "23476" ,   "23471",    "30120" ,   "23465",    "spon2" ,   "30810" ,
             "30000"   , "hs3st3b1" ,"23477"  ,  "23644"    ,"tmprss15", "c1qtnf5" , "ctse"    ,
             "23630"  ,  "hyal1" ,   "ppy"  ,    "actn2"   , "fam3b"  ,  "tnr" ,     "muc13"  ,
              "pgf"  ,    "plat"   ,  "fas"   ,   "pla2g10" , "mybpc1"  , "spink5"   ,"23645"   ,
              "agrp"   ,  "23629")
+
+
 
 facet_levels <- df_r2 %>%
   filter(phen %in% df_top) %>%
@@ -66,6 +71,10 @@ raw <- prot %>%
   left_join(time %>% select(eid, time_day)) %>%
   pivot_longer(c(-eid, -time_day), names_to = "phen")
 
+
+
+
+
 prot_res <- readRDS("/mnt/project/biomarkers_3/covariate_res/res_olink.rds") %>%
   select(eid, any_of(df_top))
 
@@ -87,7 +96,8 @@ res <- prot_res %>%
   pivot_longer(c(-eid, -time_day), names_to = "phen")
 
 
-pl_res<- res %>%
+pl_res<- raw %>%
+  #slice(1:2000)%>%
   group_by(t = round(time_day, 0), phen) %>%
   summarise(
     n        = n(),               # sample size
@@ -99,8 +109,8 @@ pl_res<- res %>%
   ) %>%
   left_join(df_r2 %>%
               select(phen, title, type, color_var)) %>%
-  mutate(f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title),
-         facet_html = factor(f_html, levels = facet_levels)) %>%
+  #mutate(f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title),
+  #       facet_html = factor(f_html, levels = facet_levels)) %>%
   ggplot(aes(x = t, y = mean_val, color = type)) +
   geom_point() +
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2) +
@@ -122,14 +132,15 @@ pl_res<- res %>%
       ), nrow = 2, byrow = TRUE
     )
   ) +
-  theme_classic() +
+  theme_minimal() +
   ggtitle("Raw values") +
-  facet_wrap(~facet_html, scales = "free", ncol = 4) +
-  theme(text = element_text(size = 14),
-        strip.text = ggtext::element_markdown(size = 14, hjust = 0),
+  facet_wrap(~phen, scales = "free", ncol = 10) +
+  theme(#text = element_text(size = 14),
+        #strip.text = ggtext::element_markdown(size = 14, hjust = 0),
         axis.title.y = element_blank(),
         legend.position = "bottom", legend.direction = "horizontal",
-        title = element_text(size = 18), legend.text = element_text(size = 16))
+        #title = element_text(size = 18), legend.text = element_text(size = 16)
+        )
 
 ggsave(plot = pl_raw, filename =  "plots/F1S_raw.png", height = 18, width = 15)
 ggsave(plot = pl_res, filename =  "plots/F1S_res.png", height = 18, width = 15)
