@@ -2,7 +2,7 @@
 library(dplyr)
 library(tidyr)
 library(glue)
-library(Matrix)   # sparse-friendly ops if needed
+library(Matrix)
 library(lightgbm)
 library(xgboost)
 library(glmnet)

@@ -5,7 +5,7 @@ library(stringr)
 library(glue)
 install.packages("broom")
 
-type <- "olink_tech_14panels"
+type <- "olink_14panels"
 
 # Rank-based inverse normal transform
 rint <- function(x) {
