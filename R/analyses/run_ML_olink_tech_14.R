@@ -10,7 +10,7 @@ library(glmnet)
 type <- "olink_tech_14"
 
 # ---- load data
-data_all <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds")
+data_all <- readRDS("res_olink_tech_14panels.rds")
 stopifnot(all(c("eid") %in% names(data_all)))
 
 time <- readRDS("/mnt/project/biomarkers/time.rds") %>%
