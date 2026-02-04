@@ -207,7 +207,7 @@ blank2 <- ggplot() + labs(title = "   CKB",
         axis.title = element_text(face = "bold", size = 10),
         strip.background = element_blank())
 
-p_ext <- cowplot::plot_grid(blank2, blank, p_long, ncol = 3, labels = c("D", "E", "F"), rel_widths = c(0.7, 0.5, 1.1))
+p_ext <- cowplot::plot_grid(blank2, blank, p_long, ncol = 3, labels = c("D", "E", "F"), rel_widths = c(0.9, 0.4, 1.1))
 p_ext
 
 library(forcats)
