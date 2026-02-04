@@ -3,6 +3,7 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(readxl)
+install.packages("readxl")
 library(stringr)
 library(lubridate)
 install.packages("paletteer")
@@ -18,7 +19,7 @@ data_x <- readRDS("data_share/predictions_internal_time_updated.rds") %>%
 data_2 <- data_x %>% filter(participantid == 2) %>%
   select(eid, starts_with("pred"), visitnumber, visitday)
 
-data <- read_xlsx("data/modified_dates_long.xlsx") %>%
+data <- read_xlsx("data_share/modified_dates_long.xlsx") %>%
   mutate(visitnumber = as.numeric(str_remove(visit_num, "V")),
          time_day = hour(ymd_hms(time_h)) + minute(ymd_hms(time_h))/60,
          participantid = 2) %>% select(-date, -x, -time_h, -visit_num) %>%
@@ -37,7 +38,7 @@ data <- data %>%
 data <- data %>%
   mutate(pred_scaled = pred_scaled %% 24)
 
-summary(lm(time_day ~ pred_mean, data %>% filter(time_day >= 9 & time_day <= 20)))
+summary(lm(time_day ~ pred_mean, data %>% filter(time_day > 9 & time_day < 20)))
 
 grid_df <- expand_grid(
   participantid = unique(data$participantid),
@@ -127,7 +128,7 @@ r <- sprintf("%.2f", summary(fit)$r.squared)
 
 # Plot observed vs fitted, with residual lines
 p_long <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
-  geom_point(alpha = 0.8, aes(color = participantid), size = 2) +
+  geom_point(alpha = 0.8, aes(color = as.factor(participantid)), size = 1.5) +
   # residual lines (vertical from fitted to observed)
   #geom_segment(
   #  aes(xend = time_day, y = fitted, yend = pred_mean),
@@ -181,7 +182,7 @@ p_long <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
     legend.position = "right"
   )
 
-
+p_long
 ggsave("plots/F3_long.png", p_long, width = 7, height = 3)
 
 
@@ -206,8 +207,8 @@ blank2 <- ggplot() + labs(title = "   CKB",
         axis.title = element_text(face = "bold", size = 10),
         strip.background = element_blank())
 
-p_ext <- cowplot::plot_grid(p_long, blank, blank2, ncol = 3, labels = c("D", "E", "F"))
-
+p_ext <- cowplot::plot_grid(blank2, blank, p_long, ncol = 3, labels = c("D", "E", "F"), rel_widths = c(0.7, 0.5, 1.1))
+p_ext
 
 library(forcats)
 

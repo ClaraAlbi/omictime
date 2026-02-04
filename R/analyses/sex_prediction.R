@@ -7,21 +7,21 @@ library(scales)
 install.packages("cowplot")
 install.packages("ggpmisc")
 
-files <- list.files("/mnt/project/circadian/results/models/", pattern = "predictions", full.names = TRUE)
+files <- list.files("/mnt/project/LASSO_exp/", pattern = "predictions", full.names = TRUE)
 
 # 2. Compute per‐type R² summaries (r2s)
 preds <- tibble(file = files) %>%
-  mutate(data = map(file, readRDS)) %>% unnest(data)
+  mutate(data = map(file, readRDS),
+         group = case_when(
+           str_detect(file, "14panels")  ~ "14panels",
+           str_detect(file, "fem_tech")  ~ "female",
+           str_detect(file, "male_tech") ~ "male"
+         )) %>% unnest(data) %>%
+  rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>% ungroup()  
 
-preds_2 <- preds %>%
-  rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>% ungroup() %>%
-  mutate(sex = str_extract(file, "(?<=_)(fem|male|raw|tech)(?=_)"),
-         type = str_extract(file, "(?<=predictions_)[^_]+")) %>%
-  filter(sex %in% c("fem", "male"))
 
-
-preds_2 %>%
-  group_by(sex) %>%
+preds %>%
+  group_by(group, cv) %>%
   nest() %>%
   mutate(pmean = map_dbl(data, ~ cor(.x$time_day, .x$pred_mean)^2),
          lgb   = map_dbl(data, ~ cor(.x$time_day, .x$pred_lgb)^2),

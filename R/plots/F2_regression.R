@@ -49,8 +49,9 @@ data_ind <- tibble(file = files) %>%
   select(type, df) %>%
   unnest(df) %>%
   rowwise() %>%
-  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))
+  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>% ungroup()
 
+data_ind %>% group_by(type) %>% count()
 
 data_long <- data_ind %>%
   filter(type %in% c("all","olink","NMR", "labs", "counts")) %>%

@@ -4,15 +4,16 @@ library(dplyr)
 library(purrr)
 install.packages("cowplot")
 install.packages("ggpmisc")
+library(ggpmisc)
 library(cowplot)
 library(ggplot2)
 
-df <- readRDS("/mnt/project/biomarkers_res/olink_int_replication_v2.rds") %>%
+df <- readRDS("olink_int_replication_v3.rds") %>%
   filter(!is.na(time_day)) %>%
-  mutate(i = case_when(i == 0  ~ "i0: Initial assessment \n(2006-2010)",
-                       i == 2  ~ "i2: Imaging \n(2014+)",
-                       i == 3  ~ "i3: First repeat imaging \n(2019+)"),
-         i = factor(i, levels = c("i0: Initial assessment \n(2006-2010)", "i2: Imaging \n(2014+)", "i3: First repeat imaging \n(2019+)"))) %>%
+  mutate(i = case_when(i == 0  ~ "i0: Initial visit \n(2006-2010)",
+                       i == 2  ~ "i2: Imaging visit \n(2014+)",
+                       i == 3  ~ "i3: First repeat imaging visit \n(2019+)"),
+         i = factor(i, levels = c("i0: Initial visit \n(2006-2010)", "i2: Imaging visit \n(2014+)", "i3: First repeat imaging visit \n(2019+)"))) %>%
   separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
   rowwise() %>%
   mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))
@@ -64,9 +65,9 @@ ggsave("plots/F3_internal_olink.png", pr, width = 6, height = 3)
 
 df_nmr <- readRDS("/mnt/project/nmr_int_replication.rds") %>%
   filter(i == 1) %>%
-  mutate(i = case_when(i == 0  ~ "i0: Initial assessment \n(2006-2010)",
-                       i == 1 ~ "i1: First repeat assessment \n(2012-13)"),
-         i = factor(i, levels = c("i0: Initial assessment \n(2006-2010)", "i1: First repeat assessment \n(2012-13)"))) %>%
+  mutate(i = case_when(i == 0  ~ "i0: Initial visit \n(2006-2010)",
+                       i == 1 ~ "i1: Repeat visit \n(2012-13)"),
+         i = factor(i, levels = c("i0: Initial visit \n(2006-2010)", "i1: Repeat visit \n(2012-13)"))) %>%
   separate(date_bsampling, into = c("y", "m", "d"), sep = "-", remove = T) %>%
   rowwise() %>%
   mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2)))
