@@ -37,6 +37,9 @@ df_top <- df_r2 %>%
   group_by(phen, model, color_var, type, title) %>%
   summarise(t_r2 = sum(t_r2))
 
+
+df_top %>% filter(model == "time_day") %>% pull(title) group_by(type) %>% count()
+
 # trait_order <- df_top %>%
 #   filter(model == "time_day") %>%
 #   arrange(desc(t_r2)) %>%
