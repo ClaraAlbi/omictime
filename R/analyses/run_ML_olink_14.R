@@ -7,11 +7,11 @@ library(lightgbm)
 library(xgboost)
 library(glmnet)
 
-type <- "olink_14"
+type <- "olink_14panels"
 
 # ---- load data
 # DO NOT scale across full data (leakage). We'll scale inside each train fold.
-data_all <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds")
+data_all <- readRDS("res_olink_14panels.rds")
 stopifnot(all(c("eid") %in% names(data_all)))
 
 time <- readRDS("/mnt/project/biomarkers/time.rds") %>%

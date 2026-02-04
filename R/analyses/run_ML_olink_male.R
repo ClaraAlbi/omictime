@@ -13,7 +13,7 @@ type <- "olink_male_tech"
 # DO NOT scale across full data (leakage). We'll scale inside each train fold.
 f <- readRDS("/mnt/project/biomarkers/covs.rds") %>% filter(sex == 1)
 
-data_all <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds") %>%
+data_all <- readRDS("res_olink_tech_14panels.rds") %>%
   filter(eid %in% f$eid)
 stopifnot(all(c("eid") %in% names(data_all)))
 
