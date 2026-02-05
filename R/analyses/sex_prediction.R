@@ -15,13 +15,15 @@ preds <- tibble(file = files) %>%
          group = case_when(
            str_detect(file, "14panels")  ~ "14panels",
            str_detect(file, "fem_tech")  ~ "female",
-           str_detect(file, "male_tech") ~ "male"
+           str_detect(file, "male_tech") ~ "male",
+           str_detect(file, "raw") ~ "raw",
+           str_detect(file, "tech_14") ~ "tech"
          )) %>% unnest(data) %>%
-  rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>% ungroup()  
+  rowwise() %>% mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>% ungroup()
 
 
 preds %>%
-  group_by(group, cv) %>%
+  group_by(group) %>%
   nest() %>%
   mutate(pmean = map_dbl(data, ~ cor(.x$time_day, .x$pred_mean)^2),
          lgb   = map_dbl(data, ~ cor(.x$time_day, .x$pred_lgb)^2),
@@ -29,3 +31,9 @@ preds %>%
          lasso   = map_dbl(data, ~ cor(.x$time_day, .x$pred_lasso)^2),
          lassox2 = map_dbl(data, ~ cor(.x$time_day, .x$pred_lassox2)^2))
 
+cor(d$`14panels`, d$tech)
+
+d <- preds %>%
+  pivot_wider(id_cols = c(eid, time_day), names_from = group, values_from = pred_mean)
+
+saveRDS(d, "")

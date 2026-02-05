@@ -37,6 +37,7 @@ d_long_future <- d %>%
     date_bsampling = ymd(date_bsampling),
     across(all_of(outcomes), ymd)
   ) %>%
+  filter(date_bsampling != "1900-01-01") %>%
   pivot_longer(
     cols = all_of(outcomes),
     names_to = "diagnosis",
@@ -77,7 +78,7 @@ data <- df %>%
   left_join(sleep) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
-  left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
+  left_join(vars_join %>% select(eid, chrono_Nightshift)) #%>%
   # left_join(cohort_f) %>%   # keep if you previously used it
   mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
          antihypertensive = ifelse(!is.na(C0), as.integer(C0 == TRUE), 0),

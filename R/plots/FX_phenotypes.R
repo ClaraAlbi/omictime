@@ -10,8 +10,8 @@ library(broom)
 library(forcats)
 library(lubridate)
 
-pred <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
-  inner_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
+pred <- readRDS("/mnt/project/olink_int_replication_v3.rds") %>%
+  left_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
   filter(i == 0) %>%
   filter(!is.na(time_day)) %>%
   mutate(date = as.POSIXct(date_bsampling, tz = "Europe/London"))
@@ -174,7 +174,7 @@ data <- df %>%
   #left_join(phy) %>%
   #left_join(mh)
   #left_join(sleep_new %>% select(eid, rmeq_score, rmeq_chronotype)) %>%
-  left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
+  left_join(vars_join %>% select(eid, chrono_Nightshift)) #%>%
   left_join(cohort_f) %>%
   mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
          antihypertensive = ifelse(!is.na(C0), as.integer(C0 == TRUE), 0),
@@ -184,8 +184,13 @@ data <- df %>%
          lithium = ifelse(!is.na(N05A), as.integer(N05A == TRUE), 0),
          across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
 
-data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
+data$res <- residuals(lm(pred_mean ~ time_day, data = data))
+data$res_all <- residuals(lm(`14panels` ~ time_day, data = data))
+data$female <- residuals(lm(female ~ time_day, data = data, na.action = "na.exclude"))
+data$male <- residuals(lm(male ~ time_day, data = data, na.action = "na.exclude"))
+data$raw <- residuals(lm(raw ~ time_day, data = data))
+data$tech <- residuals(lm(tech ~ time_day, data = data, na.action = "na.exclude"))
 
 library(table1)
 my_render_cont <- function(x){
@@ -211,7 +216,7 @@ vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insom
           #"sbp", "dbp", "rec_rest", "rec_dep", "rec_tired", "rec_enth",
           "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST",
           "day_type", "fri_sun",
-          "chrono_Nightshift",
+          "chrono_Nightshift")
           "has_prescription",
           "antihypertensive",
           "sleep_medication",
@@ -245,5 +250,5 @@ results <- map_dfr(vars, function(v) {
     }
 })
 
-saveRDS(results, "data_share/results_associations_phenotypes_CA.rds")
+saveRDS(results, "data_share/results_associations_phenotypes_CA_v2.rds")
 

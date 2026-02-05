@@ -41,6 +41,7 @@ d_long <- d %>%
     date_bsampling = ymd(date_bsampling),
     across(all_of(outcomes), ymd)
   ) %>%
+  filter(date_bsampling != "1900-01-01") %>%
   pivot_longer(
     cols = all_of(outcomes),
     names_to = "diagnosis",
@@ -48,6 +49,9 @@ d_long <- d %>%
   )
 
 d_long <- d_long %>%
+  left_join(covs %>% select(eid, birth_year)) %>%
+  mutate(age = year(earliest_dx_date) - birth_year) %>%
+  filter(is.na(age) | age >= 10) %>%
   mutate(
     case_15y = case_when(
       !is.na(earliest_dx_date) &
@@ -61,9 +65,9 @@ d_long <- d_long %>%
   )
 
 d_15_cc <- d_long %>%
-  select(eid, date_bsampling, diagnosis, case_15y) %>%
+  select(eid, date_bsampling, diagnosis, case_15y, age) %>%
   pivot_wider(
-    id_cols = c(eid, date_bsampling),
+    id_cols = c(eid, date_bsampling, age),
     names_from = diagnosis,
     values_from = case_15y
   )
@@ -165,8 +169,7 @@ tab_desc <- table1::table1(
   ~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season +
     day_type + fri_sun + autumnDST + springDST + chrono +
     h_sleep + wakeup + ever_insomnia + shift_work + night_shift +
-    chrono_Nightshift + has_prescription + antihypertensive +
-    sleep_medication + antidepressants + mood_stabiliser + lithium
+    chrono_Nightshift #+ has_prescription + antihypertensive + leep_medication + antidepressants + mood_stabiliser + lithium
   | res_sd_group,
   data = data1,
   overall = FALSE,
@@ -317,7 +320,7 @@ p_qs <- ggplot(plot_df, aes(x = estimate, y = outcome_full, color = fct_rev(grou
     show.legend = FALSE
   ) +
   scale_x_log10(
-    breaks = c(0.5, 0.75, 1, 1.5, 2),
+    breaks = c(0.5, 0.75, 1, 1.5, 2, 4),
     labels = scales::label_number(accuracy = 0.01)
   ) +
   scale_color_manual(
