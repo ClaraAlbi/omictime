@@ -12,16 +12,6 @@ library(stringr)
 
 dx download file-J4y3QpQJk8K76J9q0Y30zVQP
 
-covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
-  mutate(bmi = weight/(height/100)^2,
-         sex = factor(sex, levels = c(0, 1), labels = c("Female", "Male")) ,
-         smoking = factor(smoking, levels = c(0,1,2), labels = c("Never", "Previous", "Current")),
-         assessment_centre = as.factor(assessment_centre)
-  )
-
-pcs <- data.table::fread("/mnt/project/covariates.txt") %>%
-  select(eid = 1, contains("PC"))
-
 
 meds <- data.table::fread("/mnt/project/medications.tsv")
 

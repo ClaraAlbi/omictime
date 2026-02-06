@@ -10,7 +10,7 @@ library(broom)
 library(forcats)
 library(lubridate)
 
-pred <- readRDS("olink_int_panels14.rds") %>%
+pred <- readRDS("/mnt/project/olink_int_panels14.rds") %>%
   left_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
   #filter(i == 0) %>%
   filter(!is.na(time_day)) %>%

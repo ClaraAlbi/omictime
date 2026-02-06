@@ -102,9 +102,12 @@ coef_avg <- map_dfr(1:5, ~
                       filter(model == "LASSO") %>%
                       filter(feature != "(Intercept)") %>%
                       mutate(cv = .x, feature = toupper(feature))
-) %>% group_by(cv) %>% filter(abs(weight) > 0.1)
+)
+
+saveRDS(coef_avg, "data_share/LASSO_14pan_weights.rds")
 
 p3 <- coef_avg %>%
+  group_by(cv) %>% filter(abs(weight) > 0.1) %>%
   ggplot(aes(x = forcats::fct_reorder(feature, desc(abs(weight))), y = abs(weight), fill = weight >0)) +
   geom_boxplot() +
   labs(x= "Protein", y = "abs(weight)") +
