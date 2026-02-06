@@ -84,7 +84,7 @@ data <- df %>%
   left_join(sleep) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
-  left_join(vars_join %>% select(eid, chrono_Nightshift)) #%>%
+  left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
   left_join(cohort_f) %>%
   mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
          antihypertensive = ifelse(!is.na(C0), as.integer(C0 == TRUE), 0),
@@ -95,7 +95,7 @@ data <- df %>%
          across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
 
 
-data$res <- residuals(lm(pred_mean ~ time_day, data = data))
+data$res <- residuals(lm(pred_lasso ~ time_day, data = data))
 
 
 data1 <- data %>%
@@ -168,8 +168,8 @@ pvalue_DM <- function(x, ...) {
 tab_desc <- table1::table1(
   ~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season +
     day_type + fri_sun + autumnDST + springDST + chrono +
-    h_sleep + wakeup + ever_insomnia + shift_work + night_shift +
-    chrono_Nightshift #+ has_prescription + antihypertensive + leep_medication + antidepressants + mood_stabiliser + lithium
+    h_sleep + wakeup + ever_insomnia + shift_work + night_shift + employment +
+    chrono_Nightshift + has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium
   | res_sd_group,
   data = data1,
   overall = FALSE,
@@ -183,8 +183,7 @@ tab_desc <- table1::table1(
 
 
 
-
-covariates <- c("sex", "age_recruitment", "chrono", "season", "TDI", "bmi", "smoking", "assessment_centre", paste0("PC", 1:20))
+covariates <- c("sex", "age_recruitment", "chrono", "employment", "season", "TDI", "bmi", "smoking", "assessment_centre", paste0("PC", 1:20))
 
 res_continuous <- map_dfr(outcomes, function(outcome) {
   fit <- glm(
@@ -294,10 +293,10 @@ plot_df <-
     count_label = paste0("n=", cases),
     fill_sig = if_else(pfdr < 0.05, group, NA_character_))
 
-saveRDS(plot_df, "data_share/associations_results_disease_CA.rds")
+saveRDS(plot_df, "data_share/associations_results_disease_CA_lasso.rds")
 
 
-plot_df <- readRDS("data_share/associations_results_disease_CA.rds")
+plot_df <- readRDS("data_share/associations_results_disease_CA_lasso.rds")
 
 
 p_qs <- ggplot(plot_df, aes(x = estimate, y = outcome_full, color = fct_rev(group),  fill = fill_sig)) +
@@ -320,7 +319,7 @@ p_qs <- ggplot(plot_df, aes(x = estimate, y = outcome_full, color = fct_rev(grou
     show.legend = FALSE
   ) +
   scale_x_log10(
-    breaks = c(0.5, 0.75, 1, 1.5, 2, 4),
+    breaks = c(0.5, 1,  2, 4),
     labels = scales::label_number(accuracy = 0.01)
   ) +
   scale_color_manual(

@@ -10,9 +10,9 @@ library(broom)
 library(forcats)
 library(lubridate)
 
-pred <- readRDS("/mnt/project/olink_int_replication_v3.rds") %>%
+pred <- readRDS("olink_int_panels14.rds") %>%
   left_join(readRDS("/mnt/project/biomarkers/time.rds")) %>%
-  filter(i == 0) %>%
+  #filter(i == 0) %>%
   filter(!is.na(time_day)) %>%
   mutate(date = as.POSIXct(date_bsampling, tz = "Europe/London"))
 
@@ -36,9 +36,17 @@ job_vars <- data.table::fread("/mnt/project/job_vars.tsv") %>%
          shift_work = case_when(`826-0.0` == 1 ~ "Never/rarely",
                                 `826-0.0` == 2 ~ "Sometimes",
                                 `826-0.0` == 3 ~ "Usually",
-                                `826-0.0` == 4 ~ "Always")) %>%
+                                `826-0.0` == 4 ~ "Always"),
+         employment = case_when(`6142-0.0` == 1	~ "Employed",
+                                 `6142-0.0` == 2	~ "Retired",
+                                 `6142-0.0` == 3 ~ "Home/family manager",
+                                 `6142-0.0` == 4 ~	"Disability",
+                                 `6142-0.0` == 5 ~	"Unemployed",
+                                 `6142-0.0` == 6 ~	"Voluntary work",
+                                 `6142-0.0` == 7 ~	"Student")) %>%
   mutate(night_shift = factor(night_shift, levels = c("Never", "Sometimes", "Usually", "Always")),
-         shift_work = factor(shift_work, levels = c("Never/rarely", "Sometimes", "Usually", "Always")))
+         shift_work = factor(shift_work, levels = c("Never/rarely", "Sometimes", "Usually", "Always")),
+         employment = fct_relevel(employment, "Employed", "Retired"))
 
 gen_covs <- data.table::fread("/mnt/project/genetic_covs.tsv") %>%
   select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`, `22000-0.0`)
@@ -174,7 +182,7 @@ data <- df %>%
   #left_join(phy) %>%
   #left_join(mh)
   #left_join(sleep_new %>% select(eid, rmeq_score, rmeq_chronotype)) %>%
-  left_join(vars_join %>% select(eid, chrono_Nightshift)) #%>%
+  left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
   left_join(cohort_f) %>%
   mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
          antihypertensive = ifelse(!is.na(C0), as.integer(C0 == TRUE), 0),
@@ -185,12 +193,12 @@ data <- df %>%
          across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
 
 
-data$res <- residuals(lm(pred_mean ~ time_day, data = data))
-data$res_all <- residuals(lm(`14panels` ~ time_day, data = data))
-data$female <- residuals(lm(female ~ time_day, data = data, na.action = "na.exclude"))
-data$male <- residuals(lm(male ~ time_day, data = data, na.action = "na.exclude"))
-data$raw <- residuals(lm(raw ~ time_day, data = data))
-data$tech <- residuals(lm(tech ~ time_day, data = data, na.action = "na.exclude"))
+data$res <- residuals(lm(pred_lasso ~ time_day, data = data))
+#data$res_all <- residuals(lm(`14panels` ~ time_day, data = data))
+#data$female <- residuals(lm(female ~ time_day, data = data, na.action = "na.exclude"))
+#data$male <- residuals(lm(male ~ time_day, data = data, na.action = "na.exclude"))
+#data$raw <- residuals(lm(raw ~ time_day, data = data))
+#data$tech <- residuals(lm(tech ~ time_day, data = data, na.action = "na.exclude"))
 
 library(table1)
 my_render_cont <- function(x){
@@ -206,7 +214,7 @@ my_render_cont <- function(x){
 }
 
 
-tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + day_type + fri_sun + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + shift_work + night_shift + chrono_Nightshift +has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium,
+tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smoking + season + day_type + fri_sun + autumnDST + springDST + chrono + h_sleep + wakeup + ever_insomnia + shift_work + night_shift + employment + chrono_Nightshift +has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium,
                            data = data,
                            render.cont = my_render_cont, topclass="Rtable1-grid")
 
@@ -214,9 +222,9 @@ tab_desc <- table1::table1(~ age_recruitment + sex + p30079 + TDI + bmi + smokin
 vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079", #"rmeq_chronotype", "rmeq_score",
           "is_weekend", "day_of_week",
           #"sbp", "dbp", "rec_rest", "rec_dep", "rec_tired", "rec_enth",
-          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "TDI", "autumnDST", "springDST",
+          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "employment", "TDI", "autumnDST", "springDST",
           "day_type", "fri_sun",
-          "chrono_Nightshift")
+          "chrono_Nightshift",
           "has_prescription",
           "antihypertensive",
           "sleep_medication",
@@ -250,5 +258,5 @@ results <- map_dfr(vars, function(v) {
     }
 })
 
-saveRDS(results, "data_share/results_associations_phenotypes_CA_v2.rds")
+saveRDS(results, "data_share/results_associations_phenotypes_CA_lasso.rds")
 

@@ -78,8 +78,8 @@ data <- df %>%
   left_join(sleep) %>%
   left_join(gen_covs) %>%
   left_join(dep) %>%
-  left_join(vars_join %>% select(eid, chrono_Nightshift)) #%>%
-  # left_join(cohort_f) %>%   # keep if you previously used it
+  left_join(vars_join %>% select(eid, chrono_Nightshift)) %>%
+  left_join(cohort_f) %>%   # keep if you previously used it
   mutate(has_prescription = ifelse(eid %in% cohort$eid, 1, 0),
          antihypertensive = ifelse(!is.na(C0), as.integer(C0 == TRUE), 0),
          sleep_medication = ifelse(!is.na(N05C), as.integer(N05C == TRUE), 0),
@@ -89,7 +89,7 @@ data <- df %>%
          across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
 
 # residuals as before
-data$res <- residuals(lm(pred_mean ~ time_day, data = data))
+data$res <- residuals(lm(pred_lasso ~ time_day, data = data))
 
 # ---- 4) Join future-case table into analysis dataset and create res_sd_group ----
 data1 <- data %>%
@@ -105,7 +105,7 @@ data1 <- data %>%
 
 
 # ---- 6) Models ----
-covariates <- c("sex", "age_recruitment", "chrono", "season", "TDI", "bmi", "smoking", "assessment_centre", paste0("PC", 1:20))
+covariates <- c("sex", "age_recruitment", "chrono", "employment", "season", "TDI", "bmi", "smoking", "assessment_centre", paste0("PC", 1:20))
 
 # Continuous res effect (per unit res)
 res_continuous <- map_dfr(outcomes, function(outcome) {
@@ -212,10 +212,10 @@ plot_df <-
   )
 
 # Save results (changed filename to indicate future 15y)
-saveRDS(plot_df, "data_share/associations_results_disease_CA_future15y.rds")
+saveRDS(plot_df, "data_share/associations_results_disease_CA_future15y_lasso.rds")
 
 
-plot_df_inc <- readRDS("data_share/associations_results_disease_CA_future15y.rds")
+plot_df_inc <- readRDS("data_share/associations_results_disease_CA_future15y_lasso.rds")
 
 
 # ---- 9) Plot (unchanged style) ----
@@ -239,7 +239,7 @@ p_qs_inc <- ggplot(plot_df_inc, aes(x = estimate, y = outcome_full, color = fct_
     show.legend = FALSE
   ) +
   scale_x_log10(
-    breaks = c(0.5, 0.75, 1, 1.5, 2),
+    breaks = c(0.5, 1,  2),
     labels = scales::label_number(accuracy = 0.01)
   ) +
   scale_color_manual(
