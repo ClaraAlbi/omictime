@@ -4,6 +4,7 @@ library(dplyr)
 library(ggplot2)
 library(purrr)
 library(scales)
+library(stringr)
 install.packages("cowplot")
 install.packages("ggpmisc")
 
@@ -36,4 +37,7 @@ cor(d$`14panels`, d$tech)
 d <- preds %>%
   pivot_wider(id_cols = c(eid, time_day), names_from = group, values_from = pred_mean)
 
-saveRDS(d, "")
+d2 <- preds %>% filter(group == "14panels") %>% select(-file, -group)
+
+
+saveRDS(d2, "olink_int_panels14.rds")

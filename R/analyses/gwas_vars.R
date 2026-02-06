@@ -30,19 +30,18 @@ anc <- data.table::fread("/mnt/project/ancestry_new.csv") %>%
   select(eid, p30079) %>%
   filter(p30079 == "European ancestry (EUR)")
 
-df <- readRDS("/mnt/project/biomarkers_res/olink_int_replication_v2.rds") %>%
-  filter(i == 0) %>%
+df <- readRDS("olink_int_panels14.rds") %>%
+  #filter(i == 0) %>%
   select(eid, time_day, pred_mean, pred_lasso) %>%
   left_join(gen_covs) %>%
   inner_join(anc) %>%
-  #filter(is_white == 1) %>%
   filter(rel == 0)
-df$res <- residuals(lm(pred_mean ~ time_day, data = df))
+df$res <- residuals(lm(pred_lasso ~ time_day, data = df))
 
 df %>% mutate(FID = eid) %>%
   select(FID, eid, res) %>%
   rename(IID = eid) %>%
-  data.table::fwrite(., "phenotypes_eur_unrel.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+  data.table::fwrite(., "res_lasso_eur_unrel.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
 
 # FEMALES ONLY

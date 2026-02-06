@@ -131,6 +131,6 @@ pf <- (p1 + p2) / p3 +
   plot_annotation(tag_levels = "A") +
   plot_layout(heights = c(1, 2))
 
-ggsave("plots/F3_LASSO_coef_v2.png", pf, width = 10, height = 5)
+ggsave("plots/F3_LASSO_coef_v2.png", pf, width = 10, height = 7)
 
 
