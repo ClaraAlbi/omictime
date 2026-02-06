@@ -101,6 +101,23 @@ ggplot(data, aes(x = time_day, y = pred_scaled)) +
   theme_minimal()
 
 
+### HISTOGRAM
+p_hist <- data %>%
+  ggplot(aes(x = time_day)) +
+  geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
+  geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "gray", alpha = 0.2, inherit.aes = FALSE) +
+  geom_histogram(bins = 60) +
+  coord_polar(start = 0) +
+  labs(x = "Time of day") +
+  scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
+  theme_minimal() +
+  theme(text = element_text(size = 20),
+        axis.text.y = element_text(size = 14),
+        axis.title.y = element_blank(), panel.grid.minor = element_blank())
+
+ggsave("time_histogram_TREASURE.png", p_hist, width = 8, height = 8)
 
 
 
