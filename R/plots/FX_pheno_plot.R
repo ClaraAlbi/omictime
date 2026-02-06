@@ -8,9 +8,9 @@ demo <- c("age_recruitment", "sex", "p30079", "bmi", "smoking", "TDI")
 sleep <- c("chrono", "wakeup", "h_sleep", "ever_insomnia")
 season <- c("season", "day_type", "fri_sun", "springDST", "autumnDST")
 meds <- c("has_prescription","sleep_medication", "antihypertensive", "antidepressants", "mood_stabiliser", "lithium")
-shift <- c("shift_work", "night_shift")
+shift <- c("employment","shift_work", "night_shift")
 
-results <- readRDS("data_share/results_associations_phenotypes_CA.rds") %>%
+results <- readRDS("data_share/results_associations_phenotypes_CA_lasso.rds") %>%
   filter(!str_ends(term, "0")) %>%
   mutate(predictor = case_when(str_detect(term, "p30079") ~ "p30079",
                                TRUE ~ predictor),
@@ -175,13 +175,13 @@ p2
 
 pretty_predictor <- c(
   season = "Season", day_type = "Social jetlag",
-  fri_sun = "Week day",
+  #fri_sun = "Week day",
   autumnDST = "Fall DST", springDST = "Spring DST")
 
 term_order <- list(
   season = c("Winter (ref)", "Spring", "Summer", "Fall"),
   day_type = c("Weekday (ref)", "Weekend"),
-  fri_sun = c("Sat (ref)", "Fri", "Mon"),
+  #fri_sun = c("Sat (ref)", "Fri", "Mon"),
   autumnDST = c("Baseline autumn (ref)", "Before autumn DST", "After autumn DST"),
   springDST = c("Baseline spring (ref)", "Before spring DST", "After spring DST"))
 
@@ -327,9 +327,10 @@ p4
 #### JOB
 
 
-pretty_predictor <- c(shift_work = "Shift Work", night_shift = "Night Shift")
+pretty_predictor <- c(employment = "Employment status", shift_work = "Shift Work", night_shift = "Night Shift")
 
 term_order <- list(
+  employment = c("Employed (ref)", "Retired", "Home/family manager","Disability","Unemployed","Voluntary work","Student"),
   shift_work = c("Never/rarely (ref)", "Usually", "Always"),
   night_shift = c("Never (ref)", "Sometimes", "Usually", "Always"))
 
@@ -388,7 +389,7 @@ p5 <- ggplot(plot_data_shift, aes(x = estimate, y = y_id, alpha = FDR < 0.05)) +
     space = "free_y",
   ) +
   scale_x_continuous(limits = c(-1, 1)) +
-  labs(title = "Employment - shift work", x = "CA (β, 95% CI)", y = NULL,  alpha = "FDR < 5%") +
+  labs(title = "Employment", x = "CA (β, 95% CI)", y = NULL,  alpha = "FDR < 5%") +
   theme_classic(base_size = 10) +
   scale_alpha_manual(
     values = c(`TRUE` = 1, `FALSE` = 0.4),
@@ -422,14 +423,14 @@ p4 <- p4 + labs(tag = "E")
 
 ### COMBINE
 all_ps <-
-  (p1 | p2) /
-  (p3 | (p5 / p4)) +
-  plot_layout(guides = "collect")  &
+  (p1 | p3) /
+  (p2 | (p5 / p4 + plot_layout(heights = c(1.5, 0.6))))  +
+  plot_layout(guides = "collect", heights = c(0.8, 1.2))  &
   theme(
-    legend.position = "bottom",
-    plot.tag = element_text(size = 16, face = "bold"),
+    legend.position = "none",
+    plot.tag = element_text(size = 16),
     plot.tag.position = c(0.01, 0.99),
-    plot.margin = margin(8, 8, 8, 8)
+    #plot.margin = margin(8, 8, 8, 8)
   )
 
 ggsave("plots/FX_phenotypes.png", all_ps, width = 10, height = 8)
