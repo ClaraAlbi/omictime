@@ -117,7 +117,7 @@ p_hist <- data %>%
         axis.text.y = element_text(size = 14),
         axis.title.y = element_blank(), panel.grid.minor = element_blank())
 
-ggsave("time_histogram_TREASURE.png", p_hist, width = 8, height = 8)
+ggsave("plots/time_histogram_TREASURE.png", p_hist, width = 8, height = 8)
 
 
 
