@@ -89,7 +89,7 @@ data <- df %>%
          across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
 
 # residuals as before
-data$res <- residuals(lm(pred_lasso ~ time_day, data = data))
+data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
 # ---- 4) Join future-case table into analysis dataset and create res_sd_group ----
 data1 <- data %>%
@@ -212,10 +212,10 @@ plot_df <-
   )
 
 # Save results (changed filename to indicate future 15y)
-saveRDS(plot_df, "data_share/associations_results_disease_CA_future15y_lasso.rds")
+saveRDS(plot_df, "data_share/associations_results_disease_CA_future15y_mean.rds")
 
 
-plot_df_inc <- readRDS("data_share/associations_results_disease_CA_future15y_lasso.rds")
+plot_df_inc <- readRDS("data_share/associations_results_disease_CA_future15y_mean.rds")
 
 
 # ---- 9) Plot (unchanged style) ----
@@ -239,7 +239,8 @@ p_qs_inc <- ggplot(plot_df_inc, aes(x = estimate, y = outcome_full, color = fct_
     show.legend = FALSE
   ) +
   scale_x_log10(
-    breaks = c(0.5, 1,  2),
+    limits = c(0.5, 4),
+    breaks = c(0.5, 1, 2, 4),
     labels = scales::label_number(accuracy = 0.01)
   ) +
   scale_color_manual(
@@ -290,7 +291,7 @@ p_qs_inc <- ggplot(plot_df_inc, aes(x = estimate, y = outcome_full, color = fct_
 ggsave("plots/FX_disease_q_future15y.png", p_qs_inc, width = 6, height = 8)
 
 
-
+install.packages("patchwork")
 library(patchwork)
 p_qs + p_qs_inc
 
@@ -315,4 +316,4 @@ p_qs_inc_tight <- p_qs_inc +
 p_qs_noleg + p_qs_inc_tight
 
 
-ggsave("plots/FX_disease_q_both.png", p_qs_noleg + p_qs_inc_tight, width = 10, height = 8)
+ggsave("plots/FX_disease_q_both_mean.png", p_qs_noleg + p_qs_inc_tight, width = 10, height = 8)

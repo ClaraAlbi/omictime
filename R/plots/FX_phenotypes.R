@@ -193,7 +193,7 @@ data <- df %>%
          across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
 
 
-data$res <- residuals(lm(pred_lasso ~ time_day, data = data))
+data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 #data$res_all <- residuals(lm(`14panels` ~ time_day, data = data))
 #data$female <- residuals(lm(female ~ time_day, data = data, na.action = "na.exclude"))
 #data$male <- residuals(lm(male ~ time_day, data = data, na.action = "na.exclude"))
@@ -258,5 +258,5 @@ results <- map_dfr(vars, function(v) {
     }
 })
 
-saveRDS(results, "data_share/results_associations_phenotypes_CA_lasso.rds")
+saveRDS(results, "data_share/results_associations_phenotypes_CA_mean.rds")
 

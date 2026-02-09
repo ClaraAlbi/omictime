@@ -95,7 +95,7 @@ data <- df %>%
          across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
 
 
-data$res <- residuals(lm(pred_lasso ~ time_day, data = data))
+data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
 
 data1 <- data %>%
@@ -293,10 +293,10 @@ plot_df <-
     count_label = paste0("n=", cases),
     fill_sig = if_else(pfdr < 0.05, group, NA_character_))
 
-saveRDS(plot_df, "data_share/associations_results_disease_CA_lasso.rds")
+saveRDS(plot_df, "data_share/associations_results_disease_CA_mean.rds")
 
 
-plot_df <- readRDS("data_share/associations_results_disease_CA_lasso.rds")
+plot_df <- readRDS("data_share/associations_results_disease_CA_mean.rds")
 
 
 p_qs <- ggplot(plot_df, aes(x = estimate, y = outcome_full, color = fct_rev(group),  fill = fill_sig)) +
