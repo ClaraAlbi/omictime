@@ -7,20 +7,20 @@ for chr in {1..22}; do
     cp gcta64 \$HOME/gcta64 && chmod +x \$HOME/gcta64
     \$HOME/gcta64 --bgen \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.bgen\" \
                         --sample \"/mnt/project/Bulk/Imputation/UKB imputation from genotype/ukb22828_c${chr}_b0_v3.sample\" \
-                        --pheno res_lasso_eur.txt \
+                        --pheno res_v2_eur.txt \
                         --qcovar qcovar.txt \
                         --covar covar.txt \
                         --fastGWA-mlm \
                         --extract ukbEURu_imp_all_v3_impQC_maf01.snpList \
                         --grm-sparse /mnt/project/grm/sp_grm_eur_OX \
                         --covar-maxlevel 110 \
-                        --out res_lasso_eur_chr${chr} \
+                        --out res_eur_chr${chr} \
                         --thread-num 8
     "
 
   dx run swiss-army-knife \
       -iin="gcta64" \
-      -iin="${project}:/res_lasso_eur.txt" \
+      -iin="${project}:/res_v2_eur.txt" \
       -iin="${project}:/covar.txt" \
       -iin="${project}:/qcovar.txt" \
       -iin="${project}:/grm/ukbEURu_imp_all_v3_impQC_maf01.snpList" \
