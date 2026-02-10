@@ -7,7 +7,7 @@ install.packages("ggrepel")
 library(ggrepel)
 library(ggplot2)
 install.packages("broom")
-install.packages("ggplot2")
+install.packages("forcats")
 
 labels <- data.table::fread("data_share/supplementary_data1_explanatory_labels.csv") |>
   mutate(
@@ -41,7 +41,7 @@ d1 <- amp %>%
 
 d1 <- d1 |>
   left_join(labels |> select(FID, LABEL), by = "FID") |>
-  mutate(FID = coalesce(LABEL, FID)) |>
+  mutate(FID_clean = coalesce(LABEL, FID)) |>
   select(-LABEL)
 
 
@@ -51,35 +51,85 @@ p1 <- ggplot(d1, aes(x = amplitude_24hfreq, y = r2_time_day)) +
   geom_vline(xintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
   geom_point(aes(color = Type), size = 1, alpha = 0.7) +
   geom_text_repel(
-    data = d1 %>% filter((amplitude_24hfreq > 0.1 & r2_time_day > 0.01) | r2_time_day > 0.03 | amplitude_24hfreq > 0.37),
+    data = d1 %>% filter((amplitude_24hfreq > 0.1 & r2_time_day > 0.01) | r2_time_day > 0.02 | amplitude_24hfreq > 0.37),
     size = 2,
-    aes(label = FID),
+    aes(label = FID_clean),
     max.overlaps = 30,
     box.padding = 0.2,
     point.padding = 0.3,
     segment.alpha = 0.4
   ) +
-  labs(y = "R2 time day", x = "Amplitude", color = "") +
+  scale_color_manual(
+    values = c(
+      "Proteins"  = "#76B041",
+      "Metabolites"  = "#2374AB",
+      "Cell counts"       = "#8F3985",
+      "Biochemistry"      = "#E85F5C"
+    )) +
+  labs(y = "R2 time day", x = "Amplitude", color = "Data type") +
   theme_classic(base_size = 10) +
-  theme(panel.grid.major = element_line(),
+  theme(panel.grid.major = element_line(color = "gray"),
         legend.position = c(0.99, 0.02),
         legend.justification = c("right", "bottom"))
 
-ggsave("see.png", p1)
+ggsave("plots/r2_Vs_amplitude.png", p1)
 
-set_prots <- intersect(rs$FID, amp$FID)set_prots <- intersect(rs$FID, amp$FID)set_prots <- intersect(rs$FID, amp$FID)
+
+
+px <- ggplot(d1, aes(x = acrophase_24hfreq, y = amplitude_24hfreq)) +
+  geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
+  geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "lightblue", alpha = 0.2, inherit.aes = FALSE) +
+  geom_hline(yintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
+  #geom_vline(xintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
+  geom_point(aes(color = Type, size = r2_time_day), alpha = 0.7) +
+  geom_text_repel(
+    data = d1 %>% filter((amplitude_24hfreq > 0.1 & r2_time_day > 0.01) | r2_time_day > 0.02 | amplitude_24hfreq > 0.37),
+    size = 2.5,
+    aes(label = FID_clean),
+    max.overlaps = 30,
+    box.padding = 0.2,
+    point.padding = 0.3,
+    segment.alpha = 0.4
+  ) +
+  coord_polar() +
+  scale_x_continuous(limits = c(0, 24), breaks = 0:23,
+                     expand = c(0,0)) +
+  scale_color_manual(
+    values = c(
+      "Proteins"  = "#76B041",
+      "Metabolites"  = "#2374AB",
+      "Cell counts"       = "#8F3985",
+      "Biochemistry"      = "#E85F5C"
+    )) +
+  labs(x = "Acrophase", y = "Amplitude", color = "Data type", size = "R2 time day") +
+  theme_classic(base_size = 12) +
+  theme(panel.grid.major = element_line(color = "gray"),
+        legend.position = c(0.99, 0.02),
+        axis.text.x = element_text(face = "bold", size = 14),
+        axis.title = element_text(size = 16),
+        axis.line = element_blank(),
+        legend.justification = c("right", "bottom"))
+
+ggsave("plots/plot_circle.png", px, width = 10, height = 10)
+
+set_prots <- d1 %>%
+  filter(r2_time_day > 0.01) %>%
+  filter(amplitude_24hfreq > 0.1)
+
 
 olink <- readRDS("/mnt/project/biomarkers_res/res_olink_tech.rds") %>%
-  select(eid, any_of(rs$FID))
+  select(eid, any_of(set_prots$FID))
 
 nmr <- readRDS("/mnt/project/biomarkers_res/res_nmr_tech.rds") %>%
-  select(eid, any_of(rs$FID))
+  select(eid, any_of(set_prots$FID))
 
 bio <- readRDS("/mnt/project/biomarkers_res/res_labs_tech.rds") %>%
-  select(eid, any_of(rs$FID))
+  select(eid, any_of(set_prots$FID))
 
 cc <- readRDS("/mnt/project/biomarkers_res/res_counts_tech.rds") %>%
-  select(eid, any_of(rs$FID))
+  select(eid, any_of(set_prots$FID))
 
 covs <- readRDS("/mnt/project/biomarkers/covs.rds") %>%
   mutate(bmi = weight / (height/100)^2,
@@ -159,7 +209,7 @@ run_time_interaction <- function(data, outcome, interaction_var, alpha = 0.05) {
 }
 
 
-biomarkers <- colnames(d)[2:135]
+biomarkers <- colnames(d)[2:132]
 
 base_formula <- function(outcome) {
   as.formula(paste0(
@@ -194,132 +244,82 @@ estimate_table <- map_dfr(
 ) %>% filter(outcome %in% anova_table$outcome)
 
 
+ts1 <- d %>%
+  select(eid, any_of(biomarkers), time_day) %>%
+  pivot_longer(-c(eid, time_day)) %>%
+  mutate(t = round(time_day, 0)) %>%
+  group_by(name, t) %>% summarise(n        = n(),
+                                  mean_val = mean(value, na.rm = T),
+                                  sd_val   = sd(value, na.rm = T))
 
 
-ts <- olink %>% left_join(covs %>% select(eid, sex, age_recruitment)) %>%
-  pivot_longer(-c(eid, sex, age_recruitment)) %>%
-  filter(name %in% anova_table$outcome) %>%
-  filter(age_recruitment > 39) %>%
-  group_by(name, sex, age_recruitment) %>% summarise(m_d = mean(value, na.rm = T), sd_d  = sd(value, na.rm = T))
+fid_levels <- ts1 %>%
+  left_join(d1, by = c("name" = "FID")) %>%
+  distinct(FID_clean, r2_time_day) %>%
+  ungroup() %>%
+  arrange(desc(r2_time_day)) %>%
+  pull(FID_clean)
 
-ggplot(ts, aes(x = age_recruitment, y = m_d, color = sex)) +
-  geom_point() +
-  facet_wrap(~name, scales = "free")
+p_raw <- ts1 %>%
+  left_join(d1, by = c("name" = "FID")) %>%
+  mutate(
+    FID_clean = factor(FID_clean, levels = fid_levels),
+    se_val   = sd_val / sqrt(n),
+    ci_lower = mean_val - 1.96 * se_val,
+    ci_upper = mean_val + 1.96 * se_val
+  ) %>%
+  ggplot(aes(x = t, y = mean_val)) +
+  geom_point(size = 0.2) +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2) +
+  facet_wrap(~FID_clean, ncol = 10) +
+  labs(y = "Biomarker residuals", x = "Time of day") +
+  theme_minimal(base_size = 8)
+
+ggsave("plots/biom_time_int.png", p_raw, width = 10, height = 14)
+
 
 
 
 ts <- d %>%
-  select(any_of(biomarkers), age_recruitment, sex, time_day) %>%
-  pivot_longer(-c(age_recruitment, sex, time_day)) %>%
-  filter(name %in% anova_table$outcome) %>%
-  filter(age_recruitment > 39) %>%
+  select(eid, any_of(biomarkers), time_day, sex) %>%
+  pivot_longer(-c(eid, time_day, sex)) %>%
   mutate(t = round(time_day, 0)) %>%
-  group_by(name, sex, t) %>% summarise(m_d = mean(value, na.rm = T), sd_d  = sd(value, na.rm = T))
+  filter(name %in% anova_table$outcome) %>%
+  group_by(name, sex, t)  %>% summarise(n        = n(),
+                                        mean_val = mean(value, na.rm = T),
+                                        sd_val   = sd(value, na.rm = T))
 
 
-ts2 <- ts %>% ungroup() %>%
-  mutate(name = recode(name, !!!setNames(fields$title, fields$field_id)))
 
+fid_levels_sex <- ts %>%
+  ungroup() %>%
+  left_join(d1, by = c("name" = "FID")) %>%
+  distinct(FID_clean, r2_time_day) %>%
+  arrange(desc(r2_time_day)) %>%
+  pull(FID_clean)
 
-name_lookup <- tibble::tribble(
-  ~original, ~short,
-  "Spectrometer-corrected alanine", "Ala_corr",
-  "Alanine", "Alanine",
-  "Isoleucine", "Isoleucine",
-  "Leucine", "Leucine",
-  "Valine", "Valine",
-  "Phenylalanine", "Phenylala",
-  "Total Concentration of Branched-Chain Amino Acids (Leucine + Isoleucine + Valine)", "BCAA_total",
-  "Glucose", "Glucose",
-  "Lactate", "Lactate",
-  "3-Hydroxybutyrate", "Hydroxybut",
-  "Acetate", "Acetate",
-  "Acetoacetate", "Acetoacet",
-  "Acetone", "Acetone",
-  "Phosphate", "Phosphate",
-  "Total bilirubin", "Bilirubin",
-  "Triglycerides", "Triglyc",
-  "Monounsaturated Fatty Acids", "MUFA",
-  "Monounsaturated Fatty Acids to Total Fatty Acids percentage", "MUFA_pct",
-  "Phospholipids in HDL", "HDL_PL",
-  "Average Diameter for HDL Particles", "HDL_Diam",
-  "Concentration of Very Large HDL Particles", "HDL_VL_cnt",
-  "Total Lipids in Very Large HDL", "HDL_VL_TL",
-  "Phospholipids in Very Large HDL", "HDL_VL_PL",
-  "Free Cholesterol in Very Large HDL", "HDL_VL_FC",
-  "Triglycerides in Very Large HDL", "HDL_VL_TG",
-  "Total Lipids in Large HDL", "HDL_L_TL",
-  "Phospholipids in Large HDL", "HDL_L_PL",
-  "Free Cholesterol in Large HDL", "HDL_L_FC",
-  "Triglycerides in Large HDL", "HDL_L_TG",
-  "Triglycerides in Medium HDL", "HDL_M_TG",
-  "Free Cholesterol in Small LDL", "LDL_S_FC",
-  "Free Cholesterol to Total Lipids in Very Small VLDL percentage", "VLDL_VS_FCp",
-  "Free Cholesterol to Total Lipids in Small LDL percentage", "LDL_S_FCp",
-  "Phospholipids to Total Lipids in Very Large HDL percentage", "HDL_VL_PLp",
-  "Cholesterol to Total Lipids in Very Large HDL percentage", "HDL_VL_Chp",
-  "Cholesteryl Esters to Total Lipids in Very Large HDL percentage", "HDL_VL_CEp",
-  "Free Cholesterol to Total Lipids in Very Large HDL percentage", "HDL_VL_FCp",
-  "Free Cholesterol to Total Lipids in Large HDL percentage", "HDL_L_FCp",
-  "Phospholipids to Total Lipids in Small HDL percentage", "HDL_S_PLp",
-  "White blood cell (leukocyte) count", "Leukocytes",
-  "Lymphocyte count", "Lymphocytes",
-  "Monocyte count", "Monocytes",
-  "Neutrophill count", "Neutrophils",
-  "Basophill count", "Basophills",
-  "actn2", "ACTN2",
-  "adamts15", "ADAMTS15",
-  "adm", "ADM",
-  "agr3", "AGR3",
-  "angptl1", "ANGPTL1",
-  "angptl4", "ANGPTL4",
-  "c1qtnf5", "C1QTNF5",
-  "ccn3", "CCN3",
-  "fas", "FAS",
-  "fst", "FST",
-  "gip", "GIP",
-  "glb1", "GLB1",
-  "hspb6", "HSPB6",
-  "il6", "IL6",
-  "inhbb", "INHBB",
-  "lgals1", "LGALS1",
-  "mep1a", "MEP1A",
-  "muc13", "MUC13",
-  "mybpc1", "MYBPC1",
-  "myl3", "MYL3",
-  "pgf", "PGF",
-  "pla2g10", "PLA2G10",
-  "pomc", "POMC",
-  "pth", "PTH",
-  "sdc1", "SDC1",
-  "smoc1", "SMOC1",
-  "spon2", "SPON2",
-  "timp4", "TIMP4",
-  "tmprss15", "TMPRSS15",
-  "tnr", "TNR"
-)
-
-
-ts2 <- ts2 |>
-  left_join(name_lookup, by = c("name" = "original")) |>
-  mutate(name = dplyr::coalesce(short, name)) |>
-  select(-short)
-
-p2 <- ggplot(ts2, aes(x = t, y = m_d, color = sex)) +
-  geom_point() +
-  facet_wrap(~name, scales = "free") +
+p2 <- ts %>%
+  ungroup() %>%
+  left_join(d1, by = c("name" = "FID")) %>%
+  mutate(
+    FID_clean = factor(FID_clean, levels = fid_levels_sex),
+    se_val   = sd_val / sqrt(n),
+    ci_lower = mean_val - 1.96 * se_val,
+    ci_upper = mean_val + 1.96 * se_val
+  ) %>%
+  ggplot(aes(x = t, y = mean_val, color = sex)) +
+  geom_point(size = 0.2) +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2) +
+  facet_wrap(~FID_clean, ncol = 10) +
   labs(y = "Biomarker residuals", x = "Time of day") +
-  theme_minimal(base_size = 8) +
-  theme(strip.text = element_text(size = 6),
-        axis.title = element_text(size = 10),
-        legend.position = "bottom")
+  theme_minimal(base_size = 8)
 
-ggsave("plots/sex_time_int.png", p2, width = 10, height = 10)
+ggsave("plots/sex_time_int.png", p2, width = 10, height = 12)
 
-ts2 %>%
-  pivot_wider(id_cols = c(name, t), names_from = sex, values_from = m_d) %>%
+ts %>%
+  pivot_wider(id_cols = c(name, t), names_from = sex, values_from = mean_val) %>%
   mutate(f_top = Female > Male) %>%
   group_by(name) %>%
   summarise(f_t = sum(f_top)) %>%
-  arrange(desc(f_t)) %>% pull(f_t) %>%
+  arrange(desc(f_t)) %>% count(f_t)
   hist(.)
