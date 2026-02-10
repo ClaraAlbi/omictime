@@ -8,6 +8,8 @@ library(ggrepel)
 library(ggplot2)
 install.packages("broom")
 install.packages("forcats")
+install.packages("patchwork")
+library(patchwork)
 
 labels <- data.table::fread("data_share/supplementary_data1_explanatory_labels.csv") |>
   mutate(
@@ -312,23 +314,48 @@ sex_amp_phase_wide <- sex_amp_phase %>%
     id_cols   = FID_clean,
     names_from  = sex,
     values_from = c(amplitude, acrophase)
-  )
+  ) %>% mutate(dif_amp = amplitude_Female - amplitude_Male,
+               dif_phase = acrophase_Female - acrophase_Male)
 
-ggplot(sex_amp_phase_wide,
+p_amp <- ggplot(sex_amp_phase_wide,
        aes(x = amplitude_Female, y = amplitude_Male)) +
   geom_point() +
-  geom_text(aes(label = FID_clean), hjust = 0, vjust = 1, size = 3) +
+  geom_label_repel(
+    data = sex_amp_phase_wide %>% filter(abs(dif_amp) > 0.1),
+    size = 2.5,
+    aes(label = FID_clean),
+    max.overlaps = 30,
+    box.padding = 0.2,
+    point.padding = 0.3,
+    segment.alpha = 0.4
+  ) +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
   labs(x = "Female amplitude", y = "Male amplitude") +
-  theme_minimal()
+  theme_classic(base_size = 10) +
+  theme(panel.grid.major = element_line(color = "gray"))
 
-ggplot(sex_amp_phase_wide,
+p_phase <- ggplot(sex_amp_phase_wide,
        aes(x = acrophase_Female, y = acrophase_Male)) +
   geom_point() +
-  geom_text(aes(label = FID_clean), hjust = 0, vjust = 1, size = 3) +
+  geom_label_repel(
+    data = sex_amp_phase_wide %>% filter(abs(dif_phase) > 2),
+    size = 2.5,
+    aes(label = FID_clean),
+    max.overlaps = 30,
+    box.padding = 0.2,
+    point.padding = 0.3,
+    segment.alpha = 0.4
+  ) +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
   labs(x = "Female acrophase (h)", y = "Male acrophase (h)") +
-  theme_minimal()
+  theme_classic(base_size = 10) +
+  theme(panel.grid.major = element_line(color = "gray"))
+
+blank_plot <- ggplot(NULL)
+
+P_F <- px / (p_phase + p_amp + blank_plot) +plot_annotation(tag_levels = "A")
+
+ggsave("plots/Figure_2.png", P_F, width = 10, height = 8)
 
 
 ts1 <- d %>%
