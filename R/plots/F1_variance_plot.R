@@ -11,8 +11,8 @@ fields <- data.table::fread("data/field.tsv")
 df_r2 <- readRDS("data/combined_variance.rds") %>%
   mutate(pfdr = p.adjust(p.value))
 
-write_xlsx(df_r2 %>% select(phen, type, title, term, t_r2, p.value, pfdr),
-           path = "tables/sd1.xlsx")
+#write_xlsx(df_r2 %>% select(phen, type, title, term, t_r2, p.value, pfdr),
+#           path = "tables/sd1.xlsx")
 
 # per cov
 
@@ -38,7 +38,7 @@ df_top <- df_r2 %>%
   summarise(t_r2 = sum(t_r2))
 
 
-df_top %>% filter(model == "time_day") %>% pull(title) group_by(type) %>% count()
+df_top %>% filter(model == "time_day") %>% pull(title)
 
 # trait_order <- df_top %>%
 #   filter(model == "time_day") %>%
@@ -94,6 +94,7 @@ df_lab <- df_plot %>%
     label = paste0(time_var, "%"),
     x_lab =  0.01
   )
+
 plot_bars_v <- ggplot(df_plot, aes(y = title, x = t_r2, fill = model)) +
   geom_col(width = 1) +
   geom_text(
