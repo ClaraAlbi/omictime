@@ -325,6 +325,27 @@ sex_amp_phase_wide <- sex_amp_phase %>%
   ) %>% mutate(dif_amp = amplitude_Female - amplitude_Male,
                dif_phase = acrophase_Female - acrophase_Male)
 
+cor.test(sex_amp_phase_wide$amplitude_Female, sex_amp_phase_wide$amplitude_Male)
+# data:  sex_amp_phase_wide$amplitude_Female and sex_amp_phase_wide$amplitude_Male
+# t = 10.597, df = 70, p-value = 3.398e-16
+# alternative hypothesis: true correlation is not equal to 0
+# 95 percent confidence interval:
+#   0.6761208 0.8601282
+# sample estimates:
+#   cor
+# 0.7848532
+
+cor.test(sex_amp_phase_wide$acrophase_Female, sex_amp_phase_wide$acrophase_Male)
+# Pearson's product-moment correlation
+# data:  sex_amp_phase_wide$acrophase_Female and sex_amp_phase_wide$acrophase_Male
+# t = 35.276, df = 70, p-value < 2.2e-16
+# alternative hypothesis: true correlation is not equal to 0
+# 95 percent confidence interval:
+#  0.9570797 0.9830760
+# sample estimates:
+#       cor
+# 0.9730078
+
 p_amp <- ggplot(sex_amp_phase_wide,
        aes(x = amplitude_Female, y = amplitude_Male)) +
   geom_point() +
