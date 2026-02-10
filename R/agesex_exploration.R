@@ -3,61 +3,71 @@ library(dplyr)
 library(glue)
 library(stringr)
 library(purrr)
+install.packages("ggrepel")
+library(ggrepel)
 library(ggplot2)
 install.packages("broom")
+install.packages("ggplot2")
 
 labels <- data.table::fread("data_share/supplementary_data1_explanatory_labels.csv") |>
   mutate(
     FID   = str_squish(FID),
-    LABEL = str_squish(LABEL)
+    LABEL = str_squish(Label)
+  ) %>%
+  mutate(LABEL = case_when(Type == "Proteins"~ Name,
+         TRUE ~ LABEL))
+
+labels <- labels |>
+  mutate(
+    LABEL = if_else(
+      LABEL == tolower(LABEL) & str_detect(LABEL, "^[a-z0-9]+$"),
+      toupper(LABEL),
+      LABEL
+    )
   )
 
 rs <- data.table::fread("data_share/supplementary_data1.csv") %>%
   mutate(pfdr = p.adjust(p.value_time_day)) %>%
-  filter(pfdr < 0.05) %>%
+  filter(pfdr < 0.05) #%>%
   filter(r2_time_day > 0.01)
 
 amp <- data.table::fread("data_share/supplementary_data2.csv") %>%
   mutate(pfdr = p.adjust(pvalue_h)) %>%
-  filter(pfdr < 0.05) %>%
+  filter(pfdr < 0.05) #%>%
   filter(amplitude_24hfreq > 0.1)
 
-rs <- rs |>
-  mutate(Name = str_squish(Name))
-
-amp <- amp |>
-  mutate(Name = str_squish(Name))
-
-d1 <- d1 |>
-  left_join(name_lookup, by = c("Name" = "original")) |>
-  mutate(FID_new = coalesce(short, Name)) |>
-  select(-short)
-
 d1 <- amp %>%
-  inner_join(rs)
-
-name_lookup <- name_lookup |>
-  mutate(original = str_squish(original))
+  inner_join(rs, by = c("FID", "Name", "Type"))
 
 d1 <- d1 |>
-  mutate(FID = str_squish(FID))
+  left_join(labels |> select(FID, LABEL), by = "FID") |>
+  mutate(FID = coalesce(LABEL, FID)) |>
+  select(-LABEL)
 
-name_lookup <- name_lookup |>
-  mutate(original = str_squish(original))
 
-d1 <- d1 |>
-  left_join(name_lookup, by = c("FID" = "original")) |>
-  mutate(FID = coalesce(short, FID)) |>
-  select(-short)
 
 p1 <- ggplot(d1, aes(x = amplitude_24hfreq, y = r2_time_day)) +
-  geom_point() +
-  geom_text(aes(label = FID))
-
+  geom_hline(yintercept = 0.01, linetype = 2, alpha = 0.7, color = "black") +
+  geom_vline(xintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
+  geom_point(aes(color = Type), size = 1, alpha = 0.7) +
+  geom_text_repel(
+    data = d1 %>% filter((amplitude_24hfreq > 0.1 & r2_time_day > 0.01) | r2_time_day > 0.03 | amplitude_24hfreq > 0.37),
+    size = 2,
+    aes(label = FID),
+    max.overlaps = 30,
+    box.padding = 0.2,
+    point.padding = 0.3,
+    segment.alpha = 0.4
+  ) +
+  labs(y = "R2 time day", x = "Amplitude", color = "") +
+  theme_classic(base_size = 10) +
+  theme(panel.grid.major = element_line(),
+        legend.position = c(0.99, 0.02),
+        legend.justification = c("right", "bottom"))
 
 ggsave("see.png", p1)
 
-set_prots <- intersect(rs$FID, amp$FID)
+set_prots <- intersect(rs$FID, amp$FID)set_prots <- intersect(rs$FID, amp$FID)set_prots <- intersect(rs$FID, amp$FID)
 
 olink <- readRDS("/mnt/project/biomarkers_res/res_olink_tech.rds") %>%
   select(eid, any_of(rs$FID))
