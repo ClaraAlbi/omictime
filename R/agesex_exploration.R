@@ -74,9 +74,23 @@ p1 <- ggplot(d1, aes(x = amplitude_24hfreq, y = r2_time_day)) +
 
 ggsave("plots/r2_Vs_amplitude.png", p1)
 
+light_band <- data.frame(
+  xmin = 5.4,
+  xmax = 20.5,
+  ymin = -Inf,
+  ymax = Inf
+)
 
+night_band <- data.frame(
+  xmin = c(0, 20.5),
+  xmax = c(5.4, 24),
+  ymin = -Inf,
+  ymax = Inf
+)
 
-px <- ggplot(d1, aes(x = acrophase_24hfreq, y = amplitude_24hfreq)) +
+px <- d1 %>%
+  filter(amplitude_24hfreq > 0.1) %>%
+  ggplot(aes(x = acrophase_24hfreq, y = amplitude_24hfreq)) +
   geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
             fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
   geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -85,7 +99,7 @@ px <- ggplot(d1, aes(x = acrophase_24hfreq, y = amplitude_24hfreq)) +
   #geom_vline(xintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
   geom_point(aes(color = Type, size = r2_time_day), alpha = 0.7) +
   geom_text_repel(
-    data = d1 %>% filter((amplitude_24hfreq > 0.1 & r2_time_day > 0.01) | r2_time_day > 0.02 | amplitude_24hfreq > 0.37),
+    data = d1 %>% filter(amplitude_24hfreq > 0.1 & r2_time_day > 0.01),
     size = 2.5,
     aes(label = FID_clean),
     max.overlaps = 30,
@@ -93,7 +107,7 @@ px <- ggplot(d1, aes(x = acrophase_24hfreq, y = amplitude_24hfreq)) +
     point.padding = 0.3,
     segment.alpha = 0.4
   ) +
-  coord_polar() +
+  #coord_polar() +
   scale_x_continuous(limits = c(0, 24), breaks = 0:23,
                      expand = c(0,0)) +
   scale_color_manual(
@@ -104,15 +118,22 @@ px <- ggplot(d1, aes(x = acrophase_24hfreq, y = amplitude_24hfreq)) +
       "Biochemistry"      = "#E85F5C"
     )) +
   labs(x = "Acrophase", y = "Amplitude", color = "Data type", size = "R2 time day") +
-  theme_classic(base_size = 12) +
+  theme_classic(base_size = 10) +
   theme(panel.grid.major = element_line(color = "gray"),
-        legend.position = c(0.99, 0.02),
-        axis.text.x = element_text(face = "bold", size = 14),
-        axis.title = element_text(size = 16),
-        axis.line = element_blank(),
-        legend.justification = c("right", "bottom"))
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),
+        legend.position = "bottom",
+        legend.title = element_text(size = 8),
+        legend.text = element_text(size = 6),
+        legend.direction = "horizontal",
+        #legend.justification = c("center", "top"),
+        legend.background = element_rect(
+          color = "black", fill = "white", linewidth = 0.2
+        ),
+        #axis.text.x = element_text(size = 14),
+        #axis.title = element_text(size = 16),
+        axis.line = element_blank())
 
-ggsave("plots/plot_circle.png", px, width = 10, height = 10)
+ggsave("plots/plot_amplitude.png", px, width = 10, height = 4)
 
 set_prots <- d1 %>%
   filter(r2_time_day > 0.01) %>%
@@ -242,6 +263,72 @@ estimate_table <- map_dfr(
   results,
   ~ map_dfr(.x, "estimates")
 ) %>% filter(outcome %in% anova_table$outcome)
+
+compute_amp_phase <- function(beta_cos, beta_sin) {
+  amp <- sqrt(beta_cos^2 + beta_sin^2)
+  phase_rad <- atan2(beta_sin, beta_cos)
+  phase_hr <- (24 / (2 * pi)) * phase_rad
+  phase_hr <- (phase_hr + 24) %% 24  # wrap to [0,24)
+
+  tibble(
+    amplitude = amp,
+    acrophase = phase_hr
+  )
+}
+
+sex_amp_phase <- estimate_table %>%
+  filter(model == "time_x_sex") %>%
+  filter(term %in% c(
+    "cos_time", "sin_time",
+    "cos_time:sexMale", "sin_time:sexMale"
+  )) %>%
+  select(outcome, term, estimate) %>%
+  pivot_wider(names_from = term, values_from = estimate) %>%
+  mutate(
+    # Female (reference)
+    female = pmap(
+      list(cos_time, sin_time),
+      compute_amp_phase
+    ),
+    # Male (reference + interaction)
+    male = pmap(
+      list(cos_time + `cos_time:sexMale`,
+           sin_time + `sin_time:sexMale`),
+      compute_amp_phase
+    )
+  ) %>%
+  transmute(
+    outcome,
+    female = map(female, ~ mutate(.x, sex = "Female")),
+    male   = map(male,   ~ mutate(.x, sex = "Male"))
+  ) %>%
+  pivot_longer(c(female, male), values_to = "res") %>%
+  unnest(res)
+
+sex_amp_phase_wide <- sex_amp_phase %>%
+  left_join(d1, by = c("outcome" = "FID")) %>%
+  select(FID_clean, sex, amplitude, acrophase) %>%
+  pivot_wider(
+    id_cols   = FID_clean,
+    names_from  = sex,
+    values_from = c(amplitude, acrophase)
+  )
+
+ggplot(sex_amp_phase_wide,
+       aes(x = amplitude_Female, y = amplitude_Male)) +
+  geom_point() +
+  geom_text(aes(label = FID_clean), hjust = 0, vjust = 1, size = 3) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  labs(x = "Female amplitude", y = "Male amplitude") +
+  theme_minimal()
+
+ggplot(sex_amp_phase_wide,
+       aes(x = acrophase_Female, y = acrophase_Male)) +
+  geom_point() +
+  geom_text(aes(label = FID_clean), hjust = 0, vjust = 1, size = 3) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  labs(x = "Female acrophase (h)", y = "Male acrophase (h)") +
+  theme_minimal()
 
 
 ts1 <- d %>%
