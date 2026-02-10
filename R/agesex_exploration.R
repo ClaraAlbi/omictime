@@ -38,10 +38,18 @@ amp <- data.table::fread("data_share/supplementary_data2.csv") %>%
   filter(pfdr < 0.05) #%>%
   filter(amplitude_24hfreq > 0.1)
 
+amp %>%
+  group_by(Type) %>% summarise(n = n(),
+                               m_amp = mean(amplitude_24hfreq),
+                               se = sd(amplitude_24hfreq)/n)
+
+amp %>% filter(acrophase_24hfreq < 9) %>% count()
+amp %>% filter(acrophase_24hfreq > 20) %>% count()
+
 d1 <- amp %>%
   inner_join(rs, by = c("FID", "Name", "Type"))
 
-d1 <- d1 |>
+  d1 <- d1 |>
   left_join(labels |> select(FID, LABEL), by = "FID") |>
   mutate(FID_clean = coalesce(LABEL, FID)) |>
   select(-LABEL)
@@ -54,7 +62,7 @@ p1 <- ggplot(d1, aes(x = amplitude_24hfreq, y = r2_time_day)) +
   geom_point(aes(color = Type), size = 1, alpha = 0.7) +
   geom_text_repel(
     data = d1 %>% filter((amplitude_24hfreq > 0.1 & r2_time_day > 0.01) | r2_time_day > 0.02 | amplitude_24hfreq > 0.37),
-    size = 2,
+    size = 3,
     aes(label = FID_clean),
     max.overlaps = 30,
     box.padding = 0.2,
@@ -74,7 +82,7 @@ p1 <- ggplot(d1, aes(x = amplitude_24hfreq, y = r2_time_day)) +
         legend.position = c(0.99, 0.02),
         legend.justification = c("right", "bottom"))
 
-ggsave("plots/r2_Vs_amplitude.png", p1)
+ggsave("plots/r2_Vs_amplitude.png", p1, width = 10, height = 10)
 
 light_band <- data.frame(
   xmin = 5.4,
