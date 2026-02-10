@@ -4,12 +4,12 @@ library(ggtext)
 
 fields <- data.table::fread("data/field.tsv")
 
-df_r2 <- readRDS("data/combined_variance.rds")
+df_r2 <- readRDS("data/combined_variance.rds")%>%
+  mutate(pfdr = p.adjust(p.value)) %>%
+  filter(pfdr < 0.05)
 
 plot_data <- df_r2 %>%
   filter(term == "time_day") %>%
-  mutate(pval = p.adjust(p.value)) %>%
-  filter(pval < 0.05) %>%
   mutate(
     nt = case_when(
     #t_r2 > 0.10 ~ ">10",
@@ -42,11 +42,16 @@ plot_data2 <- plot_data %>%
     )
   )
 
+
+
 outside_labels <- plot_data2 %>%
   filter(is.na(label_inside)) %>%
   group_by(type_clean) %>%
   slice_max(prop, n = 1) %>%
   ungroup()
+
+plot_data2 %>%
+  group_by(nt) %>% summarise(n_c = sum(n))
 
 plot_bars_h <- plot_data2 %>%
   ggplot(aes(x = type_clean, y = prop, fill = nt)) +
