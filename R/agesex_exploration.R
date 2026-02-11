@@ -3,13 +3,17 @@ library(dplyr)
 library(glue)
 library(stringr)
 library(purrr)
-install.packages("ggrepel")
-library(ggrepel)
+install.packages("ggplot2")
 library(ggplot2)
 install.packages("broom")
 install.packages("forcats")
 install.packages("patchwork")
 library(patchwork)
+install.packages("ggrepel")
+library(ggrepel)
+install.packages("ggpmisc")
+library(ggpmisc)
+
 
 labels <- data.table::fread("data_share/supplementary_data1_explanatory_labels.csv") |>
   mutate(
@@ -49,7 +53,7 @@ amp %>% filter(acrophase_24hfreq > 20) %>% count()
 d1 <- amp %>%
   inner_join(rs, by = c("FID", "Name", "Type"))
 
-  d1 <- d1 |>
+d1 <- d1 |>
   left_join(labels |> select(FID, LABEL), by = "FID") |>
   mutate(FID_clean = coalesce(LABEL, FID)) |>
   select(-LABEL)
@@ -85,15 +89,15 @@ p1 <- ggplot(d1, aes(x = amplitude_24hfreq, y = r2_time_day)) +
 ggsave("plots/r2_Vs_amplitude.png", p1, width = 10, height = 10)
 
 light_band <- data.frame(
-  xmin = 5.4,
-  xmax = 20.5,
+  xmin = 8,
+  xmax = 21,
   ymin = -Inf,
   ymax = Inf
 )
 
 night_band <- data.frame(
-  xmin = c(0, 20.5),
-  xmax = c(5.4, 24),
+  xmin = c(0, 21),
+  xmax = c(8, 24),
   ymin = -Inf,
   ymax = Inf
 )
@@ -252,16 +256,21 @@ base_formula <- function(outcome) {
 
 interaction_vars <- c("sex")
 
-results <- map(
-  biomarkers,
-  function(biomarker) {
-    map(
-      interaction_vars,
-      function(int_var) {
-        run_time_interaction(
-          data = d,
-          outcome = biomarker,
-          interaction_var = int_var)})})
+# results <- map(
+#   biomarkers,
+#   function(biomarker) {
+#     map(
+#       interaction_vars,
+#       function(int_var) {
+#         run_time_interaction(
+#           data = d,
+#           outcome = biomarker,
+#           interaction_var = int_var)})})
+#
+
+#saveRDS(results, "data_share/associations_sexbytime.rds")
+
+results <- readRDS("data_share/associations_sexbytime.rds")
 
 anova_table <- map_dfr(
   results,
@@ -358,6 +367,22 @@ p_amp <- ggplot(sex_amp_phase_wide,
     point.padding = 0.3,
     segment.alpha = 0.4
   ) +
+  ggpmisc::stat_poly_eq(
+    mapping    = aes(label = paste("italic(R) ==", "0.78")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.95,
+    size = 2.5,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("italic(p) == 4e-16")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.90,   # move lower so it doesn't overlap
+    size = 2.5,
+    color = "black"
+  ) +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
   labs(x = "Female amplitude", y = "Male amplitude") +
   theme_classic(base_size = 10) +
@@ -374,6 +399,22 @@ p_phase <- ggplot(sex_amp_phase_wide,
     box.padding = 0.2,
     point.padding = 0.3,
     segment.alpha = 0.4
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping    = aes(label = paste("italic(R) ==", "0.97")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.95,
+    size = 2.5,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("italic(p) == 2e-16")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.90,   # move lower so it doesn't overlap
+    size = 2.5,
+    color = "black"
   ) +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
   labs(x = "Female acrophase (h)", y = "Male acrophase (h)") +
