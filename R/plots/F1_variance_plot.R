@@ -14,6 +14,9 @@ df_r2 <- readRDS("data/combined_variance.rds") %>%
 #write_xlsx(df_r2 %>% select(phen, type, title, term, t_r2, p.value, pfdr),
 #           path = "tables/sd1.xlsx")
 
+df_r2 %>% filter(term == "time_day") %>% filter(pfdr < 0.05) %>%
+  filter(t_r2 > 0.01) %>% pull(title) %>% write(file = "list.txt")
+
 # per cov
 
 df_r2 %>%
