@@ -1,203 +1,135 @@
 
-target_prots <- tribble(~prot, ~snp,
-  "MYOC", "rs2234926",
-  "HYAL1", "rs116482870",
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(stringr)
+library(purrr)
+library(ggplot2)
+
+target_prots2 <- tribble(
+  ~prot, ~snp,
   "EFNA1", "rs4390169",
+  "MYOC", "rs2234926",
   "TNR", "rs7515728",
+  "C1orf220", "rs2761462",
+  "RALGPS2", "rs1018669",
+  "ANGPTL1", "rs34036521",
   "FAS", "rs3781202",
   "RELT", "rs12099129",
-  "CD276", "rs74026250",
+  "PGF", "rs6574205",
+  "HS3ST3A1", "rs62053895",
+  "GDF15", "rs3787023",
+  "GDF15", "rs1054221",
+  "KLK12", "rs3760744",
+  "NLRP12", "rs34436714",
+  "LGALS1", "rs62236671",
+  "SYN2", "rs184262",
+  "DOCK3", "rs115981680",
   "SPON2", "rs7678661",
   "SPINK5", "rs2400477",
-  "GDF15", "rs1054221",
-  "PGF", 'rs6574205',
-  "ANGPTL1", "rs1018669",
-  "KLK12", "rs2569459",
-  "KLK13", "rs2569459",
-  "LGALS1", "rs62236671",
-  "HS3ST3B1","rs62053895"
-)
-
-rsid <- data.table::fread("/mnt/project/CA_cojo_combined_rs.txt")
-
-olink_t <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds")
-
-
-olink_long <- olink_t %>%
-  rename_with(tolower) %>%
-  select(eid, any_of(tolower(target_prots$prot))) %>%
-  pivot_longer(
-    -eid,
-    names_to = "prot",
-    values_to = "q"
+  "COLEC10", "rs2450067"
+) %>%
+  mutate(
+    prot_lower = str_to_lower(prot)
   )
 
-rs_long <- rsid %>%
-  rename(eid = FID) %>%
-  select(eid, contains(target_prots$snp)) %>%
-  pivot_longer(
-    -eid,
-    names_to = "snp",
-    values_to = "genotype"
+olink_t <- readRDS("/mnt/project/biomarkers_res/res_olink_tech_14panels.rds") %>%
+  select(eid, any_of(target_prots2$prot_lower))
+
+files <- list.files("/mnt/project/raw_snps/",
+                    pattern = "\\.raw$",
+                    full.names = TRUE)
+
+dt_list <- lapply(files, fread)
+
+combined <- dt_list[[1]]
+
+for (i in 2:length(dt_list)) {
+  combined[, (names(dt_list[[i]])[-(1:6)]) :=
+             dt_list[[i]][, -(1:6), with = FALSE]]
+}
+
+#saveRDS(combined %>% select(eid = FID, starts_with("rs")), "top_snps_CA.rds")
+
+geno_cols <- colnames(combined)[-(1:6)]
+
+geno_map <- tibble(
+  geno_col = geno_cols,
+  snp = sub("_.*", "", geno_cols)
+)
+
+
+pair_map <- geno_map %>%
+  inner_join(target_prots2, by = "snp") %>% filter(prot_lower %in% colnames(olink_t)) %>%
+  filter(snp != "rs3787023")
+
+
+res <- readRDS("/mnt/project/olink_int_panels14.rds") %>%
+  select(eid, time_day, pred_mean)
+res$res <- residuals(lm(pred_mean ~ time_day, data = res))
+
+analysis_df <- combined %>%
+  rename(eid = IID) %>%
+  inner_join(olink_t, by = "eid") %>%
+  inner_join(res) %>%
+  mutate(q_res = ntile(res, 5))
+
+
+plot_data <- pair_map %>%
+  mutate(
+    data = purrr::map2(geno_col, prot_lower, ~
+                         analysis_df %>%
+                         select(
+                           eid,
+                           time_day,
+                           q_res,
+                           res,
+                           genotype = all_of(.x),
+                           protein  = all_of(.y)
+                         )
+    )
   ) %>%
+  tidyr::unnest(data) %>%
+  mutate(genotype = factor(genotype), q_res = factor(q_res))
+
+
+
+p1 <- plot_data %>%
   filter(!is.na(genotype)) %>%
-  mutate(snp = sub("_.*$", "", snp))
-
-
-paired_data <- target_prots %>% mutate(prot = tolower(prot)) %>%
-  left_join(olink_long, by = "prot") %>%
-  left_join(rs_long, by = c("eid", "snp"))
-
-
-
-paired_data %>%
-  slice(1:1000000) %>%
-  left_join(time %>% select(eid, time_day)) %>%
-  filter(time_day > 9 & time_day < 20) %>%
-  filter(!is.na(genotype)) %>%
-  ggplot(aes(x = time_day, y = q, color = as.factor(genotype))) +
+  #slice(1:5000) %>%
+  ggplot(aes(x = time_day, y = protein, color = genotype)) +
   geom_smooth() +
-  facet_wrap(~prot+snp,scales = "free") +
-  theme_classic(base_size = 16) +
-  theme(legend.position = "none")
+  scale_color_brewer(palette = "Dark2") +
+  labs(x = "Time of day", y = "Protein levels", color = "Genotype") +
+  facet_wrap(~prot+geno_col) + theme_minimal()
 
+ggsave("plots/FS_rsid.png", p1, width = 8, height = 5)
 
-geno_mat <- paired_data %>%
-  select(eid, snp, genotype) %>%
-  distinct() %>%
-  pivot_wider(
-    names_from = snp,
-    values_from = genotype
-  ) %>%
-  column_to_rownames("eid") %>%
-  as.matrix()
-
-geno_mat[is.na(geno_mat)] <- apply(geno_mat, 2, mean, na.rm = TRUE)
-
-
-geno_scaled <- scale(geno_mat)
-
-pca <- prcomp(geno_scaled, center = TRUE, scale. = FALSE)
-
-pca_df <- as.data.frame(pca$x[, 1:2])
-pca_df$eid <- rownames(pca_df)
-
-ggplot(pca_df, aes(PC1, PC2)) +
-  geom_point(alpha = 0.6) +
-  theme_classic(base_size = 14)
+plot_data %>% filter(prot == "SPINK5") %>%
+  lm(res ~ genotype, data = .) %>% summary()
 
 
 
-chr1 <- data.table::fread("/mnt/project/snps/subset_cojo_pQTL_chr1.raw") %>%
-  filter(IID %in% olink$eid) %>%
-  mutate(rs57742792_T = round(rs57742792_T, 0))
-
-chr4 <- data.table::fread("subset_cojo_pQTL_chr4.raw") %>%
-  filter(IID %in% olink$eid) %>%
-  mutate(rs28856334_G = round(rs28856334_G, 0))
-
-chr5 <- data.table::fread("subset_cojo_pQTL_chr5.raw") %>%
-  filter(IID %in% olink$eid) %>%
-  mutate(rs28856334_G = round(rs28856334_G, 0))
-
-chr11 <- data.table::fread("subset_cojo_pQTLchr11.raw") %>%
-  filter(IID %in% olink$eid) %>%
-  mutate(rs12099129_T = round(rs12099129_T, 0))
-
-
-
-df %>%
-  left_join(chr1, by = c("eid" = "FID")) %>%
-  filter(!is.na(rs57742792_T)) %>%
-  ggplot(aes(x = factor(rs57742792_T), y = res)) + geom_boxplot() + theme_minimal()
+chrono <- sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
+  select(eid,
+         h_sleep = `1160-0.0`,
+         chrono = `1180-0.0`,
+         ever_insomnia = `1200-0.0`,
+         wakeup = `1170-0.0`,
+         snoring = `1210-0.0`) %>%
+  mutate(chrono = case_when(
+    chrono == 1 ~ "Definitely morning",
+    chrono == 2 ~ "Rather morning",
+    chrono == -1~ "Don't know",
+    chrono == 3 ~ "Rather evening",
+    chrono == 4 ~ "Definitely evening",
+    TRUE ~ NA_character_),
+    chrono = factor(chrono, levels = c("Definitely morning", "Rather morning", "Don't know", "Rather evening", "Definitely evening"))) %>% select(eid, chrono)
 
 
-df %>%
-  left_join(olink) %>%
-  left_join(chr1, by = c("eid" = "FID")) %>%
-  mutate(rs7515728_T = as.factor(round(rs7515728_T, 0))) %>%
-  filter(!is.na(rs7515728_T)) %>%
-  filter(time_day > 10 & time_day < 13) %>%
-  ggplot(aes(x = rs7515728_T, y = res, color = rs7515728_T)) + geom_boxplot() + theme_minimal()
+d <- res %>% select(-time_day, -pred_mean) %>%
+  left_join(combined %>% select(eid = FID, starts_with("rs"))) %>%
+  left_join(chrono)
 
-
-df %>%
-  left_join(olink) %>%
-  filter(!is.na(rs7515728_T)) %>%
-  ggplot(aes(x = rs7515728_T, y = tnr, color = rs7515728_T)) +
-  geom_boxplot() + theme_minimal() +
-  geom_
-
-#summary(lm(res ~ rs7515728_T, data = dd1 %>% filter(t)))
-
-# CHR 4
-
-df %>%
-  left_join(olink) %>%
-  left_join(chr4, by = c("eid" = "FID")) %>%
-  mutate(rs28856334_G = as.factor(rs28856334_G)) %>%
-  filter(!is.na(rs28856334_G)) %>%
-  ggplot(aes(x = time_day, y = res, color = rs28856334_G)) + geom_smooth() + theme_minimal()
-
-df %>%
-  left_join(olink) %>%
-  left_join(chr4, by = c("eid" = "FID")) %>%
-  mutate(rs28856334_G = as.factor(rs28856334_G)) %>%
-  filter(!is.na(rs28856334_G)) %>%
-  ggplot(aes(x = rs28856334_G, y = res, color = rs28856334_G)) + geom_boxplot() + theme_minimal()
-
-
-df %>%
-  left_join(olink) %>%
-  left_join(chr4, by = c("eid" = "FID")) %>%
-  mutate(rs28856334_G = as.factor(rs28856334_G)) %>%
-  filter(!is.na(rs28856334_G)) %>%
-  ggplot(aes(x = time_day, y = spon2, color = rs28856334_G)) + geom_smooth() + theme_minimal()
-
-
-df %>%
-  left_join(olink) %>%
-  left_join(chr4, by = c("eid" = "FID")) %>%
-  mutate(rs28856334_G = as.factor(rs28856334_G)) %>%
-  filter(!is.na(rs28856334_G)) %>%
-  ggplot(aes(x = rs28856334_G, y = spon2, color = rs28856334_G)) + geom_boxplot() + theme_minimal()
-
-
-
-# CHR 11
-
-
-# CHR 4
-
-df %>%
-  left_join(olink) %>%
-  left_join(chr11, by = c("eid" = "FID")) %>%
-  mutate(rs12099129_T = as.factor(rs12099129_T)) %>%
-  filter(!is.na(rs12099129_T)) %>%
-  ggplot(aes(x = time_day, y = res, color = rs12099129_T)) + geom_smooth() + theme_minimal()
-
-df %>%
-  left_join(olink) %>%
-  left_join(chr11, by = c("eid" = "FID")) %>%
-  mutate(rs12099129_T = as.factor(rs12099129_T)) %>%
-  filter(!is.na(rs12099129_T)) %>%
-  ggplot(aes(x = rs12099129_T, y = res, color = rs12099129_T)) + geom_boxplot() + theme_minimal()
-
-
-df %>%
-  left_join(olink) %>%
-  left_join(chr11, by = c("eid" = "FID")) %>%
-  mutate(rs12099129_T = as.factor(rs12099129_T)) %>%
-  filter(!is.na(rs12099129_T)) %>%
-  ggplot(aes(x = time_day, y = relt, color = rs12099129_T)) + geom_smooth() + theme_minimal()
-
-
-df %>%
-  left_join(olink) %>%
-  left_join(chr11, by = c("eid" = "FID")) %>%
-  mutate(rs12099129_T = as.factor(rs12099129_T)) %>%
-  filter(!is.na(rs12099129_T)) %>%
-  ggplot(aes(x = rs12099129_T, y = relt, color = rs12099129_T)) + geom_boxplot() + theme_minimal()
-
-
+summary(lm(res ~ ., data = d))
 
