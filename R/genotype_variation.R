@@ -5,6 +5,9 @@ library(data.table)
 library(stringr)
 library(purrr)
 library(ggplot2)
+install.packages("broom")
+library(broom)
+
 
 target_prots2 <- tribble(
   ~prot, ~snp,
@@ -145,7 +148,20 @@ ggsave("plots/FS_rsid_all.png", p_all, width = 8, height = 10)
 
 ## FORMAL TEST?
 
-lm( ~ genotype,data = analysis_df)
+v <- setdiff(target_prots2$snp, pair_map$snp)
+
+d <- analysis_df %>%
+  select(eid, contains(v), any_of(target_prots2$prot_lower)) %>%
+  pivot_longer(starts_with("rs"), names_to = "geno_col", values_to = "genotype") %>%
+  pivot_longer(-c(eid, geno_col, genotype)) %>%
+  group_by(geno_col, name) %>% nest() %>%
+  mutate(mod = map(data, ~lm(genotype ~ value, data = .)),
+         tid = map(mod, tidy)) %>% select(-data,-mod) %>% unnest(tid)
+
+d2 <- d %>%
+  filter(term != "(Intercept)" ) %>%
+  left_join(geno_map) %>%
+  left_join(target_prots2)
 
 chrono <- sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   select(eid,
