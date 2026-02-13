@@ -12,12 +12,13 @@ target_prots2 <- tribble(
   "MYOC", "rs2234926",
   "TNR", "rs7515728",
   "C1orf220", "rs2761462",
-  "RALGPS2", "rs1018669",
+  "ANGPTL1", "rs1018669",
   "ANGPTL1", "rs34036521",
   "FAS", "rs3781202",
   "RELT", "rs12099129",
   "PGF", "rs6574205",
   "HS3ST3A1", "rs62053895",
+  "HS3ST3B1", "rs62053895",
   "GDF15", "rs3787023",
   "GDF15", "rs1054221",
   "KLK12", "rs3760744",
@@ -60,7 +61,7 @@ geno_map <- tibble(
 
 
 pair_map <- geno_map %>%
-  inner_join(target_prots2, by = "snp") %>% filter(prot_lower %in% colnames(olink_t)) %>%
+  inner_join(target_prots2, by = "snp") %>% filter(prot_lower %in% colnames(olink_t)) #%>%
   filter(snp != "rs3787023")
 
 
@@ -103,12 +104,48 @@ p1 <- plot_data %>%
   labs(x = "Time of day", y = "Protein levels", color = "Genotype") +
   facet_wrap(~prot+geno_col) + theme_minimal()
 
-ggsave("plots/FS_rsid.png", p1, width = 8, height = 5)
+ggsave("plots/FS_rsid.png", p1, width = 7, height = 5)
 
 plot_data %>% filter(prot == "SPINK5") %>%
   lm(res ~ genotype, data = .) %>% summary()
 
+### plot all
+data_all <- analysis_df %>%
+  mutate(t = round(time_day, 0)) %>%
+  pivot_longer(starts_with("rs"), names_to = "geno_col", values_to = "genotype") %>%
+  filter(!is.na(genotype)) %>%
 
+  pivot_longer(contains(target_prots2$prot_lower), names_to = "protein", values_to = "prot_values") %>%
+  group_by(t, protein, genotype, geno_col) %>% summarise(m_p = mean(prot_values, na.rm = T),
+                                                    sd_p = sd(prot_values, na.rm = T),
+                                                    n = n()) %>%
+  filter(!is.na(m_p)) %>% ungroup()
+
+
+data_all %>% group_by(t, geno_col, genotype) %>% count()
+
+p_all <- data_all %>%
+  filter(!geno_col %in% pair_map$geno_col) %>%
+  #filter(geno_col != "rs3787023_A") %>%
+  filter(n > 10) %>%
+  left_join(geno_map) %>%
+  left_join(target_prots2) %>%
+  mutate(protein = toupper(protein)) %>%
+  ggplot(aes(x = t, y = m_p, color = as.factor(genotype))) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(protein), cols = vars(snp, prot)) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(x = "Time of day", y = "Protein levels", color = "Genotype") +
+  theme_minimal()+
+  theme(legend.position = "bottom")
+
+
+ggsave("plots/FS_rsid_all.png", p_all, width = 8, height = 10)
+
+
+## FORMAL TEST?
+
+lm( ~ genotype,data = analysis_df)
 
 chrono <- sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   select(eid,
