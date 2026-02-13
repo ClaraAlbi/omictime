@@ -163,6 +163,8 @@ d2 <- d %>%
   left_join(geno_map) %>%
   left_join(target_prots2)
 
+data.table::fwrite(d2, "data_share/associations_pqlts.txt", sep = "\t")
+
 chrono <- sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   select(eid,
          h_sleep = `1160-0.0`,
