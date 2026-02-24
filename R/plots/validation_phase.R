@@ -1,277 +1,49 @@
 library(tidyverse)
 library(paletteer)
-#install.packages('ggpmisc')
 library(ggpmisc)
+library(ggrepel)
 
-fields <- data.table::fread("data/field.tsv")
+df_r2 <- readRDS("tables/variance_covariates.rds")%>%
+  mutate(pfdr = p.adjust(p.value_time_day)) %>%
+  filter(pfdr < 0.05)
 
-df_effects <- readRDS("data/combined_effects.rds") %>%
-  mutate(pval_h = p.adjust(pvalue_h)) %>%
-  filter(pval_h < 0.05) #%>%
-  filter(type_clean == "Proteins")
+df_eff <- readRDS("tables/harmonic_models.rds") %>%
+  mutate(pfdr = p.adjust(pvalue_h)) %>%
+  filter(pfdr < 0.05)
 
-# Count how many overnight
-df_effects %>%
-  filter(acrophase_24hfreq < 9 | acrophase_24hfreq > 20) %>%
-  count()
+d1 <- inner_join(df_r2, df_eff, by = c("Biomarker", "Label", "Type", "FID")) %>%
+  left_join(data.table::fread("data/olink_assay.dat"), by = c("Biomarker" = "Assay"))
 
-df_effects %>%
-  filter(acrophase_24hfreq < 8 & acrophase_24hfreq > 0) %>%
-  group_by(type_clean) %>%
-  summarise(m = mean(acrophase_24hfreq),
-            msd = sd(acrophase_24hfreq),
-            n = n())
+set <- d1 %>% filter(amplitude_24hfreq > 0.1 & t_r2_time_day > 0.01)
 
-rats <- df_effects %>%
-  filter(amplitude_24hfreq > 0.1) %>%
-  #mutate(t = round(acrophase_24hfreq, 0)) %>%
-  #group_by(t, type_clean) %>% count() %>% ungroup() %>%
-  #group_by(type_clean) %>% mutate(total = sum(n)) %>%
-  #ggplot(aes(x = t, y = n/total, color = type_clean)) + geom_smooth() +
-  ggplot(aes(x = acrophase_24hfreq, color = type_clean)) + geom_density() +
-  #facet_grid(~type_clean) +
-  labs(x = "Time of day", y = "Density") +
-  coord_polar() +
-  scale_color_manual(
-    name   = "Data type",
-    values = c(
-      "Proteins"  = "#76B041",
-      "Metabolites"  = "#2374AB",
-      "Cell counts" = "#8F3985",
-      "Biochemistry" = "#E85F5C"
-    )
-  ) +
-  scale_x_continuous(limits = c(0, 24)) +
-  scale_y_continuous(limits = c(0.00, 0.2)) +
-  theme_classic()
+sum(set$Type == "Proteins")
+# [1] 86
 
-ggsave("plots/F2S_density_datatype.png", rats, width = 8, height = 6)
-
-
-df_r2 <- readRDS("data/combined_variance.rds") %>%
-  filter(term == "time_day") %>%
-  mutate(pval = p.adjust(p.value)) %>%
-  filter(pval < 0.05) #%>%
-  filter(type_clean == "Proteins")
-
-circ_diff24 <- function(a, b) {
-  # returns difference in hours in [-12,12]
-  delta <- (a - b + 12) %% 24 - 12
-  abs(delta)
-}
-
-# 1) Read & join
-df_pha <- readxl::read_xlsx("data/1-s2.0-S2352721823002401-mmc1.xlsx", skip = 1) %>%
-  rename(
-    acro_fund   = `acrophase of fundamental harmonic in 2-harmonic fit  (time to DLMO in hours)`,
-    acro_1st    = `acrophase of first harmonic in 2-harmonic fit  (time to DLMO in hours)`,
-    acro_1h = `acrophase of 1-harmonic fit (time to DLMO in hours)`
-  ) %>%
-  inner_join(
-    df_effects %>%
-      mutate(Gene = toupper(phen)) %>%
-      select(Gene, acrophase_24hfreq, phen, type_clean, color_var, title, amplitude_24hfreq),
-    by = "Gene"
-  )
-length(unique(df_pha$Gene))
-
-
-p_pha <- df_pha %>%
-  ggplot(aes(x = acrophase_24hfreq, y = acro_1h, color = `Rhythmic Category`)) + geom_point() +
-  scale_y_continuous(
-    "Acrophase SomaScan",
-    breaks = seq(0, 24, by = 4),
-    limits = c(0, 24),
-    expand = c(0, 0)
-  ) +
-  scale_color_manual(
-    values = paletteer_dynamic("cartography::green.pal", 2),
-    guide = guide_legend(nrow = 2,
-                         override.aes = list(
-                           shape = 15,    # solid square
-                           size  = 6      # enlarge the square
-                         )
-    )
-  ) +
-  scale_x_continuous(
-    "Acrophase Olink/UKB",
-    breaks = seq(0, 24, by = 4),
-    limits = c(0, 24),
-    expand = c(0, 0)
-  ) +
-  coord_fixed() +
-  theme_minimal(base_size = 18) +
-  theme(
-    legend.position = "bottom",
-    panel.grid.minor = element_blank()
-  )
-
-#
-# df_pha %>%
-#     ggplot(aes(x = acro_1st, y = acro_fund, color = `Rhythmic Category`)) + geom_point()
-
-df_long <- df_pha %>%
-  pivot_longer(
-    cols      = c(acro_fund, acro_1st),
-    names_to  = "harmonic",
-    values_to = "acro2h"
-  ) %>%
-  mutate(
-    # circular distance to 1‐harmonic fit
-    dist24 = circ_diff24(acro2h, acrophase_24hfreq),
-    # harmonic_label = case_when(harmonic == "acro_fund" ~ "2har-fundamental",
-    #                            harmonic == "acro_1st" ~ "2har-1st",
-    #                            harmonic == "acro_1h" ~ "1har")
-  ) %>%
-  group_by(`Sequence ID (Somalogic reference)`, Gene, `Rhythmic Category`, acrophase_24hfreq) %>%
-  summarise(
-    acro2h  = acro2h[which.min(dist24)],
-    best_harmonic = harmonic[which.min(dist24)]
-  )
-
-df_long %>%
-  ungroup() %>%
-  count(best_harmonic)
-
-p_best <- df_long %>%
-  ggplot(aes(x = acrophase_24hfreq, y = acro2h, color = best_harmonic)) + geom_point() +
-  scale_y_continuous(
-    "Acrophase SomaScan",
-    breaks = seq(0, 24, by = 4),
-    limits = c(0, 24),
-    expand = c(0, 0)
-  ) +
-  scale_color_manual(
-    values = paletteer_dynamic("cartography::orange.pal", 2),
-    guide = guide_legend(nrow = 2,
-                         override.aes = list(
-                           shape = 15,    # solid square
-                           size  = 6      # enlarge the square
-                         )
-    )
-  ) +
-  scale_x_continuous(
-    "Acrophase Olink/UKB",
-    breaks = seq(0, 24, by = 4),
-    limits = c(0, 24),
-    expand = c(0, 0)
-  ) +
-  coord_fixed() +
-  theme_minimal(base_size = 18) +
-  theme(
-    legend.position = "bottom",
-    panel.grid.minor = element_blank()
-  )
-
-#
-# p_phase <- ggplot(df_best, aes(
-#   x     = acrophase_24hfreq,
-#   y     = acro2h,
-#   color = `Rhythmic Category`,
-#   label = Gene
-# )) +
-#   geom_abline(linetype = "dashed", color = "grey50") +
-#   geom_point(size = 2) +
-#   ggrepel::geom_text_repel(data = df_best[df_best$amplitude_24hfreq > 0.3,],
-#                            size = 5) +
-#   scale_y_continuous(
-#     "Acrophase SomaScan",
-#     breaks = seq(0, 24, by = 4),
-#     limits = c(0, 24),
-#     expand = c(0, 0)
-#   ) +
-#   scale_color_manual(
-#     values = paletteer_dynamic("cartography::green.pal", 2),
-#     guide = guide_legend(nrow = 2,
-#                          override.aes = list(
-#                            shape = 15,    # solid square
-#                            size  = 6      # enlarge the square
-#                          )
-#     )
-#   ) +
-#   scale_x_continuous(
-#     "Acrophase Olink/UKB",
-#     breaks = seq(0, 24, by = 4),
-#     limits = c(0, 24),
-#     expand = c(0, 0)
-#   ) +
-#   coord_fixed() +
-#   theme_minimal(base_size = 18) +
-#   theme(
-#     legend.position = "bottom",
-#     panel.grid.minor = element_blank()
-#   )
-
-
-# AMPLITUDE
-df_cmp <- readxl::read_xlsx("data/1-s2.0-S2352721823002401-mmc1.xlsx", skip = 1) %>%
-  rename(
-    amp_fund   = `amplitude of fundamental harmonic in 2-harmonic fit`,
-    amp_1st    = `amplitude of first (12h) harmonic in 2-harmonic fit`,
-    amp_1h = `amplitude of 1 harmonic fit`
-  ) %>%
-  inner_join(
-    df_effects %>%
-      mutate(Gene = toupper(phen)) %>%
-      select(Gene, acrophase_24hfreq, phen, type_clean, title, amplitude_24hfreq),
-    by = "Gene"
-  ) %>%
-  left_join(df_r2)
-
-cor.test(df_cmp$amplitude_24hfreq, df_cmp$amp_1h, method = "pearson")
-
-
-#
-# p_amp <- ggplot(df_cmp, aes(
-#   x     = amplitude_24hfreq,
-#   y     = amp_1h,
-#   color = `Rhythmic Category`,
-#   label = Gene
-# )) +
-#   geom_abline(linetype = "dashed", color = "grey50") +
-#   geom_point(size = 2) +
-#   ggrepel::geom_text_repel(data = df_cmp[df_cmp$amplitude_24hfreq > 0.3 | df_cmp$amp_1h >0.3,],
-#                            size = 5) +
-#   scale_y_continuous(
-#     "Amplitude SomaScan"
-#   ) +
-#   scale_x_continuous(
-#     "Amplitude Olink/UKB"
-#   ) +
-#   scale_color_manual(
-#     values = paletteer_dynamic("cartography::green.pal", 2),
-#     guide = guide_legend(nrow = 2,
-#       override.aes = list(
-#         shape = 15,    # solid square
-#         size  = 6      # enlarge the square
-#       )
-#     )
-#   ) +
-#   coord_fixed() +
-#   theme_minimal(base_size = 18) +
-#   theme(
-#     legend.position = "bottom",
-#     panel.grid.minor = element_blank()
-#   )
-#
-#
-# p1 <- cowplot::plot_grid(p_pha, p_best, ncol = 2, labels = "AUTO")
-
-#ggsave("plots/validation_harmonic_Specht.png", p1, width = 12, height = 6)
-
-
-
-
-### Rebecca
+### VALIDATION OLINK
 
 ref <- data.table::fread("~/OneDrive - Nexus365/projects/circadian/clara_results_top19.csv") %>%
-  inner_join(df_effects, by = c("Assay" = "title")) %>%
-  mutate(acrophase_hr = case_when(acrophase_24hfreq > 20 & acrophase_hr < 4 ~ acrophase_hr + 24,
-                                  TRUE ~ acrophase_hr))
+  inner_join(d1, by = c("Assay" = "Biomarker")) %>%
+  mutate(acro_1h_adj = acrophase_24hfreq +
+           (((acrophase_hr - acrophase_24hfreq + 12) %% 24) - 12)
+         ) %>%
+  mutate(dif_amp = amplitude_24hfreq - amplitude,
+         dif_phase = acrophase_24hfreq - acrophase_hr)
 
-t <- cor.test(ref$acrophase_24hfreq, ref$acrophase_hr, method = "pearson")
+t <- cor.test(ref$acrophase_24hfreq, ref$acro_1h_adj, method = "pearson")
+# Pearson's product-moment correlation
+#
+# data:  ref$acrophase_24hfreq and ref$acrophase_hr
+# t = 11.949, df = 16, p-value = 2.189e-09
+# alternative hypothesis: true correlation is not equal to 0
+# 95 percent confidence interval:
+#  0.8638553 0.9808869
+# sample estimates:
+#       cor
+# 0.9482773
 
 cor.test(ref$amplitude_24hfreq, ref$amplitude, method = "pearson")
+
+to_rad <- function(x, period = 24) (x %% period) / period * 2*pi
 
 t1 <- to_rad(ref$acrophase_24hfreq)
 t2 <- to_rad(ref$acrophase_hr)
@@ -280,134 +52,253 @@ x <- cbind(t1, t2)
 f <- BAMBI::circ_cor(x, type = "js")
 
 
-
-p_olink <- ref %>%
-  ggplot(aes(
-    x     = acrophase_24hfreq,
-    y     = acrophase_hr,
-    label = Assay
-  )) +
-  geom_abline(linetype = "dashed", color = "grey50") +
-  geom_point(size = 0.2) +
-  stat_correlation(
-    method = "pearson",
-    aes(label = paste(after_stat(r.label), after_stat(p.value.label), sep = "*\", \"*")),
-    parse = TRUE
+p_olink <- ggplot(ref,
+                  aes(x = acrophase_24hfreq, y = acro_1h_adj)) +
+  geom_point() +
+  geom_label_repel(
+    data = ref %>% filter(abs(dif_phase) > 4),
+    size = 2.5,
+    aes(label = Label),
+    max.overlaps = 30,
+    box.padding = 0.2,
+    point.padding = 0.3,
+    segment.alpha = 0.4
   ) +
-  #ggrepel::geom_text_repel(size = 2, max.overlaps = 20) +
-  ggrepel::geom_label_repel(min.segment.length = 0,
-                            fill        = alpha("white", 0.3),
-                            size        = 3,
-                            label.padding = 0.1,
-                            box.padding = 0.1,
-                            label.size  = 0.1,
-                            show.legend = FALSE,
-                            max.overlaps = 40
+  ggpmisc::stat_poly_eq(
+    mapping    = aes(label = paste("italic(R) ==", round(t$estimate, 2))),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.95,
+    size = 3.5,
+    color = "black"
   ) +
-  scale_y_continuous(
-    "TREASURE acrophase",
-    breaks = seq(0, 24, by = 4),
-    limits = c(0, 28),
-    expand = c(0, 0)
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("italic(p) ==", formatC(t$p.value, format = "e", digits = 0))),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.90,
+    size = 3.5,
+    color = "black"
   ) +
-  scale_x_continuous(
-    "UKB acrophase",
-    breaks = seq(0, 24, by = 4),
-    limits = c(0, 24),
-    expand = c(0, 0)
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("n == 18")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.85,
+    size = 3.5,
+    color = "black"
   ) +
-  ggtitle("Correlation with external 24h dataset") +
-  coord_fixed() +
-  theme_classic(base_size = 12) +
-  theme(axis.title = element_text(size = 10),
-    legend.position = "right",
-    panel.grid.minor = element_blank()
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  labs(x = "UKB acrophase (h)", y = "TREASURE acrophase (h)") +
+  theme_classic(base_size = 10) +
+  theme(panel.grid.major = element_line(color = "gray")) +
+  ggtitle("C") +
+  theme(
+    plot.title = element_text(face = "bold")
   )
+
+
 ggsave("plots/acrophase_validation.png", p_olink, width = 4, height = 4.5)
+
+t_amp <- cor.test(ref$amplitude_24hfreq, ref$amplitude, method = "pearson")
 
 a_olink <- ref %>%
   ggplot(aes(
     x     = amplitude_24hfreq,
-    y     = amplitude,
-    label = Assay
+    y     = amplitude
   )) +
-  geom_abline(linetype = "dashed", color = "grey50") +
-  geom_point(size = 0.2) +
-  #ggrepel::geom_text_repel(size = 2, max.overlaps = 20) +
-  ggrepel::geom_label_repel(min.segment.length = 0,
-                            fill        = alpha("white", 0.3),
-                            size        = 3,
-                            label.padding = 0.1,
-                            box.padding = 0.1,
-                            label.size  = 0.1,
-                            show.legend = FALSE,
-                            max.overlaps = 40
+  geom_point() +
+  geom_label_repel(
+    data = ref %>% filter(abs(dif_amp) > 0.3),
+    size = 2.5,
+    aes(label = Label),
+    max.overlaps = 30,
+    box.padding = 0.2,
+    point.padding = 0.3,
+    segment.alpha = 0.4
   ) +
-  scale_y_continuous(
-    "TREASURE amplitude",
-    #breaks = seq(0, 24, by = 4),
-    limits = c(0, 0.7),
-    expand = c(0, 0)
+  ggpmisc::stat_poly_eq(
+    mapping    = aes(label = paste("italic(R) ==", round(t_amp$estimate, 2))),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.95,
+    size = 3.5,
+    color = "black"
   ) +
-  scale_x_continuous(
-    "UKB amplitude",
-    limits = c(0, 0.7),
-    expand = c(0, 0)
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("italic(p) ==", formatC(t_amp$p.value, format = "e", digits = 0))),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.90,
+    size = 3.5,
+    color = "black"
   ) +
-  coord_fixed() +
-  theme_classic(base_size = 12) +
-  theme(axis.title = element_text(size = 10),
-        legend.position = "right",
-        panel.grid.minor = element_blank()
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("n == 18")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.85,
+    size = 3.5,
+    color = "black"
+  ) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  labs(x = "UKB amplitude", y = "TREASURE amplitude") +
+  theme_classic(base_size = 10) +
+  theme(panel.grid.major = element_line(color = "gray")) +
+  ggtitle("F") +
+  theme(
+    plot.title = element_text(face = "bold")
   )
+
+
+a_olink
 
 ggsave("plots/amplitude_validation.png", a_olink, width = 4, height = 4)
 
 
-### Calculate correlation
-install.packages("BAMBI")
-
-# OLINK
-#
-# olink_c <- df_effects %>%
-#   inner_join(ref, by = c("title" ="Assay"))
-#
-# harmonic == "acro_fund" ~ "2har-fundamental",
-# harmonic == "acro_1st" ~ "2har-1st",
-# harmonic == "acro_1h" ~ "1har")
-to_rad <- function(x, period = 24) (x %% period) / period * 2*pi
-
-d_c <- df_long %>%
-  filter(`Rhythmic Category` == "diurnal")
-
-t1 <- to_rad(d_c$acrophase_24hfreq)
-t2 <- to_rad(d_c$acro2h)
-
-x <- cbind(t1, t2)
-f <- BAMBI::circ_cor(x, type = "js")
 
 
+# Specht et al
+
+# circ_diff24 <- function(a, b) {
+#   # returns difference in hours in [-12,12]
+#   delta <- (a - b + 12) %% 24 - 12
+#   abs(delta)
+# }
 
 
+specht <- readxl::read_xlsx("data/1-s2.0-S2352721823002401-mmc1.xlsx", skip = 1) %>%
+  rename(
+    acro_fund   = `acrophase of fundamental harmonic in 2-harmonic fit  (time to DLMO in hours)`,
+    acro_1st    = `acrophase of first harmonic in 2-harmonic fit  (time to DLMO in hours)`,
+    acro_1h = `acrophase of 1-harmonic fit (time to DLMO in hours)`,
+    amp_1h = `amplitude of 1 harmonic fit`) %>%
+  inner_join(d1) %>%
+  filter(amplitude_24hfreq > 0.1 & t_r2_time_day > 0.01) %>%
+  mutate(acro_1h = case_when(acrophase_24hfreq > 18 & acro_1h < 10 ~ acro_1h + 24,
+                                  TRUE ~ acro_1h),
+         acro_1h_adj = acrophase_24hfreq +
+           (((acro_1h - acrophase_24hfreq + 12) %% 24) - 12)) %>%
+  group_by(Label) %>% mutate(n = n()) %>%
+  mutate(Label2 = case_when(n > 1 ~ paste0(Label,"_", row_number()),
+                            TRUE ~ Label)) %>%
+  mutate(dif_amp = amplitude_24hfreq - amp_1h,
+         dif_phase = acrophase_24hfreq - acro_1h)
 
-# How many repeated
-rep <- df_pha %>%
-  group_by(`Sequence ID (Somalogic reference)`,
-           Gene,
-           `Rhythmic Category`) %>%
-  count() %>% arrange(desc(n)) %>%
-  ungroup()
 
-gene_flags <- rep %>%
-  count(Gene, `Rhythmic Category`, name = "n_rows") %>%
-  pivot_wider(names_from = `Rhythmic Category`,
-              values_from = n_rows,
-              values_fill = 0) %>%           # make indicators
-  mutate(
-    circadian = as.integer(circadian > 0),
-    diurnal   = as.integer(diurnal   > 0),
-    both      = circadian & diurnal
+t_pha_specht_1h <- cor.test(specht$acrophase_24hfreq, specht$acro_1h_adj, method = "pearson")
+
+t_pha_specht_1h_CIRC <- cor.test(specht$acrophase_24hfreq[specht$`Rhythmic Category` == "circadian"], specht$acro_1h_adj[specht$`Rhythmic Category` == "circadian"], method = "pearson")
+
+t_pha_specht_1h_RHY <- cor.test(specht$acrophase_24hfreq[specht$`Rhythmic Category` == "diurnal"], specht$acro_1h_adj[specht$`Rhythmic Category` == "diurnal"], method = "pearson")
+
+length(unique(specht$Gene))
+# [1] 44
+
+p_pha <- specht %>%
+  ggplot(aes(x = acrophase_24hfreq, y = acro_1h_adj)) +
+  geom_point() +
+  geom_label_repel(
+    data = specht %>% filter(abs(dif_phase) > 4),
+    size = 2.5,
+    aes(label = Label2),
+    max.overlaps = 30,
+    box.padding = 0.2,
+    point.padding = 0.3,
+    segment.alpha = 0.4
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping    = aes(label = paste("italic(R) ==", round(t_pha_specht_1h$estimate, 2))),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.95,
+    size = 3.5,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("italic(p) ==", formatC(t_pha_specht_1h$p.value, format = "e", digits = 0))),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.90,
+    size = 3.5,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("n == 53")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.85,
+    size = 3.5,
+    color = "black"
+  ) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  scale_y_continuous(limits = c(0, 30)) +
+  labs(x = "Olink/UKB acrophase (h)", y = "SomaScan acrophase (h)") +
+  scale_color_manual(
+    values = paletteer_dynamic("cartography::green.pal", 2),
+    guide = guide_legend(ncol = 2)) +
+  theme_classic(base_size = 10) +
+  theme(panel.grid.major = element_line(color = "gray"),
+        legend.position = "bottom") +
+  ggtitle("D") +
+  theme(
+    plot.title = element_text(face = "bold")
   )
 
-n_genes_both <- sum(gene_flags$both)
-genes_both   <- gene_flags %>% filter(both == 1) %>% pull(Gene)
+p_pha
+
+
+t_amp_specht_1h <- cor.test(specht$amplitude_24hfreq, specht$amp_1h, method = "pearson")
+
+
+p_sp_amp <- specht %>%
+  ggplot(aes(x = amplitude_24hfreq, y = amp_1h)) +
+  geom_point() +
+  geom_label_repel(
+    data = specht %>% filter(abs(dif_amp) > 0.3),
+    size = 2.5,
+    aes(label = Label2),
+    max.overlaps = 30,
+    box.padding = 0.2,
+    point.padding = 0.3,
+    segment.alpha = 0.4
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping    = aes(label = paste("italic(R) ==", round(t_amp_specht_1h$estimate, 2))),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.95,
+    size = 3.5,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("italic(p) ==", formatC(t_amp_specht_1h$p.value, format = "e", digits = 0))),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.90,
+    size = 3.5,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("n == 53")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.85,
+    size = 3.5,
+    color = "black"
+  ) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  #scale_y_continuous(limits = c(0, 30)) +
+  labs(x = "Olink/UKB amplitude", y = "SomaScan amplitude") +
+  scale_color_manual(
+    values = paletteer_dynamic("cartography::green.pal", 2),
+    guide = guide_legend(ncol = 2)) +
+  theme_classic(base_size = 10) +
+  theme(panel.grid.major = element_line(color = "gray"),
+        legend.position = "bottom") +
+  ggtitle("G") +
+  theme(
+    plot.title = element_text(face = "bold")
+  )
+p_sp_amp
+

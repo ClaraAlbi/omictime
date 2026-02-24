@@ -15,139 +15,16 @@ install.packages("ggpmisc")
 library(ggpmisc)
 
 
-labels <- data.table::fread("data_share/supplementary_data1_explanatory_labels.csv") |>
-  mutate(
-    FID   = str_squish(FID),
-    LABEL = str_squish(Label)
-  ) %>%
-  mutate(LABEL = case_when(Type == "Proteins"~ Name,
-         TRUE ~ LABEL))
 
-labels <- labels |>
-  mutate(
-    LABEL = if_else(
-      LABEL == tolower(LABEL) & str_detect(LABEL, "^[a-z0-9]+$"),
-      toupper(LABEL),
-      LABEL
-    )
-  )
-
-rs <- data.table::fread("data_share/supplementary_data1.csv") %>%
+df_r2 <- readRDS("tables/variance_covariates.rds")%>%
   mutate(pfdr = p.adjust(p.value_time_day)) %>%
-  filter(pfdr < 0.05) #%>%
-  filter(r2_time_day > 0.01)
+  filter(pfdr < 0.05)
 
-amp <- data.table::fread("data_share/supplementary_data2.csv") %>%
+df_eff <- readRDS("tables/harmonic_models.rds") %>%
   mutate(pfdr = p.adjust(pvalue_h)) %>%
-  filter(pfdr < 0.05) #%>%
-  filter(amplitude_24hfreq > 0.1)
+  filter(pfdr < 0.05)
 
-amp %>%
-  group_by(Type) %>% summarise(n = n(),
-                               m_amp = mean(amplitude_24hfreq),
-                               se = sd(amplitude_24hfreq)/n)
-
-amp %>% filter(acrophase_24hfreq < 9) %>% count()
-amp %>% filter(acrophase_24hfreq > 20) %>% count()
-
-d1 <- amp %>%
-  inner_join(rs, by = c("FID", "Name", "Type"))
-
-d1 <- d1 |>
-  left_join(labels |> select(FID, LABEL), by = "FID") |>
-  mutate(FID_clean = coalesce(LABEL, FID)) |>
-  select(-LABEL)
-
-
-
-p1 <- ggplot(d1, aes(x = amplitude_24hfreq, y = r2_time_day)) +
-  geom_hline(yintercept = 0.01, linetype = 2, alpha = 0.7, color = "black") +
-  geom_vline(xintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
-  geom_point(aes(color = Type), size = 1, alpha = 0.7) +
-  geom_text_repel(
-    data = d1 %>% filter((amplitude_24hfreq > 0.1 & r2_time_day > 0.01) | r2_time_day > 0.02 | amplitude_24hfreq > 0.37),
-    size = 3,
-    aes(label = FID_clean),
-    max.overlaps = 30,
-    box.padding = 0.2,
-    point.padding = 0.3,
-    segment.alpha = 0.4
-  ) +
-  scale_color_manual(
-    values = c(
-      "Proteins"  = "#76B041",
-      "Metabolites"  = "#2374AB",
-      "Cell counts"       = "#8F3985",
-      "Biochemistry"      = "#E85F5C"
-    )) +
-  labs(y = "R2 time day", x = "Amplitude", color = "Data type") +
-  theme_classic(base_size = 10) +
-  theme(panel.grid.major = element_line(color = "gray"),
-        legend.position = c(0.99, 0.02),
-        legend.justification = c("right", "bottom"))
-
-ggsave("plots/r2_Vs_amplitude.png", p1, width = 10, height = 10)
-
-light_band <- data.frame(
-  xmin = 8,
-  xmax = 21,
-  ymin = -Inf,
-  ymax = Inf
-)
-
-night_band <- data.frame(
-  xmin = c(0, 21),
-  xmax = c(8, 24),
-  ymin = -Inf,
-  ymax = Inf
-)
-
-px <- d1 %>%
-  filter(amplitude_24hfreq > 0.1) %>%
-  ggplot(aes(x = acrophase_24hfreq, y = amplitude_24hfreq)) +
-  geom_rect(data = light_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-            fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
-  geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-            fill = "lightblue", alpha = 0.2, inherit.aes = FALSE) +
-  geom_hline(yintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
-  #geom_vline(xintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
-  geom_point(aes(color = Type, size = r2_time_day), alpha = 0.7) +
-  geom_text_repel(
-    data = d1 %>% filter(amplitude_24hfreq > 0.1 & r2_time_day > 0.01),
-    size = 2.5,
-    aes(label = FID_clean),
-    max.overlaps = 30,
-    box.padding = 0.2,
-    point.padding = 0.3,
-    segment.alpha = 0.4
-  ) +
-  #coord_polar() +
-  scale_x_continuous(limits = c(0, 24), breaks = 0:23,
-                     expand = c(0,0)) +
-  scale_color_manual(
-    values = c(
-      "Proteins"  = "#76B041",
-      "Metabolites"  = "#2374AB",
-      "Cell counts"       = "#8F3985",
-      "Biochemistry"      = "#E85F5C"
-    )) +
-  labs(x = "Acrophase", y = "Amplitude", color = "Data type", size = "R2 time day") +
-  theme_classic(base_size = 10) +
-  theme(panel.grid.major = element_line(color = "gray"),
-        panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),
-        legend.position = "bottom",
-        legend.title = element_text(size = 8),
-        legend.text = element_text(size = 6),
-        legend.direction = "horizontal",
-        #legend.justification = c("center", "top"),
-        legend.background = element_rect(
-          color = "black", fill = "white", linewidth = 0.2
-        ),
-        #axis.text.x = element_text(size = 14),
-        #axis.title = element_text(size = 16),
-        axis.line = element_blank())
-
-ggsave("plots/plot_amplitude.png", px, width = 10, height = 4)
+d1 <- inner_join(df_r2, df_eff, by = c("Biomarker", "Label", "Type", "FID"))
 
 set_prots <- d1 %>%
   filter(r2_time_day > 0.01) %>%
@@ -326,15 +203,15 @@ sex_amp_phase <- estimate_table %>%
 
 sex_amp_phase_wide <- sex_amp_phase %>%
   left_join(d1, by = c("outcome" = "FID")) %>%
-  select(FID_clean, sex, amplitude, acrophase) %>%
+  select(Label, sex, amplitude, acrophase) %>%
   pivot_wider(
-    id_cols   = FID_clean,
+    id_cols   = Label,
     names_from  = sex,
     values_from = c(amplitude, acrophase)
   ) %>% mutate(dif_amp = amplitude_Female - amplitude_Male,
                dif_phase = acrophase_Female - acrophase_Male)
 
-cor.test(sex_amp_phase_wide$amplitude_Female, sex_amp_phase_wide$amplitude_Male)
+t2_amp <- cor.test(sex_amp_phase_wide$amplitude_Female, sex_amp_phase_wide$amplitude_Male)
 # data:  sex_amp_phase_wide$amplitude_Female and sex_amp_phase_wide$amplitude_Male
 # t = 10.597, df = 70, p-value = 3.398e-16
 # alternative hypothesis: true correlation is not equal to 0
@@ -344,7 +221,7 @@ cor.test(sex_amp_phase_wide$amplitude_Female, sex_amp_phase_wide$amplitude_Male)
 #   cor
 # 0.7848532
 
-cor.test(sex_amp_phase_wide$acrophase_Female, sex_amp_phase_wide$acrophase_Male)
+t2 <- cor.test(sex_amp_phase_wide$acrophase_Female, sex_amp_phase_wide$acrophase_Male)
 # Pearson's product-moment correlation
 # data:  sex_amp_phase_wide$acrophase_Female and sex_amp_phase_wide$acrophase_Male
 # t = 35.276, df = 70, p-value < 2.2e-16
@@ -359,74 +236,100 @@ p_amp <- ggplot(sex_amp_phase_wide,
        aes(x = amplitude_Female, y = amplitude_Male)) +
   geom_point() +
   geom_label_repel(
-    data = sex_amp_phase_wide %>% filter(abs(dif_amp) > 0.1),
+    data = sex_amp_phase_wide %>% filter(abs(dif_amp) > 0.3),
     size = 2.5,
-    aes(label = FID_clean),
+    aes(label = Label),
     max.overlaps = 30,
     box.padding = 0.2,
     point.padding = 0.3,
     segment.alpha = 0.4
   ) +
   ggpmisc::stat_poly_eq(
-    mapping    = aes(label = paste("italic(R) ==", "0.78")),
+    mapping    = aes(label = paste("italic(R) ==", round(t2_amp$estimate, 2))),
     parse = TRUE,
     label.x = 0.05,
     label.y = 0.95,
-    size = 2.5,
+    size = 3.5,
     color = "black"
   ) +
   ggpmisc::stat_poly_eq(
-    mapping = aes(label = paste("italic(p) == 4e-16")),
+    mapping = aes(label = paste("italic(p) ==", formatC(t2_amp$p.value, format = "e", digits = 0))),
     parse = TRUE,
     label.x = 0.05,
-    label.y = 0.90,   # move lower so it doesn't overlap
-    size = 2.5,
+    label.y = 0.90,
+    size = 3.5,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("n == 72")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.85,
+    size = 3.5,
     color = "black"
   ) +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
   labs(x = "Female amplitude", y = "Male amplitude") +
   theme_classic(base_size = 10) +
-  theme(panel.grid.major = element_line(color = "gray"))
+  theme(panel.grid.major = element_line(color = "gray"))+
+  ggtitle("E") +
+  theme(
+    plot.title = element_text(face = "bold")
+  )
 
 p_phase <- ggplot(sex_amp_phase_wide,
        aes(x = acrophase_Female, y = acrophase_Male)) +
   geom_point() +
   geom_label_repel(
-    data = sex_amp_phase_wide %>% filter(abs(dif_phase) > 2),
+    data = sex_amp_phase_wide %>% filter(abs(dif_phase) > 4),
     size = 2.5,
-    aes(label = FID_clean),
+    aes(label = Label),
     max.overlaps = 30,
     box.padding = 0.2,
     point.padding = 0.3,
     segment.alpha = 0.4
   ) +
   ggpmisc::stat_poly_eq(
-    mapping    = aes(label = paste("italic(R) ==", "0.97")),
+    mapping    = aes(label = paste("italic(R) ==", round(t2$estimate, 2))),
     parse = TRUE,
     label.x = 0.05,
     label.y = 0.95,
-    size = 2.5,
+    size = 3.5,
     color = "black"
   ) +
   ggpmisc::stat_poly_eq(
-    mapping = aes(label = paste("italic(p) == 2e-16")),
+    mapping = aes(label = paste("italic(p) ==", formatC(t2$p.value, format = "e", digits = 0))),
     parse = TRUE,
     label.x = 0.05,
-    label.y = 0.90,   # move lower so it doesn't overlap
-    size = 2.5,
+    label.y = 0.90,
+    size = 3.5,
+    color = "black"
+  ) +
+  ggpmisc::stat_poly_eq(
+    mapping = aes(label = paste("n == 72")),
+    parse = TRUE,
+    label.x = 0.05,
+    label.y = 0.85,
+    size = 3.5,
     color = "black"
   ) +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
   labs(x = "Female acrophase (h)", y = "Male acrophase (h)") +
   theme_classic(base_size = 10) +
-  theme(panel.grid.major = element_line(color = "gray"))
+  theme(panel.grid.major = element_line(color = "gray")) +
+  ggtitle("B") +
+  theme(
+    plot.title = element_text(face = "bold")
+  )
 
-blank_plot <- ggplot(NULL)
 
-P_F <- px / (p_phase + p_amp + blank_plot) +plot_annotation(tag_levels = "A")
 
-ggsave("plots/Figure_2.png", P_F, width = 10, height = 8)
 
+
+
+
+
+####
 
 ts1 <- d %>%
   select(eid, any_of(biomarkers), time_day) %>%

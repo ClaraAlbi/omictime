@@ -1,4 +1,6 @@
 library(tidyverse)
+library(ggtext)
+library(tidytext)
 
 fields <- data.table::fread("data/field.tsv")
 
@@ -19,8 +21,6 @@ df_effects <- readRDS("data/combined_effects.rds") %>%
   filter(pfdr < 0.05) %>%
   filter(type_clean == "Proteins")
 
-d <- inner_join(df_effects, df_r2, by = "phen") %>%
-  left_join(assay, by = c("phen" = "Assay"))
 
 
 tissues <- data.table::fread("data/explore_ukb.csv") %>%
@@ -93,6 +93,14 @@ p_enrich <- plot_d %>%
 ggsave("plots/FS_tissue_enrichments.png", p_enrich, width = 6, height = 7)
 
 
+
+
+
+
+d <- inner_join(df_effects, df_r2, by = "phen") %>%
+  left_join(assay, by = c("phen" = "Assay"))
+
+
 prot_set <- d
 
 df <- prot_set %>%
@@ -100,85 +108,215 @@ df <- prot_set %>%
   left_join(tissues, by = c("phen" = "Gene")) %>%
   filter(!is.na(tissue)) %>%
   filter(category %in% c("Tissue enriched", "Group enriched")) %>% #%>% count(tissue) %>% arrange(desc(n))
-  group_by(phen,`Protein Name`, acrophase_24hfreq, amplitude_24hfreq, category) %>% summarise(p = paste(tissue, collapse = ", ")) %>%
-  mutate(p2 = paste0("(", p, ")")) %>%
-  unite(col = "t", phen, p2, sep = " ", remove = F) %>%
-  select(acrophase_24hfreq, amplitude_24hfreq, t)
+  #group_by(phen,`Protein Name`, acrophase_24hfreq, amplitude_24hfreq, category) %>% summarise(p = paste(tissue, collapse = ",\n")) %>%
+  #mutate(p2 = paste0("(", p, ")")) %>%
+  #unite(col = "t", phen, p2, sep = " ", remove = F) %>%
+  select(phen, acrophase_24hfreq, amplitude_24hfreq, tissue, t_r2)
 
 unique(df$phen)
 
-df %>% group_by(p) %>% count() %>% arrange(desc(n))
+df %>% group_by(phen) %>% count() %>% arrange(desc(n))
 
-ptissue <- ggplot(df, aes(x = acrophase_24hfreq, y = amplitude_24hfreq, label = t)) +
-  geom_point(size = 1) +
-  coord_polar() +
+ptissue <- ggplot(df, aes(x = acrophase_24hfreq, y = amplitude_24hfreq, label = phen, color = tissue, size = t_r2)) +
+  geom_point() +
+  #coord_polar() +
   ggrepel::geom_text_repel(size = 2.5, max.overlaps = 50, box.padding = 0.1, alpha = 0.7) +
   #scale_color_manual(values = c( "#FC4E07","#00AFBB", "#E7B800")) +
   labs(x = "Acrophase", y = "Amplitude", color = "GTEX tissue") +
   theme_minimal() +
   scale_x_continuous(limits = c(0, 24), breaks = 0:23,
                      expand = c(0,0)) +
-  scale_y_continuous(limits = c(0, 0.6)) +
-  guides(color = guide_legend(ncol = 3)) +
-  theme(legend.position = "none", text = element_text(size = 12))
+  scale_y_continuous(limits = c(0.15, 0.6)) +
+  guides(color = guide_legend(ncol = 7)) +
+  theme_classic(base_size = 10) +
+  theme(panel.grid.major = element_line(color = "gray"),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),
+        legend.position = "bottom",
+        legend.title = element_text(size = 8),
+        legend.text = element_text(size = 8),
+        legend.direction = "horizontal",
+        #legend.justification = c("center", "top"),
+        legend.background = element_rect(
+          color = "black", fill = "white", linewidth = 0.2
+        ),
+        #axis.text.x = element_text(size = 14),
+        #axis.title = element_text(size = 16),
+        axis.line = element_blank())
+
+
 ptissue
 ggsave("plots/FS_tissue_enrichments_circle.png", ptissue, width = 7, height = 7)
 
 
 
-p_per <- prot_set %>%
-  left_join(tissues, by = c("phen" = "Gene")) %>%
-  group_by(tissue) %>%
-  mutate(n = n()) %>% ungroup() %>%
-  mutate(tissue_2 = fct_reorder(str_to_sentence(paste0(tissue, " n=",n)), -n)) %>%
-  #select(acrophase_24hfreq, amplitude_24hfreq, phen, tissue_2, category) %>%
-  ggplot(aes(x = acrophase_24hfreq, y = amplitude_24hfreq, label = phen, color = category)) +
-  geom_point(size = 1) +
-  coord_polar() +
-  scale_y_continuous(limits = c(0, 0.8), n.breaks = 4) +
-  scale_x_continuous(breaks = c(24, 6, 12, 18)) +
-  labs(x = "Acrophase", y = "Amplitude", color = "GTEx category") +
-  ggrepel::geom_label_repel(size = 2,
-                            max.overlaps = 70,
-                            box.padding = 0.1, label.padding = 0.1,
-                            alpha = 0.7,
-                            ) +
-  facet_wrap(~tissue_2, ncol = 5) +
-  theme_classic() +
-  theme(panel.border = element_rect(colour = "black", fill = NA),
-        panel.grid.major.y = element_line(color = "grey85", linewidth = 0.3)
+system_map <- c(
+  # CNS
+  "Brain" = "CNS",
+  "Choroid plexus" = "CNS",
+  "Retina" = "CNS",
+
+  "Adrenal gland" = "Endocrine",
+  "Pituitary gland" = "Endocrine",
+  "Thyroid gland" = "Endocrine",
+  "Parathyroid gland" = "Endocrine",
+
+  # GI & Metabolic
+  "Intestine" = "Gastro",
+  "Stomach 1" = "Gastro",
+  "Esophagus" = "Gastro",
+  "Liver" = "Gastro",
+  "Gallbladder" = "Gastro",
+  "Pancreas" = "Gastro",
+  "Adipose tissue" = "Gastro",
+  "Tongue" = "Gastro",
+
+  # Endocrine
+
+  # Other
+  "Lymphoid tissue" = "Other",
+  "Bone marrow" = "Other",
+  "Kidney" = "Other",
+  "Lung" = "Other",
+  "Epididymis" = "Other",
+  "Heart muscle" = "Other",
+  "Skeletal muscle" = "Other"
+)
+
+# authoritative orders
+tissue_order <- names(system_map)
+system_order <- unique(system_map)
+
+df2 <- df %>%
+  mutate(
+    tissue = str_to_sentence(tissue),
+    system = recode(tissue, !!!system_map)
   )
-p_per
-ggsave("plots/FS_tissue_enrichments_circle2.png", p_per, width = 10, height = 15)
+
+# -----------------------------
+# 3. BUILD ALTERNATING COLORS
+#    (RESTART WITHIN EACH SYSTEM)
+# -----------------------------
+
+# build a label table from the authoritative tissue_order so colors and labels are consistent
+label_tbl <- tibble(
+  tissue = tissue_order,
+  system = system_map[tissue_order]
+) %>%
+  group_by(system) %>%
+  mutate(
+    # alternate colors restarting within each system
+    col = rep(c("#000000", "#6e6e6e"), length.out = n())
+  ) %>%
+  ungroup()
+
+# join colors back to plotting data
+df2 <- df2 %>%
+  left_join(label_tbl, by = c("tissue", "system")) %>%
+  mutate(
+    tissue = factor(tissue, levels = tissue_order),
+    system = factor(system, levels = system_order)
+  ) %>% group_by(phen) %>% mutate(n = n(), a = (n == 1),
+                                  a = factor(a, levels = c(FALSE, TRUE), labels = c("Group", "Single")
+                                  ))
 
 
-
-
-
-p_sec <- prot_set %>%
-  left_join(secretome, by = c("UniProt" = "Uniprot")) %>%
-  mutate(`Secretome location`  = case_when(`Secretome location` == "" ~ "Not assigned",
-                                           TRUE ~ `Secretome location`)) %>%
-  group_by(`Secretome location`) %>%
-  mutate(n = n()) %>% ungroup() %>%
-  mutate(tissue_2 = fct_reorder(str_to_sentence(paste0(`Secretome location`, " n=",n)), -n)) %>%
-  ggplot(aes(x = acrophase_24hfreq, y = amplitude_24hfreq, label = phen, color = `Secretome location`)) +
-  geom_point(size = 1) +
-  coord_polar() +
-  scale_y_continuous(limits = c(0, 0.6), n.breaks = 4) +
-  scale_x_continuous(breaks = c(24, 6, 12, 18)) +
-  labs(x = "Acrophase", y = "Amplitude", color = "Secretome category") +
-  ggrepel::geom_label_repel(size = 2,
-                            max.overlaps = 50,
-                            box.padding = 0.1, label.padding = 0.1,
-                            alpha = 0.7) +
-  facet_wrap(~tissue_2, ncol = 3) +
-  theme_classic() +
-  theme(legend.position = "bottom",
-        panel.border = element_rect(colour = "black", fill = NA),
-        panel.grid.major.y = element_line(color = "grey85", linewidth = 0.3)
+# Create colored axis labels (HTML) using ggtext::element_markdown for rendering
+axis_labels <- label_tbl %>%
+  mutate(
+    label_html = paste0("<span style='color:", col, "'>", tissue, "</span>")
   )
-ggsave("plots/FS_tissue_secretions_circle.png", p_sec, width = 10, height = 15)
 
+# create a named vector mapping tissue -> label_html (used by scale_y_discrete)
+axis_label_vector <- setNames(axis_labels$label_html, axis_labels$tissue)
+
+
+
+p_tissue <- df2 %>%
+  ggplot(aes(
+    x = acrophase_24hfreq,
+    y = tissue,
+    label = phen,
+    color = col,
+    shape = a
+  )) +
+
+  # If your light_band/night_band use the same x-range for all facets and ymins/ymax
+  # are provided as factor names or numeric positions, ensure they match your coordinate system.
+  # The examples below assume light_band/night_band are already prepared with ymin/ymax on the
+  # same scale as the y factor (if not, see the numeric-mapping helper above).
+  geom_rect(data = light_band,
+            aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "lightyellow",
+            alpha = 0.3,
+            inherit.aes = FALSE) +
+
+  geom_rect(data = night_band,
+            aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            fill = "lightblue",
+            alpha = 0.2,
+            inherit.aes = FALSE) +
+
+  geom_point(size = 3, alpha = 0.9) +
+
+  ggrepel::geom_label_repel(
+    size = 2,
+    max.overlaps = 70,
+    box.padding = 0.1,
+    label.padding = 0.1,
+    alpha = 0.75
+  ) +
+
+  scale_x_continuous(
+    limits = c(0, 24),
+    breaks = 0:23,
+    expand = c(0, 0)
+  ) +
+
+  # Force ggplot to display tissues in EXACT order defined in tissue_order,
+  # top-to-bottom. (We reverse because discrete y is drawn bottom->top.)
+  scale_y_discrete(
+    position = "right",
+    #limits = rev(tissue_order),
+    labels = axis_label_vector
+  ) +
+
+  scale_color_identity() +
+
+
+  facet_grid(
+    rows = vars(system),
+    scales = "free",
+    space = "free",
+    switch = "y"
+  ) +
+
+  labs(
+    x = "Acrophase",
+    y = "GTEx tissue",
+    title = "H", shape = "Enrichment"
+  ) +
+
+  theme_classic() +
+  theme(
+    plot.title = element_text(face = "bold"),
+
+    panel.border = element_rect(colour = "black", fill = NA),
+    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.3),
+
+    legend.position = "bottom",
+    legend.box.spacing = unit(2, "pt"),
+    legend.margin = margin(0, 0, 0, 0),
+    legend.box.margin = margin(0, 0, 0, 0),
+
+    # HTML colored axis labels:
+    axis.text.y.right = ggtext::element_markdown(),
+    axis.text.y = ggtext::element_markdown(),
+
+    strip.placement = "outside",
+    strip.background = element_blank(),
+    strip.text.y.right = element_text(face = "bold")
+  )
+
+p_tissue
 
 
