@@ -2,14 +2,16 @@ library(tidyverse)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
-library(readxl)
+
 install.packages("readxl")
+library(readxl)
 library(stringr)
 library(lubridate)
 install.packages("paletteer")
 install.packages("ggmisc")
 library(ggmisc)
 install.packages("forcats")
+library(forcats)
 
 ### changes
 data_x <- readRDS("data_share/predictions_internal_time_updated.rds") %>%
@@ -272,9 +274,11 @@ p_c <- d_grouped %>%
     )
   ) +
   theme(#legend.position = 'none',
-    legend.title = element_text(face = "bold", size = 12, angle = 90),
-        plot.title   = element_text(face = "bold", size = 14),
-        axis.title   = element_text(face = "bold", size = 14))
+    legend.title = element_text(face = "bold", size = 10, angle = 90),
+        plot.title   = element_text(face = "bold", size = 10),
+        axis.title   = element_text(face = "bold", size = 10))
+
+p_c
 
 ggsave("plots/F3_long_acc.png", p_c, width = 7, height = 3)
 

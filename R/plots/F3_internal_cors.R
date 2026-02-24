@@ -240,11 +240,11 @@ make_pair_plot <- function(v1, v2){
       label = as.expression(
         bquote(
           italic(r)[CA] == .(round(r_acc$estimate, 2)) ~
-            "(p = " * .(formatC(r_acc$p.value, format = "e", digits = 1)) * ")"
+            "(p = " * .(formatC(r_acc$p.value, format = "e", digits = 0)) * ")"
         )
       ),
       hjust = 0,
-      size = 4
+      size = 3
     ) +
     annotate(
       "text",
@@ -252,11 +252,11 @@ make_pair_plot <- function(v1, v2){
       label = as.expression(
         bquote(
           italic(r)[Recorded~time] == .(round(r_time$estimate, 2)) ~
-            "(p = " * .(formatC(r_time$p.value, format = "e", digits = 1)) * ")"
+            "(p = " * .(formatC(r_time$p.value, format = "e", digits = 0)) * ")"
         )
       ),
       hjust = 0,
-      size = 4
+      size = 3
     ) +
 
     scale_x_continuous(limits = c(-5, 5)) +
@@ -264,8 +264,8 @@ make_pair_plot <- function(v1, v2){
 
     labs(
       title = paste0(round(av_y, 1), " (±", round(sd_y, 1), ") years follow-up"),
-      x     = paste0("CA i", v1),
-      y     = paste0("CA i", v2)
+      x     = paste0("CA visit ", v1),
+      y     = paste0("CA visit ", v2)
     ) +
 
     theme_classic(base_size = 12) +
@@ -277,9 +277,9 @@ make_pair_plot <- function(v1, v2){
 
 
 # rebuild your three panels
-p1 <- make_pair_plot(0, 2)
-p2 <- make_pair_plot(0, 3)
-p3 <- make_pair_plot(2, 3)
+p_v1 <- make_pair_plot(0, 2)
+p_v2 <- make_pair_plot(0, 3)
+p_v3 <- make_pair_plot(2, 3)
 
 final_plot <-  cowplot::plot_grid(p3, p1, p2, nrow = 1)
 
