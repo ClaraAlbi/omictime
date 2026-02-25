@@ -216,6 +216,9 @@ make_pair_plot <- function(v1, v2){
     select(all_of(c("res_i0", x_gap, y_gap, x_time, y_time, y1, y2))) %>%
     filter(if_all(everything(), ~ !is.na(.)))
 
+  dat$col <- rowMeans(dat[, 1:2])
+
+
 
   r_acc  <- cor.test(dat[[x_gap]],  dat[[y_gap]])
   r_time <- cor.test(dat[[x_time]], dat[[y_time]])
@@ -224,19 +227,31 @@ make_pair_plot <- function(v1, v2){
   av_y <- mean(dat[[y2]] - dat[[y1]])
   sd_y <- sd(dat[[y2]] - dat[[y1]])
 
+  n <- as.expression(substitute(italic(n) == N, list(N = nrow(dat))))
+
   ggplot(
     dat,
     aes(
       x = .data[[x_gap]],
-      y = .data[[y_gap]]
+      y = .data[[y_gap]],
+      color = col
     )
   ) +
     geom_point(alpha = 0.5, size = 2) +
     geom_smooth(method = "lm", se = FALSE, color = "darkgray", linetype = 2) +
-    #geom_abline(slope = 1, intercept = 0, linetype = 2) +
+    paletteer::scale_color_paletteer_c("ggthemes::Orange-Blue Diverging",
+                                      direction = -1,
+                                      limits = c(-5, 5)) +
     annotate(
       "text",
-      x = -4.8, y = 5.1,
+      x = -4.8, y = 6,
+      label = n,
+      hjust = 0,
+      size = 4
+    ) +
+    annotate(
+      "text",
+      x = -4.8, y = 5,
       label = as.expression(
         bquote(
           italic(r)[CA] == .(round(r_acc$estimate, 2)) ~
@@ -244,34 +259,35 @@ make_pair_plot <- function(v1, v2){
         )
       ),
       hjust = 0,
-      size = 3
+      size = 4
     ) +
     annotate(
       "text",
-      x = -4.8, y = 4.4,
+      x = -4.8, y = 4,
       label = as.expression(
         bquote(
-          italic(r)[Recorded~time] == .(round(r_time$estimate, 2)) ~
+          italic(r)[time] == .(round(r_time$estimate, 2)) ~
             "(p = " * .(formatC(r_time$p.value, format = "e", digits = 0)) * ")"
         )
       ),
       hjust = 0,
-      size = 3
+      size = 4
     ) +
 
     scale_x_continuous(limits = c(-5, 5)) +
     scale_y_continuous(limits = c(-5, 6)) +
 
     labs(
-      title = paste0(round(av_y, 1), " (±", round(sd_y, 1), ") years follow-up"),
+      #title = paste0("Follow-up: ",round(av_y, 1), " years"), #" (±", round(sd_y, 1), ") years"),
+      title = paste0(round(av_y, 1), " years between visits"), #" (±", round(sd_y, 1), ") years"),
+
       x     = paste0("CA visit ", v1),
       y     = paste0("CA visit ", v2)
     ) +
 
     theme_classic(base_size = 12) +
-    theme(
-      plot.title = element_text(face = "bold", size = 13),
-      axis.title = element_text(face = "bold")
+    theme(legend.position = "none",
+      plot.title = element_text(face = "bold", size = 13)
     )
 }
 
@@ -280,6 +296,10 @@ make_pair_plot <- function(v1, v2){
 p_v1 <- make_pair_plot(0, 2)
 p_v2 <- make_pair_plot(0, 3)
 p_v3 <- make_pair_plot(2, 3)
+
+
+
+
 
 final_plot <-  cowplot::plot_grid(p3, p1, p2, nrow = 1)
 

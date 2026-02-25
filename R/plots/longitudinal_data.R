@@ -2,12 +2,15 @@ library(tidyverse)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
+library(stringr)
+
+install.packages("broom")
 
 install.packages("readxl")
 library(readxl)
-library(stringr)
 library(lubridate)
 install.packages("paletteer")
+
 install.packages("ggmisc")
 library(ggmisc)
 install.packages("forcats")
@@ -39,6 +42,9 @@ data <- data %>%
 
 data <- data %>%
   mutate(pred_scaled = pred_scaled %% 24)
+
+
+### FIGURE GRID
 
 summary(lm(time_day ~ pred_mean, data %>% filter(time_day > 9 & time_day < 20)))
 
@@ -221,7 +227,7 @@ stars <- d_grouped %>%
   mutate(star = case_when(participantid %in% c(2, 5, 6, 10, 12) ~ "*",
          TRUE ~ "")) %>%
   group_by(participantid, star) %>%
-  mutate(y = max(resid) + 0.1)
+  mutate(y = max(resid) + 0.3)
 
 p_c <- d_grouped %>%
   ggplot(aes(x = fct_reorder(as.factor(participantid), m_res), y = resid, fill = m_res)) +
@@ -230,28 +236,30 @@ p_c <- d_grouped %>%
   geom_text(
     data = stars,
     aes(x = as.factor(participantid), y = y, label = star),
-    size = 6,
-    fontface = "bold"
+    size = 6
   ) +
   paletteer::scale_fill_paletteer_c("ggthemes::Orange-Blue Diverging",
                                      direction = -1,
-                                     limits = c(-2, 2)) +
-  labs(y = "CA", x = "Participant ID", title = "TREASURE") +
+                                     limits = c(-5, 5)) +
+  labs(y = "CA", x = "Participant ID", title = "Samples within 40h (TREASURE)") +
   theme_classic(base_size = 12) +
   guides(
     fill = guide_colourbar(
       title = "Mean CA",
-      title.position = "left",
-      title.hjust    = 1,
-      barwidth       = 1.2,
-      barheight      = 7,
-      reverse = FALSE
+      title.position = "top",
+      #direction = "horizontal",
+      title.hjust    = 0.5,
+      barwidth       = 2,
+      barheight      = 5,
+      reverse = TRUE
     )
   ) +
-  theme(#legend.position = 'none',
-    legend.title = element_text(face = "bold", size = 10, angle = 90),
-        plot.title   = element_text(face = "bold", size = 10),
-        axis.title   = element_text(face = "bold", size = 10))
+  theme(legend.position = "left",
+        #legend.position = c(0.5, 0.95),   # x, y (0–1 scale)
+        #legend.justification = c(1, 1),    # anchor legend box
+        #legend.background = element_rect(fill = "white", colour = "black"),
+        plot.title = element_text(face = "bold", size = 13),
+        axis.title = element_text(size = 10))
 
 p_c
 

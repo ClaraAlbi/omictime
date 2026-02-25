@@ -152,25 +152,3 @@ ggsave("plots/Figure_3.png", p_ext, width = 10, height = 10, dpi = 320)
 ggsave("plots/Figure_3.pdf", p_ext, width = 10, height = 10, dpi = 320)
 
 
-
-p_ext <- cowplot::plot_grid(blank2, blank, p_long, ncol = 3, labels = c("D", "E", "F"), rel_widths = c(0.7, 0.4, 1.3))
-p_ext
-
-
-
-p_comb <- cowplot::plot_grid(pr, pr_nmr, rel_widths = c(0.7, 0.3), labels = c("", "C"))
-
-ggsave("plots/F3_internal.png", p_comb, width = 10, height = 3)
-
-# p_f <- plot_grid(pl, p_comb, nrow = 2, labels = c("A", "B"))
-# ggsave("plots/F3.png", p_f, width = 10, height = 7)
-
-
-
-p_f <- cowplot::plot_grid(pl, p_comb, p_ext, nrow = 3, labels = c("A", "B", ""),
-                          rel_heights = c(0.7,0.7,0.7))
-ggsave("plots/F3.png", p_f, width = 10, height = 10)
-
-
-
-
