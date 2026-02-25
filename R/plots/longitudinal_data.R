@@ -174,7 +174,7 @@ p_long <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
   geom_line(aes(y = fitted), color = "red", linewidth = 0.7) +
   labs(
     title = "TREASURE",
-    x = "Recorded time-of-day",
+    x = "Recorded time",
     color = "PID",
     y = "Predicted proteomic time"
   ) +
@@ -197,37 +197,12 @@ p_long <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
     legend.box.margin = margin(t = 0, r = 0, b = 0, l = -10, unit = "pt"),
     legend.margin = margin(0, 0, 0, 0),
     #legend.box.spacing = unit(0, "pt"),
-    axis.title = element_text(face = "bold"),
     legend.position = "right"
   )
 
 p_long
 ggsave("plots/F3_long.png", p_long, width = 7, height = 3)
 
-
-p1 <- ggplot(data_plot, aes(x = time_day, y = pred_mean)) +
-  geom_point(aes(color = participantid)) +
-  theme_classic()
-
-# blank white plot
-blank <- ggplot() + labs(title = "   FinnGen",
-                         y = "Predicted proteomic time",
-                         x = "Recorded time-of-day") +
-  theme_classic() +
-  theme(plot.title = element_text(face = "bold", size = 12),
-        axis.title = element_text(face = "bold", size = 10),
-        strip.background = element_blank())
-
-blank2 <- ggplot() + labs(title = "   CKB",
-                          y = "Predicted proteomic time",
-                          x = "Recorded time-of-day") +
-  theme_classic() +
-  theme(plot.title = element_text(face = "bold", size = 12),
-        axis.title = element_text(face = "bold", size = 10),
-        strip.background = element_blank())
-
-p_ext <- cowplot::plot_grid(blank2, blank, p_long, ncol = 3, labels = c("D", "E", "F"), rel_widths = c(0.7, 0.4, 1.3))
-p_ext
 
 library(forcats)
 

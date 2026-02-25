@@ -62,13 +62,13 @@ data_long <- data_ind %>%
   ) %>%
   mutate(model = str_remove(model, "pred_"))
 
-best_m <- r2s %>%
-  group_by(type) %>%
-  slice_max(mr2, n = 1, with_ties = FALSE) %>%
-  select(type,
-         best_model = model,
-         top_R2     = mr2,
-         Nt         = N)
+# best_m <- r2s %>%
+#   group_by(type) %>%
+#   slice_max(mr2, n = 1, with_ties = FALSE) %>%
+#   select(type,
+#          best_model = model,
+#          top_R2     = mr2,
+#          Nt         = N)
 
 # plot_data <- data_long %>%
 #   left_join(best_m, by = "type") %>%
@@ -84,7 +84,7 @@ plot_data <- data_long %>%
   mutate(type = factor(
     type,
     levels = c("all","olink","NMR","labs","counts"),
-    labels = c("All","Proteomics","Metabolomics", "Biochemistry","Cell counts")
+    labels = c("Multi-platform","Proteomics","Metabolomics", "Biochemistry","Cell counts")
   )) %>%
   group_by(type) %>%
   mutate(Nt = n())
@@ -139,13 +139,13 @@ pl <- plot_data %>%
     "Biochemistry" = "#E85F5C",
     "Cell counts"  = "#8F3985"
   )) +
-  labs(x     = "Recorded time-of-day",
+  labs(x     = "Recorded time",
     y     = "Predicted time") +
   theme_classic(base_size = 11) +
   theme(
     strip.background = element_blank(),
     strip.text = element_text(size = 12, face = "bold", hjust = 0),
-    axis.title = element_text(face = "bold"), legend.position = "none"
+    legend.position = "none"
   )
 
 
