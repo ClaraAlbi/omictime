@@ -249,8 +249,8 @@ p_c <- d_grouped %>%
       title.position = "top",
       #direction = "horizontal",
       title.hjust    = 0.5,
-      barwidth       = 2,
-      barheight      = 5,
+      barwidth       = 1.5,
+      barheight      = 6,
       reverse = TRUE
     )
   ) +
