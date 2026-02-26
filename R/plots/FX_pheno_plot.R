@@ -10,7 +10,7 @@ season <- c("season", "day_type", "fri_sun", "springDST", "autumnDST")
 meds <- c("has_prescription","sleep_medication", "antihypertensive", "antidepressants", "mood_stabiliser", "lithium")
 shift <- c("employment","shift_work", "night_shift")
 
-results <- readRDS("data_share/results_associations_phenotypes_CA_lasso.rds") %>%
+results <- readRDS("data_share/results_associations_phenotypes_CA_mean.rds") %>%
   filter(!str_ends(term, "0")) %>%
   mutate(predictor = case_when(str_detect(term, "p30079") ~ "p30079",
                                TRUE ~ predictor),
