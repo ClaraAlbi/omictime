@@ -232,30 +232,69 @@ vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insom
           "mood_stabiliser",
           "lithium")
 
+data %>%
+  count(vars)
+
 covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:20))
 
 
+
 results <- map_dfr(vars, function(v) {
+
   adj_vars <- if (v %in% c("sex", "age_recruitment")) paste0("PC", 1:20) else covars
+
+  if (is.character(data[[v]])) data[[v]] <- factor(data[[v]])
 
   rhs <- paste(c(v, adj_vars), collapse = " + ")
   f <- as.formula(paste("res ~", rhs))
 
   fit <- lm(f, data = data)
 
-  tidy(fit) %>%
-    filter(str_detect(term, paste0("^", v))) %>%
-    mutate(predictor = v, reference = FALSE) %>%
-    {
-      if (is.factor(data[[v]])) {
-        ref <- tibble(
-          term = paste0(v, levels(data[[v]])[1]),
-          estimate = 0, std.error = NA, statistic = NA, p.value = NA,
-          predictor = v, reference = TRUE
-        )
-        bind_rows(ref, .)
-      } else .
-    }
+  # model frame = rows actually used in the regression
+  mf <- model.frame(fit)
+  n_total <- nrow(mf)
+
+  out <- tidy(fit) %>%
+    mutate(predictor = v, reference = FALSE)
+
+  is_cat <- is.factor(mf[[v]])
+
+  out_v <- if (is_cat) {
+    out %>% filter(startsWith(term, v))
+  } else {
+    out %>% filter(term == v)
+  }
+
+  if (is_cat) {
+    x <- fct_drop(mf[[v]])
+    levs <- levels(x)
+    ref_level <- levs[1]
+
+    # n per level (from model-used rows)
+    n_by_level <- tibble(level = levs) %>%
+      left_join(count(tibble(level = x), level, name = "n"), by = "level") %>%
+      mutate(
+        term = paste0(v, level),
+        n_total = n_total
+      ) %>%
+      select(term, n, n_total)
+
+    ref <- tibble(
+      term      = paste0(v, ref_level),
+      estimate  = 0,
+      std.error = NA_real_,
+      statistic = NA_real_,
+      p.value   = NA_real_,
+      predictor = v,
+      reference = TRUE
+    )
+
+    bind_rows(ref, out_v) %>%
+      left_join(n_by_level, by = "term")
+  } else {
+    out_v %>%
+      mutate(n = n_total, n_total = n_total)
+  }
 })
 
 saveRDS(results, "data_share/results_associations_phenotypes_CA_mean.rds")
