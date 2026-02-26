@@ -159,7 +159,7 @@ format_assoc_table <- function(results, order_df, pretty_predictor, predictor_gr
     )
 }
 nice_table <- format_assoc_table(results, order_df, pretty_predictor, predictor_group) %>%
-  select(group, predictor_label, display_term, n, n_total, beta, beta_mins = in_mins, se, ci_low, ci_high, p, p_adj = FDR)
+  select(Data = group, Predictor = predictor_label, Category = display_term, n, n_total, beta, beta_mins = in_mins, se, ci_low, ci_high, p, p_adj = FDR)
 
 install.packages("writexl")
 

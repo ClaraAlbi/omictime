@@ -92,10 +92,19 @@ data <- df %>%
          antidepressants = ifelse(!is.na(N06), as.integer(N06 == TRUE), 0),
          mood_stabiliser = ifelse(!is.na(N03), as.integer(N03 == TRUE), 0),
          lithium = ifelse(!is.na(N05A), as.integer(N05A == TRUE), 0),
-         across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor))
+         across(c(has_prescription, antihypertensive, sleep_medication, antidepressants, mood_stabiliser, lithium), as.factor)) %>%
+  mutate(
+    res = residuals(lm(pred_mean ~ time_day, data = data)),
+    res_sd_group = case_when(
+      res >  2  ~ "Accelerated",
+      res < -2  ~ "Delayed",
+      TRUE        ~ "Middle"
+    ),
+    res_sd_group = factor(res_sd_group, levels = c("Middle", "Accelerated", "Delayed"))
+  )
 
 
-data$res <- residuals(lm(pred_mean ~ time_day, data = data))
+#data$res <- residuals(lm(pred_mean ~ time_day, data = data))
 
 
 data1 <- data %>%
@@ -109,6 +118,8 @@ data1 <- data %>%
     ),
     res_sd_group = factor(res_sd_group, levels = c("Middle", "Accelerated", "Delayed"))
   )
+
+
 
 
 library(table1)
@@ -171,7 +182,7 @@ tab_desc <- table1::table1(
     h_sleep + wakeup + ever_insomnia + shift_work + night_shift + employment +
     chrono_Nightshift + has_prescription + antihypertensive + sleep_medication + antidepressants + mood_stabiliser + lithium
   | res_sd_group,
-  data = data1,
+  data = data,
   overall = FALSE,
   render.cont = my_render_cont,
   topclass = "Rtable1-grid",
@@ -180,6 +191,8 @@ tab_desc <- table1::table1(
     `P (Del vs Mid)` = pvalue_DM
   )
 )
+
+tab_df <- as.data.frame(tab_desc)
 
 
 
