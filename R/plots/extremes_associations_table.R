@@ -187,7 +187,7 @@ final_table <- desc_wide %>%
 
 f_t <- final_table %>%
   filter(!is.na(level)) %>%
-  select(Data = group, Predictor = predictor_label, Category = level, everything())
+  select(Data = group, Predictor = predictor_label, Category = level, everything(), -predictor)
 
 
 writexl::write_xlsx(f_t, "tables/extremes_associations.xlsx")
