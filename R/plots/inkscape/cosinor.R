@@ -4,7 +4,7 @@ library(ggplot2)
 # ---- Parameters ----
 mesor <- 0
 amplitude <- 1
-acrophase <- 6     # peak at 6h
+acrophase <- 20     # peak at 6h
 period <- 24
 
 # ---- Generate time ----
@@ -26,10 +26,10 @@ data_p <- data.frame(time = time[is], name = "y2", value = y3)
 # ---- Plot ----
 p <- ggplot(data, aes(x = time, y = value, color = name)) +
   geom_line(linewidth = 0.5) +
-  geom_point(data = data_p)  +
-  geom_vline(xintercept = 6, linetype = "dashed", color = "darkgray") +
+  geom_point(data = data_p, size = 0.2)  +
+  #geom_vline(xintercept = 6, linetype = "dashed", color = "darkgray") +
 
-  geom_vline(xintercept = 18, linetype = "dashed", color = "darkgray") +
+  #geom_vline(xintercept = 18, linetype = "dashed", color = "darkgray") +
 
   scale_x_continuous(
     limits = c(0, 24),
