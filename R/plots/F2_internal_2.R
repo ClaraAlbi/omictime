@@ -11,7 +11,6 @@ library(purrr)
 
 
 df <- readRDS("/mnt/project/biomarkers_res/olink_int_replication_v2.rds") %>%
-  filter(i != 0) %>%
   bind_rows(readRDS("/mnt/project/olink_int_panels14.rds") %>% mutate(i = 0)) %>%
   filter(!is.na(time_day)) %>%
   mutate(i = case_when(i == 0  ~ "i0: Initial visit \n(2006-2010)",

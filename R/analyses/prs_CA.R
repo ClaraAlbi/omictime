@@ -6,8 +6,9 @@ library(purrr)
 install.packages("broom")
 library(broom)
 library(data.table)
+library(lubridate)
 
-ukbppp <- readRDS("/mnt/project/olink_internal_time_predictions.rds") %>%
+ukbppp <- readRDS("/mnt/project/biomarkers_res/olink_int_replication_v2.rds") # %>%
   filter(i == 0)
 
 a <- data.table::fread("/mnt/project/ancestry_new.csv") %>%
@@ -129,4 +130,30 @@ summary(lm(CA_prs ~ night_shift, data = prs))
 summary(lm(CA_prs ~ sex, data = prs))
 
 
-tidy(lm(paste0("lip ~ ", paste0(c("CA_prs", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = prs))
+tidy(lm(paste0(" ~ ", paste0(c("CA_prs", "sex","age_recruitment" , paste0("PC", 1:20)), collapse = " + ")), data = prs))
+
+
+
+
+# PREDICTION INTERNAL
+df <- ukbppp %>%
+  left_join(data.table::fread("/mnt/project/PRS_CA_allchr.profile") %>% mutate(eid = as.numeric(IID)) %>% select(eid, PRS_SUM) ) %>%
+  filter(eid %in% a$eid)
+
+df$CA_prs<- scale(df$PRS_SUM)[,1]
+df$res <- residuals(lm(pred_mean ~ time_day, data= df))
+
+
+df_i0 <- df %>% filter(i == 0)
+
+cor(df_i0$res, df_i0$CA_prs, use = "complete.obs")^2
+
+df_i2 <- df %>% filter(i == 2)
+
+cor(df_i2$res, df_i2$CA_prs, use = "complete.obs")^2
+
+df_i3 <- df %>% filter(i == 3)
+
+cor(df_i3$res, df_i3$CA_prs, use = "complete.obs")^2
+
+
