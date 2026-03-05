@@ -34,7 +34,7 @@ df <- readRDS("/mnt/project/olink_int_panels14.rds") %>%
   #filter(i == 0) %>%
   select(eid, time_day, pred_mean, pred_lasso) %>%
   left_join(gen_covs) %>%
-  inner_join(anc) %>%
+  inner_join(anc) #%>%
   filter(rel == 0)
 
 df$res <- residuals(lm(pred_mean ~ time_day, data = df))
@@ -43,6 +43,24 @@ df %>% mutate(FID = eid) %>%
   select(FID, eid, res) %>%
   rename(IID = eid) %>%
   data.table::fwrite(., "res_v2_eur_unrel.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+
+### REMOVE REP-MEASURES
+
+i2 <- data.table::fread("/mnt/project/OLINK_i2.tsv")
+i3 <- data.table::fread("/mnt/project/OLINK_i3.tsv")
+
+sum(df$eid %in% c(i2$eid, i3$eid))
+#[1] 1052
+
+
+df %>%
+  filter(!eid %in% c(i2$eid, i3$eid)) %>%
+  mutate(FID = eid) %>%
+  select(FID, eid, res) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "res_v2_eur_norep.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
 
 
 # FEMALES ONLY
