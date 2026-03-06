@@ -5,12 +5,15 @@ library(dplyr)
 install.packages("broom")
 library(purrr)
 
+
+diag <- data.table::fread("/mnt/project/sleep_phase.csv")
+
 ckd <- ukbrapR:::codes_df_ckd
 
 ukbrapR:::codes_df_test
 
 bp <- tribble(~condition, ~vocab_id, ~code,
-              # "bp", "ICD10","F31.2",
+              "bp", "ICD10","F31.2",
               # "bp", "ICD9", "296",
               # "bp","Read2", "E11..11",
               # "bp", "CTV3","E1176",
@@ -18,6 +21,8 @@ bp <- tribble(~condition, ~vocab_id, ~code,
               "insomnias", "ICD10", "G470",
               "hypersomnias", "ICD10", "G471",
               "sleep-wake schedule", "ICD10", "G472",
+              "delayed", "ICD10", "G4721",
+              "adv", "ICD10", "G4722",
               "apnea", "ICD10", "G473",
               "narcolepsy", "ICD10", "G474",
               "other", "ICD10" , "G478",
@@ -37,6 +42,33 @@ diagnosis_list <- get_diagnoses(bp)
 diagnosis_df <- get_df(diagnosis_list, group_by="condition")
 
 
+
+phase %>%
+  left_join(diagnosis_df) %>%
+  left_join(job_vars) %>%
+  group_by(`sleep-wake schedule_bin_prev`) %>% summarise(time_mean = mean(pred_mean, na.rm = T),
+                                                         time_sd = sd(pred_mean, na.rm = T),
+                                                    ca_mean = mean(res, na.rm = T),
+                                                    ca_sd = sd(res, na.rm = T), n = n())
+
+res <-
+phase %>%
+  left_join(diagnosis_df) %>%
+  left_join(covs) %>%
+  left_join(gen_covs) %>%
+  pivot_longer(ends_with("_bin")) %>%
+  group_by(name) %>% summarise(cases = sum(value == 1, na.rm = T)) %>% arrange(desc(cases))
+  group_by(name) %>% nest() %>% ungroup() %>%
+  #slice(1) %>%
+  mutate(m = map(data, ~broom::tidy(lm(value ~ res + sex + age_recruitment + PC1 + PC2 + chrono, data = .x)))) %>% select(-data) %>% unnest(m)
+
+
+
+summary(glm(sleep_bin_prev ~ res, data = phase %>% left_join(diagnosis_df)))
+
+summary(lm(res ~ `sleep-wake schedule_bin_prev`, data = phase %>% left_join(diagnosis_df)))
+
+summary(glm(apnea_bin_prev ~ res, data = phase %>% left_join(diagnosis_df)))
 
 
 dis <- c(131850, # Date M06 first reported (other rheumatoid arthritis)
