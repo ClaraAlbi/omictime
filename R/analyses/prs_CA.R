@@ -37,6 +37,10 @@ gen_covs <- data.table::fread("/mnt/project/genetic_covs.tsv") %>%
   select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`, `22000-0.0`)
 colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel", "batch")
 
+a <- data.table::fread("/mnt/project/ancestry_new.csv") %>%
+  mutate(p30079 = case_when(p30079 == "" ~ NA_character_,
+                            TRUE ~ p30079),
+         p30079 = relevel(as.factor(p30079), ref = "European ancestry (EUR)"))
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   select(eid,
@@ -102,7 +106,7 @@ dis_prev <- dis2 %>%
 prs <- data.table::fread("/mnt/project/PRS_CA_allchr.profile") %>% mutate(eid = as.numeric(IID)) %>% select(eid, PRS_SUM) %>%
   left_join(data.table::fread("/mnt/project/prs_prots_allchr.sscore") %>% mutate(eid = as.numeric(IID)) %>% select(-FID, -IID), by = c("eid")) %>%
   filter(!eid %in% ukbppp$eid) %>%
-  filter(eid %in% a$eid) %>%
+  #¢filter(eid %in% a$eid) %>%
   mutate(CA_prs = scale(PRS_SUM)[,1]) %>%
   mutate(across(ends_with("AVG"), ~scale(.x)[,1])) %>%
   left_join(sleep) %>%
@@ -137,11 +141,21 @@ tidy(lm(paste0(" ~ ", paste0(c("CA_prs", "sex","age_recruitment" , paste0("PC", 
 
 # PREDICTION INTERNAL
 df <- ukbppp %>%
-  left_join(data.table::fread("/mnt/project/PRS_CA_allchr.profile") %>% mutate(eid = as.numeric(IID)) %>% select(eid, PRS_SUM) ) %>%
+  left_join(a) %>%
+  left_join(data.table::fread("/mnt/project/PRS_CA_allchr.profile") %>% mutate(eid = as.numeric(IID)) %>% select(eid, PRS_SUM) ) #%>%
   filter(eid %in% a$eid)
 
-df$CA_prs<- scale(df$PRS_SUM)[,1]
 df$res <- residuals(lm(pred_mean ~ time_day, data= df))
+
+df %>%
+  group_by(p30079) %>% nest() %>%
+  filter(!is.na(p30079)) %>%
+  mutate(r2_prs = map_dbl(data, ~cor(.x$res, .x$PRS_SUM, use = "complete.obs")^2),
+         n = map_dbl(data, nrow)) %>%
+  select(-data)
+
+df$CA_prs<- scale(df$PRS_SUM)[,1]
+
 
 
 df_i0 <- df %>% filter(i == 0)
