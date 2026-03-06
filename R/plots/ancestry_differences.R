@@ -69,7 +69,33 @@ d <- data %>%
   left_join(a) %>%
   group_by(cv, p30079) %>% nest() %>%
   filter(!is.na(p30079)) %>%
-  mutate(mod = map_dbl(data, ~cor(.x$time_day, .x$pred_mean)^2)) %>%
+  mutate(mod = map_dbl(data, ~cor(.x$time_day, .x$pred_mean)^2),
+         n = map_dbl(data, nrow)) %>%
   select(-data)
 
-saveRDS(d, "data_share/prediction_by_ancestry.rds")
+
+
+
+d2 <- d %>%
+  group_by(p30079) %>% mutate(mean_pred = mean(mod),
+                              total_n = sum(n))
+
+saveRDS(d2, "data_share/prediction_by_ancestry.rds")
+p_anc <- d2 %>%
+ggplot(aes(x = p30079, fill = p30079)) +
+  geom_col(data = d2 %>% filter(cv == 1), aes(y = mean_pred),
+           position = position_dodge(width = 0.7), color = "black",
+           width = 0.7) +
+  geom_jitter(aes(y = mod), color = "black", shape = 21,
+              position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.7),
+              size = 1) +
+  labs(y = "R2", y = "Genetically-inferred ancestry") +
+  scale_fill_viridis_d() +
+  theme_minimal() +
+  theme(text = element_text(size = 14),
+        axis.text.x = element_text(angle = 50, hjust = 1),
+        axis.title.x = element_blank(),
+        legend.key.size = unit(1.2, "lines"),
+        legend.position = "none", plot.margin = margin(l = 30))
+
+ggsave("plots/prediction_ancestry.png", p_anc, width = 4, height = 6)
