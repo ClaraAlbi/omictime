@@ -4,7 +4,8 @@ library(tidyr)
 library(glue)
 library(ggplot2)
 
-time <- readRDS("/mnt/project/biomarkers/time.rds")
+time <- readRDS("/mnt/project/biomarkers/time.rds") %>%
+  filter(time_day > 9 & time_day < 20)
 
 light_band <- data.frame(
   xmin = 5.4,
@@ -26,15 +27,19 @@ p_hist <- time %>%
             fill = "lightyellow", alpha = 0.3, inherit.aes = FALSE) +
   geom_rect(data = night_band, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
             fill = "gray", alpha = 0.2, inherit.aes = FALSE) +
-  geom_histogram(bins = 60, color = "black", fill = "#355F71") +
+  geom_histogram(bins = 24, color = "black", fill = "#355F71") +
   coord_polar(start = 0) +
   labs(x = "Time of day", y = "N") +
-  scale_x_continuous(limits = c(0, 24), breaks = 0:23) +
+  scale_x_continuous(limits = c(0, 24), breaks = c(0,3, 6,9, 12, 15, 18, 21)) +
+  scale_y_continuous(n.breaks = 4) +
   theme_classic() +
-  theme(text = element_text(size = 20),
+  theme(text = element_text(size = 10),
+        #panel.grid.major = element_line(color = "gray"),
+        #panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),
         axis.line = element_blank(),
         axis.ticks = element_blank(),
-        axis.text.y = element_text(size = 14),
         panel.grid.minor = element_blank())
 
-ggsave("plots/plot_histogram_i0_1.png", p_hist, width = 8, height = 8)
+p_hist
+
+ggsave("plots/plot_histogram_i0_1.pdf", p_hist, width = 3, height = 3, dpi = 300)
