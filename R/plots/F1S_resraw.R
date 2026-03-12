@@ -6,7 +6,8 @@ library(lubridate)
 library(ggplot2)
 install.packages("ggtext")
 
-time <- readRDS("/mnt/project/biomarkers/time.rds")
+time <- readRDS("/mnt/project/biomarkers/time.rds") %>%
+  filter(time_day > 9 & time_day < 20)
 
 fields <- data.table::fread("/mnt/project/Showcase metadata/field.tsv")
 
@@ -36,20 +37,20 @@ df_r2 <- bind_rows(readRDS("/mnt/project/biomarkers_3/covariate_res/aov_labs.rds
 df_top <-df_r2 %>%
   filter(pr2 >= 0.01) %>% pull(phen)
 
-df_top <- c("angptl1" , "23476" ,   "23471",    "30120" ,   "23465",    "spon2" ,   "30810" ,
-            "30000"   , "hs3st3b1" ,"23477"  ,  "23644"    ,"tmprss15", "c1qtnf5" , "ctse"    ,
-            "23630"  ,  "hyal1" ,   "ppy"  ,    "actn2"   , "fam3b"  ,  "tnr" ,     "muc13"  ,
-             "pgf"  ,    "plat"   ,  "fas"   ,   "pla2g10" , "mybpc1"  , "spink5"   ,"23645"   ,
-             "agrp"   ,  "23629")
+# df_top <- c("angptl1" , "23476" ,   "23471",    "30120" ,   "23465",    "spon2" ,   "30810" ,
+#             "30000"   , "hs3st3b1" ,"23477"  ,  "23644"    ,"tmprss15", "c1qtnf5" , "ctse"    ,
+#             "23630"  ,  "hyal1" ,   "ppy"  ,    "actn2"   , "fam3b"  ,  "tnr" ,     "muc13"  ,
+#              "pgf"  ,    "plat"   ,  "fas"   ,   "pla2g10" , "mybpc1"  , "spink5"   ,"23645"   ,
+#              "agrp"   ,  "23629")
 
-
-
-facet_levels <- df_r2 %>%
-  filter(phen %in% df_top) %>%
-  arrange(desc(pr2)) %>%
-  # recreate the exact HTML string you’ll use below
-  mutate(f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title)) %>%
-  pull(f_html)
+#
+#
+# facet_levels <- df_r2 %>%
+#   filter(phen %in% df_top) %>%
+#   arrange(desc(pr2)) %>%
+#   # recreate the exact HTML string you’ll use below
+#   mutate(f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title)) %>%
+#   pull(f_html)
 
 prot <- readRDS("/mnt/project/biomarkers_3/covariate_res/raw_olink.rds") %>%
   select(eid, any_of(df_top))
@@ -96,7 +97,7 @@ res <- prot_res %>%
   pivot_longer(c(-eid, -time_day), names_to = "phen")
 
 
-pl_res<- raw %>%
+data_plot <- res %>%
   #slice(1:2000)%>%
   group_by(t = round(time_day, 0), phen) %>%
   summarise(
@@ -108,13 +109,17 @@ pl_res<- raw %>%
     ci_upper = mean_val + 1.96 * se_val   # upper 95% CI
   ) %>%
   left_join(df_r2 %>%
-              select(phen, title, type, color_var)) %>%
-  #mutate(f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title),
-  #       facet_html = factor(f_html, levels = facet_levels)) %>%
-  ggplot(aes(x = t, y = mean_val, color = type)) +
+              select(phen, title, type, color_var,pr2)) %>%
+  mutate(title = case_when(type == "Proteomics-Olink" ~ toupper(title),
+                           TRUE ~ title),
+         f_html = sprintf("<span style='color:%s'>%s</span>", color_var, title),
+         f_html = fct_reorder(f_html, pr2 ,  .desc = TRUE),
+         l = paste0(100*round(pr2, 2), "%"))
+
+pl_res <- data_plot %>% ggplot(aes(x = t, y = mean_val, color = type)) +
   geom_point() +
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2) +
-  labs(x = "Recorded time") +
+  labs(x = "Recorded time", y = "Biomarker residuals") +
   scale_x_continuous(breaks = c(8, 10, 12, 14, 16, 18, 20), limits = c(8, 21)) +
   scale_color_manual(
     name   = "Omic type",
@@ -133,14 +138,10 @@ pl_res<- raw %>%
     )
   ) +
   theme_minimal() +
-  ggtitle("Raw values") +
-  facet_wrap(~phen, scales = "free", ncol = 10) +
-  theme(#text = element_text(size = 14),
-        #strip.text = ggtext::element_markdown(size = 14, hjust = 0),
-        axis.title.y = element_blank(),
-        legend.position = "bottom", legend.direction = "horizontal",
-        #title = element_text(size = 18), legend.text = element_text(size = 16)
+  facet_wrap(~f_html, ncol = 10) +
+  theme(strip.text = ggtext::element_markdown(size = 12, hjust = 0),
+        legend.position = "bottom", legend.direction = "horizontal"
         )
 
-ggsave(plot = pl_raw, filename =  "plots/F1S_raw.png", height = 18, width = 15)
+#ggsave(plot = pl_raw, filename =  "plots/F1S_raw.png", height = 18, width = 15)
 ggsave(plot = pl_res, filename =  "plots/F1S_res.png", height = 18, width = 15)
