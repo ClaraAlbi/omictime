@@ -49,7 +49,7 @@ fp <- predictions_other %>%
          sd_r2 = sd(value),
          name = factor(name, levels = c("pmean", "lasso", "lassox2", "lgb", "xgboost")),
          group = factor(group, levels = c("raw", "tech", "female", "male", "14panels"),
-                        labels = c("No cov. adjustment", "Technical", "Female-only", "Male-only", "All"))) %>% ungroup() %>%
+                        labels = c("No cov. \nadjustment", "Technical", "Female-only", "Male-only", "All"))) %>% ungroup() %>%
   ggplot(aes(x = group, y = value, fill = name)) +
   geom_col(aes(y = m_r2, fill = name),
            position = position_dodge(width = 0.7),
