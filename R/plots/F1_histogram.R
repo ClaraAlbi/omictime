@@ -33,7 +33,7 @@ p_hist <- time %>%
   scale_x_continuous(limits = c(0, 24), breaks = c(0,3, 6,9, 12, 15, 18, 21)) +
   scale_y_continuous(n.breaks = 4) +
   theme_classic() +
-  theme(text = element_text(size = 10),
+  theme(text = element_text(size = 14),
         #panel.grid.major = element_line(color = "gray"),
         #panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),
         axis.line = element_blank(),
