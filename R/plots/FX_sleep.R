@@ -1,5 +1,8 @@
-library(ggplot2)
+library(dplyr)
+library(tidyr)
+install.packages("broom")
 library(broom)
+library(stringr)
 
 sleep <- data.table::fread("/mnt/project/chronotype2.tsv") %>%
   select(eid,
@@ -87,20 +90,24 @@ sleep_new <- data.table::fread("/mnt/project/sleep_online.csv") %>%
     ),
     rmeq_chronotype = factor(rmeq_chronotype, levels = c("Definitely morning", "Rather morning", "Neither", "Rather evening", "Definitely evening")),
     rmeq_chronotype = relevel(rmeq_chronotype, ref = "Definitely morning"),
-
+    p30429 = factor(p30429, levels = c("Definitely a morning-type", "Rather more a morning-type than an evening-type","Do not know", "Rather more an evening-type than a morning-type", "Definitely an evening-type"), labels = c("Definitely morning", "Rather morning", "Neither", "Rather evening", "Definitely evening")),
+    p30429 = relevel(p30429, ref = "Definitely morning")
   )
+
+
 
 sleep_new %>%
   mutate(y = lubridate::year(p30489)) %>%
   count(y)
 
-df <- readRDS("/mnt/project/olink_int_replication.rds") %>%
+df <- readRDS("/mnt/project/olink_int_panels14.rds") %>%
   filter(!is.na(time_day)) %>%
-  filter(i == 0) %>%
-  rowwise() %>%
-  mutate(pred_mean = mean(c(pred_lgb, pred_xgboost, pred_lasso, pred_lassox2))) %>%
-  ungroup() %>%
-  left_join(sleep_new)
+  #filter(i == 0) %>%
+  left_join(sleep_new) %>%
+  left_join(covs) %>%
+  left_join(a) %>%
+  left_join(gen_covs) %>%
+  left_join(dep)
 df$res <- residuals(lm(pred_mean ~ time_day, data = df))
 
 
@@ -108,9 +115,76 @@ df %>%
   ggplot(aes(x = res, y = rmeq_chronotype)) +
   geom_boxplot()
 
-broom::tidy(lm(res ~ rmeq_chronotype, data = df))
-broom::tidy(lm(res ~ chronotype_assess, data = df))
+vars <- c("time_day", "age_recruitment", "sex", "chrono", "h_sleep", "ever_insomnia", "p30079", #"rmeq_chronotype", "rmeq_score",
+          "is_weekend", "day_of_week",
+          "season", "night_shift", "smoking", "bmi", "is_dst", "wakeup", "shift_work", "employment", "TDI", "autumnDST", "springDST")
 
+covars <- c("sex", "age_recruitment", "assessment_centre", paste0("PC", 1:20))
+
+v <-
+
+f_CNT <- as.formula(paste("res ~", paste(c("p30429", covars), collapse = " + ")))
+f_rMEQ <- as.formula(paste("res ~", paste(c("rmeq_chronotype", covars), collapse = " + ")))
+
+
+fit1 <- lm(f_CNT, data = df)
+fit2 <- lm(f_rMEQ, data = df)
+
+data <- bind_rows(tidy(fit1, conf.int = T) %>% mutate(mod = "chrono") %>% filter(str_detect(term, "p30429|Intercept")) %>%
+  mutate(term = str_remove(term, "p30429"),
+         across(c(estimate, conf.low, conf.high), ~case_when(term == "(Intercept)" ~ 0, TRUE ~ .x)),
+         p.value  = case_when(term == "(Intercept)" ~ NA_integer_, TRUE ~ p.value),
+         term = case_when(term == "(Intercept)" ~ "Definitely morning",TRUE ~ term)),
+  tidy(fit2, conf.int = T) %>% mutate(mod = "rmeq") %>% filter(str_detect(term, "rmeq_chronotype|Intercept")) %>%
+    mutate(term = str_remove(term, "rmeq_chronotype"),
+           across(c(estimate, conf.low, conf.high), ~case_when(term == "(Intercept)" ~ 0, TRUE ~ .x)),
+           p.value  = case_when(term == "(Intercept)" ~ NA_integer_, TRUE ~ p.value),
+           term = case_when(term == "(Intercept)" ~ "Definitely morning",
+                            TRUE ~ term))) %>%
+  mutate(FDR = p.adjust(p.value),
+         in_mins = estimate * 60)
+
+# term               estimate std.error statistic   p.value conf.low conf.high mod          FDR in_mins
+# <chr>                 <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl> <chr>      <dbl>   <dbl>
+#   1 Definitely morning    0        0.265       2.81 NA           0        0      chrono NA           0
+# 2 Rather morning       -0.148    0.0226     -6.57  5.06e-11   -0.193   -0.104  chrono  1.01e-10   -8.90
+# 3 Neither              -0.257    0.0342     -7.52  5.55e-14   -0.324   -0.190  chrono  1.67e-13  -15.4
+# 4 Rather evening       -0.384    0.0264    -14.6   8.04e-48   -0.436   -0.332  chrono  6.43e-47  -23.0
+# 5 Definitely evening   -0.499    0.0355    -14.1   1.01e-44   -0.568   -0.429  chrono  7.05e-44  -29.9
+# 6 Definitely morning    0        0.305       2.86 NA           0        0      rmeq   NA           0
+# 7 Rather morning       -0.177    0.0470     -3.76  1.69e- 4   -0.269   -0.0846 rmeq    1.69e- 4  -10.6
+# 8 Neither              -0.410    0.0460     -8.93  4.90e-19   -0.501   -0.320  rmeq    2.45e-18  -24.6
+# 9 Rather evening       -0.642    0.0574    -11.2   7.32e-29   -0.754   -0.529  rmeq    4.39e-28  -38.5
+# 10 Definitely evening   -1.35     0.164      -8.22  2.15e-16   -1.67    -1.03   rmeq    8.59e-16  -81.1
+
+p<- data %>%
+  mutate(term = factor(term, levels = c("Definitely morning", "Rather morning", "Neither", "Rather evening", "Definitely evening")),
+         term = relevel(term, ref = "Definitely morning")) %>%
+  ggplot(aes(x = estimate, y = fct_rev(term), shape = FDR < 0.05, color = mod)) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_errorbar(aes(xmin = conf.low, xmax = conf.high), width = 0.1,
+                position = position_dodge(width = 0.5)) +
+  geom_point(size = 3, fill = "white", position = position_dodge(width = 0.5)) +
+  scale_shape_manual(
+    values = c(`TRUE` = 15, `FALSE` = 22),
+    na.value = 20, guide = "none"
+  ) +
+  scale_color_manual(values = c("rmeq" = "orange", "chrono" = "lightblue"), labels = c("rmeq" = "rMEQ", "chrono" = "Single-item chronotype")) +
+  labs(x = "CA (β, 95% CI)", y = "Chronotype", shape = NULL,  color = "Chronotype definition") +
+  theme_classic(base_size = 10) +
+  guides(alpha = "none") +
+  theme(
+    panel.grid.major = element_line(color = "gray"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),
+    axis.ticks.y = element_blank(),
+    legend.position = "top",
+    plot.title.position = "plot"
+  )
+
+ggsave("plots/FX_rmeq_chrono.png", p, width = 6, height = 5)
+
+
+"One hears about 'morning-types' and 'evening-types.' Which one of these types do you consider yourself to be?"
 
 #### CHECK IF PEOPLE THAT CHANGE GROUP HAD HIGHER DYSREGULATION
 
