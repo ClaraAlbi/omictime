@@ -106,6 +106,12 @@ coef_avg <- map_dfr(1:5, ~
 
 saveRDS(coef_avg, "data_share/LASSO_14pan_weights.rds")
 
+top_features <- LASSO_14pan_weights %>% group_by(feature) %>% summarise(m_w = mean(weight)) %>%
+  filter(abs(m_w) > 0.1) %>% pull(feature)
+
+
+write(top_features, "data_share/top_66_proteins.txt")
+
 p3 <- coef_avg %>%
   group_by(cv) %>% filter(abs(weight) > 0.1) %>%
   ggplot(aes(x = forcats::fct_reorder(feature, desc(abs(weight))), y = abs(weight), fill = weight >0)) +
