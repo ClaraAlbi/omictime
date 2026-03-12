@@ -1,5 +1,7 @@
-
-
+install.packages("ggtext")
+library(ggtext)
+install.packages("paletteer")
+library(paletteer)
 
 df_r2 <- readRDS("tables/variance_covariates.rds")
 
@@ -45,9 +47,16 @@ df_top <- df_r2 %>%
 df_lab <-
   df_top %>% filter(model == "Time of day") %>%
   mutate(
+    f_html = fct_reorder(f_html, t_r2 ,  .desc = TRUE),
     l = paste0(100*round(t_r2, 2), "%"),
     x_lab =  0.01
   )
+
+df_top <- df_top %>%
+  group_by(f_html) %>%
+  mutate(order_r2 = t_r2[model == "Time of day"][1]) %>%
+  ungroup() %>%
+  mutate(f_html = fct_reorder(f_html, order_r2, .desc = TRUE))
 
 plot_bars_v <- ggplot(df_top, aes(y = Label, x = t_r2, fill = model)) +
   geom_col(width = 1) +
@@ -57,7 +66,7 @@ plot_bars_v <- ggplot(df_top, aes(y = Label, x = t_r2, fill = model)) +
     inherit.aes = FALSE,
     hjust = 0, size = 3.3
   ) +
-  facet_wrap(~fct_rev(f_html), scales = "free_y", ncol = 4, nrow = 35) +
+  facet_wrap(~f_html, scales = "free_y", ncol = 4, nrow = 35) +
   scale_fill_paletteer_d("trekcolors::tholian") +
   labs(fill = "Covariate", y = "", x = "R2") +
   scale_x_continuous(breaks = seq(0, 0.4, 0.1)) +
@@ -79,4 +88,5 @@ plot_bars_v <- ggplot(df_top, aes(y = Label, x = t_r2, fill = model)) +
   )
 
 
+#plot_bars_v
 ggsave("plots/plot_vars_h.png", plot_bars_v, width = 10, height = 12.5, dpi = 320)
