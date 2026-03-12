@@ -130,6 +130,40 @@ f_rMEQ <- as.formula(paste("res ~", paste(c("rmeq_chronotype", covars), collapse
 fit1 <- lm(f_CNT, data = df)
 fit2 <- lm(f_rMEQ, data = df)
 
+table(df$p30429)
+# Definitely morning     Rather morning            Neither     Rather evening Definitely evening
+# 4520               7219               1654               3707               1496
+
+table(df$rmeq_chronotype)
+# Definitely morning     Rather morning            Neither     Rather evening Definitely evening
+# 721               5651               9050               1052                 56
+
+p0 <- df %>% pivot_longer(c(p30429, rmeq_chronotype)) %>% filter(!is.na(value)) %>%
+  mutate(name = case_when(name == "p30429"~ "Single-item chronotype",
+                          name == "rmeq_chronotype" ~ "rMEQ"),
+         name = factor(name, levels = c("Single-item chronotype", "rMEQ"))) %>%
+  ggplot(aes(x = value)) +
+  geom_bar(aes(fill = name)) +
+  geom_text(stat = "count",
+            aes(label = after_stat(count)),
+            vjust = -0.3,
+            size = 3) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  facet_grid(rows = vars(name)) +
+  theme_classic(base_size = 10) +
+  scale_fill_manual(values = c("rMEQ" = "orange", "Single-item chronotype" = "lightblue")) +
+  labs(x = "Chronotype") +
+  theme(
+    panel.grid.major = element_line(color = "gray"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),
+    axis.ticks.y = element_blank(),
+    legend.position = "none",
+    axis.text.x = element_text(angle = 20, hjust = 1),
+    plot.title.position = "plot"
+  )
+
+p0
+
 data <- bind_rows(tidy(fit1, conf.int = T) %>% mutate(mod = "chrono") %>% filter(str_detect(term, "p30429|Intercept")) %>%
   mutate(term = str_remove(term, "p30429"),
          across(c(estimate, conf.low, conf.high), ~case_when(term == "(Intercept)" ~ 0, TRUE ~ .x)),
@@ -181,7 +215,16 @@ p<- data %>%
     plot.title.position = "plot"
   )
 
-ggsave("plots/FX_rmeq_chrono.png", p, width = 6, height = 5)
+
+install.packages("ggplot2")
+install.packages("patchwork")
+library(patchwork)
+library(ggplot2)
+
+
+p0 + p
+
+ggsave("plots/FX_rmeq_chrono.png", p0 + p + plot_annotation(tag_levels = "A"), width = 10, height = 5)
 
 
 "One hears about 'morning-types' and 'evening-types.' Which one of these types do you consider yourself to be?"
