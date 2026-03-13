@@ -142,7 +142,7 @@ tidy(lm(paste0(" ~ ", paste0(c("CA_prs", "sex","age_recruitment" , paste0("PC", 
 # PREDICTION INTERNAL
 df <- ukbppp %>%
   left_join(a) %>%
-  left_join(data.table::fread("/mnt/project/PRS_CA_allchr.profile") %>% mutate(eid = as.numeric(IID)) %>% select(eid, PRS_SUM) ) #%>%
+  left_join(data.table::fread("PRS_CA_norep_allchr.profile") %>% mutate(eid = as.numeric(IID)) %>% select(eid, PRS_SUM) ) %>%
   filter(eid %in% a$eid)
 
 df$res <- residuals(lm(pred_mean ~ time_day, data= df))
@@ -158,16 +158,20 @@ df$CA_prs<- scale(df$PRS_SUM)[,1]
 
 
 
-df_i0 <- df %>% filter(i == 0)
+df_i0 <- df %>% filter(n > 1) %>% filter(i == 0)
 
 cor(df_i0$res, df_i0$CA_prs, use = "complete.obs")^2
-
+1] 0.0403456
 df_i2 <- df %>% filter(i == 2)
 
 cor(df_i2$res, df_i2$CA_prs, use = "complete.obs")^2
-
+[1] 0.02047411
 df_i3 <- df %>% filter(i == 3)
 
 cor(df_i3$res, df_i3$CA_prs, use = "complete.obs")^2
+[1] 0.02672613
+
+
+
 
 
