@@ -139,6 +139,7 @@ tidy(lm(paste0(" ~ ", paste0(c("CA_prs", "sex","age_recruitment" , paste0("PC", 
 
 
 
+
 # PREDICTION INTERNAL
 df <- ukbppp %>%
   left_join(a) %>%
@@ -160,18 +161,30 @@ df$CA_prs<- scale(df$PRS_SUM)[,1]
 
 df_i0 <- df %>% filter(n > 1) %>% filter(i == 0)
 
-cor(df_i0$res, df_i0$CA_prs, use = "complete.obs")^2
+p0 <- cor(df_i0$res, df_i0$CA_prs, use = "complete.obs")^2
 1] 0.0403456
 df_i2 <- df %>% filter(i == 2)
 
-cor(df_i2$res, df_i2$CA_prs, use = "complete.obs")^2
+p2<-cor(df_i2$res, df_i2$CA_prs, use = "complete.obs")^2
 [1] 0.02047411
 df_i3 <- df %>% filter(i == 3)
 
-cor(df_i3$res, df_i3$CA_prs, use = "complete.obs")^2
+p3<- cor(df_i3$res, df_i3$CA_prs, use = "complete.obs")^2
 [1] 0.02672613
 
 
+### Prediction
 
+
+prs <- data.table::fread("PRS_CA_norep_allchr.profile") %>%  mutate(FID = as.integer(FID)) %>% select(eid = FID, PRS_SUM) %>%
+  filter(eid %in% a$eid) %>%
+  mutate(CA_prs = scale(PRS_SUM)[,1]) %>%
+  left_join(sleep) %>%
+  filter(!eid %in% ukbppp$eid)
+
+
+tidy(lm(CA_prs ~ chrono, data = prs))
+
+prs %>% group_by(chrono) %>% count()
 
 
