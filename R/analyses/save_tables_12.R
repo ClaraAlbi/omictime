@@ -2,6 +2,7 @@
 library(dplyr)
 library(stringr)
 library(writexl)
+library(tidyverse)
 
 ### Labels
 
@@ -78,3 +79,10 @@ colnames(data2)[1:4] <- c("Biomarker", "Label", "Type", "FID")
 
 writexl::write_xlsx(data2, "tables/variance_covariates.xlsx")
 saveRDS(data2, "tables/variance_covariates.rds")
+
+
+
+data2 %>%
+  filter(t_r2_time_day >= 0.01) %>%
+  filter(type_clean == "Proteins") %>%
+  pull(title) %>% writeLines(., "data_share/top_rhythmic_prots.txt")
