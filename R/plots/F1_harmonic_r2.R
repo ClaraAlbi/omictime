@@ -11,14 +11,19 @@ df_eff <- readRDS("tables/harmonic_models.rds") %>%
 
 d1 <- inner_join(df_r2, df_eff, by = c("Biomarker", "Label", "Type", "FID"))
 
-p1 <- ggplot(d1, aes(x = amplitude_24hfreq, y = t_r2_time_day)) +
+p1 <- ggplot(d1, aes(x = amplitude_24hfreq)) +
   geom_hline(yintercept = 0.01, linetype = 2, alpha = 0.7, color = "black") +
   geom_vline(xintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
-  geom_point(aes(color = Type), size = 1, alpha = 0.7) +
+  #geom_density(aes(color = Type)) +
+  geom_point(aes(color = Type, y = t_r2_time_day), size = 1, alpha = 0.7) +
   geom_text_repel(
     data = d1 %>% filter((amplitude_24hfreq > 0.1 & t_r2_time_day > 0.01) | t_r2_time_day > 0.02 | amplitude_24hfreq > 0.37),
     size = 3,
-    aes(label = Label),
+    aes(
+      x = amplitude_24hfreq,
+      y = t_r2_time_day,
+      label = Label,
+      color = Type),
     max.overlaps = 30,
     box.padding = 0.2,
     point.padding = 0.3,
@@ -69,6 +74,7 @@ px <- d1 %>%
             fill = "lightblue", alpha = 0.2, inherit.aes = FALSE) +
   geom_vline(xintercept = 9, linetype = 2, alpha = 0.7, color = "black") +
   geom_vline(xintercept = 20, linetype = 2, alpha = 0.7, color = "black") +
+  #geom_density(aes(color = Type)) +
   #geom_hline(yintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
   #geom_vline(xintercept = 0.1, linetype = 2, alpha = 0.7, color = "black") +
   geom_point(aes(color = Type, size = t_r2_time_day), alpha = 0.7) +

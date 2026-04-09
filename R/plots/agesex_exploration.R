@@ -147,6 +147,8 @@ interaction_vars <- c("sex")
 
 #saveRDS(results, "data_share/associations_sexbytime.rds")
 
+library(tidyverse)
+
 results <- readRDS("data_share/associations_sexbytime.rds")
 
 anova_table <- map_dfr(

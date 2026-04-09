@@ -21,25 +21,26 @@ sum(set$Type == "Proteins")
 
 ### VALIDATION OLINK
 
-ref <- data.table::fread("~/OneDrive - Nexus365/projects/circadian/clara_results_top19.csv") %>%
+ref <- data.table::fread("data_share/clara_results_7apr2026.csv") %>% mutate(amplitude = as.numeric(amplitude)) %>%
   inner_join(d1, by = c("Assay" = "Biomarker")) %>%
   mutate(acro_1h_adj = acrophase_24hfreq +
-           (((acrophase_hr - acrophase_24hfreq + 12) %% 24) - 12)
+           (((phase_hr - acrophase_24hfreq + 12) %% 24) - 12)
          ) %>%
   mutate(dif_amp = amplitude_24hfreq - amplitude,
-         dif_phase = acrophase_24hfreq - acrophase_hr)
+         dif_phase = acrophase_24hfreq - phase_hr)
 
 t <- cor.test(ref$acrophase_24hfreq, ref$acro_1h_adj, method = "pearson")
+
 # Pearson's product-moment correlation
 #
-# data:  ref$acrophase_24hfreq and ref$acrophase_hr
-# t = 11.949, df = 16, p-value = 2.189e-09
+# data:  ref$acrophase_24hfreq and ref$acro_1h_adj
+# t = 15.146, df = 82, p-value < 2.2e-16
 # alternative hypothesis: true correlation is not equal to 0
 # 95 percent confidence interval:
-#  0.8638553 0.9808869
+#  0.7891164 0.9059820
 # sample estimates:
 #       cor
-# 0.9482773
+# 0.8583017
 
 cor.test(ref$amplitude_24hfreq, ref$amplitude, method = "pearson")
 
@@ -81,7 +82,7 @@ p_olink <- ggplot(ref,
     color = "black"
   ) +
   ggpmisc::stat_poly_eq(
-    mapping = aes(label = paste("n == 18")),
+    mapping = aes(label = paste("n == 84")),
     parse = TRUE,
     label.x = 0.05,
     label.y = 0.85,
@@ -101,6 +102,16 @@ p_olink <- ggplot(ref,
 ggsave("plots/acrophase_validation.png", p_olink, width = 4, height = 4.5)
 
 t_amp <- cor.test(ref$amplitude_24hfreq, ref$amplitude, method = "pearson")
+# Pearson's product-moment correlation
+#
+# data:  ref$amplitude_24hfreq and ref$amplitude
+# t = 4.0178, df = 82, p-value = 0.0001296
+# alternative hypothesis: true correlation is not equal to 0
+# 95 percent confidence interval:
+#  0.2093747 0.5703658
+# sample estimates:
+#       cor
+# 0.4055645
 
 a_olink <- ref %>%
   ggplot(aes(
@@ -134,7 +145,7 @@ a_olink <- ref %>%
     color = "black"
   ) +
   ggpmisc::stat_poly_eq(
-    mapping = aes(label = paste("n == 18")),
+    mapping = aes(label = paste("n == 84")),
     parse = TRUE,
     label.x = 0.05,
     label.y = 0.85,
