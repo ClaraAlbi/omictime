@@ -136,3 +136,5 @@ P_F <- px /
   plot_layout(heights = c(1, 0.8, 0.8, 1))
 
 ggsave("plots/Figure_2.png", P_F, width = 10, height = 15, dpi = 320)
+
+ggsave("plots/Figure_2.pdf", P_F, width = 10, height = 15, dpi = 320)
