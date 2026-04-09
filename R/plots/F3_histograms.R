@@ -67,7 +67,7 @@ i0_hist <- time_i0 %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
-  ggtitle(label = "Initial assessment (2006-2010)", subtitle = paste0("n=", nrow(time_i0))) +
+  ggtitle(label = "Initial assessment (2006-2010)", subtitle = paste0("i0: ", "n=", nrow(time_i0))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
@@ -86,7 +86,7 @@ i1_hist <- time_i1 %>%
   coord_polar(start = 0) +
   labs(x = "Time of day") +
   labs(x = "Time of day") +
-  ggtitle(label = "First repeat assessment (2012-13)", subtitle = paste0("n=", nrow(time_i1))) +
+  ggtitle(label = "First repeat assessment (2012-13)", subtitle = paste0("i1: ", "n=", nrow(time_i1))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
@@ -105,7 +105,7 @@ i2_hist <- i2_meta %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
-  ggtitle(label ="Imaging (2014+)" , subtitle = paste0("n=", nrow(i2_meta))) +
+  ggtitle(label ="Imaging (2014+)" , subtitle = paste0("i2: ", "n=", nrow(i2_meta))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
@@ -123,7 +123,7 @@ i3_hist <- i3_meta %>%
   geom_histogram(bins = 60) +
   coord_polar(start = 0) +
   labs(x = "Time of day") +
-  ggtitle(label = "First repeat imaging (2019+)", subtitle = paste0("n=", nrow(i3_meta))) +
+  ggtitle(label = "First repeat imaging (2019+)", subtitle = paste0("i3: ", "n=", nrow(i3_meta))) +
   scale_x_continuous(limits = c(0, 24), breaks = c(0, 3, 6, 9, 12, 15, 18, 21)) +
   theme_minimal() +
   theme(text = element_text(size = 20),
@@ -133,10 +133,11 @@ i3_hist <- i3_meta %>%
 
 
 ### Histograms
-install.packages("cowplot")
-library(cowplot)
+install.packages("patchwork")
+library(patchwork)
 library(ggplot2)
-plot_intval <- plot_grid(i0_hist, i1_hist, i2_hist, i3_hist, nrow = 2)
+
+plot_intval <- (i0_hist + i1_hist) / (i2_hist + i3_hist)
 
 ggsave("plots/time_histograms.png", plot_intval, width = 12, height = 12)
 
