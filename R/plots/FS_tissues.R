@@ -313,6 +313,7 @@ p_tissue <- df2 %>%
     axis.text.y = ggtext::element_markdown(),
 
     strip.placement = "outside",
+    panel.spacing.y = unit(0.2, "lines"),
     strip.background = element_blank(),
     strip.text.y.right = element_text(face = "bold")
   )
