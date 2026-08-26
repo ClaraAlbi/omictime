@@ -1,0 +1,215 @@
+source("config/paths.R")
+
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(purrr)
+
+rint <- function(x) {
+  ranks <- rank(x, ties.method = "average")
+
+  # Calculate the rank-inverse normal transformation
+  n <- length(ranks)
+  qnorm((ranks - 0.5) / n)
+}
+
+olink_cohort <- readRDS(project_path("circadian/results/models/res_olink_tech_14panels.rds"))
+
+
+covs <- data.table::fread(project_path("covariates.tsv")) %>%
+  mutate(across(c(2,3, 6, 7, 9), as.factor),
+         bmi = `21002-0.0` / (`50-0.0`/100)^2,
+         smoking = case_when(`20116-0.0` == "-3" ~ NA_character_,
+                             TRUE ~ `20116-0.0`)) %>% select(-"50-0.0", -"21002-0.0", -"20116-0.0")
+
+colnames(covs) <- c("eid", "sex", "birth_year",  "age_recruitment",  "assessment_centre", "month_attending", "bmi", "smoking")
+
+gen_covs <- data.table::fread(project_path("genetic_covs.tsv")) %>%
+  select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`, `22000-0.0`)
+colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel", "batch")
+
+anc <- data.table::fread(project_path("ancestry_new.csv")) %>%
+  select(eid, p30079) %>%
+  filter(p30079 == "European ancestry (EUR)")
+
+df <- readRDS(project_path("olink_int_panels14.rds")) %>%
+  #filter(i == 0) %>%
+  select(eid, time_day, pred_mean, pred_lasso) %>%
+  left_join(gen_covs) %>%
+  inner_join(anc) #%>%
+  filter(rel == 0)
+
+df$res <- residuals(lm(pred_mean ~ time_day, data = df))
+
+df %>% mutate(FID = eid) %>%
+  select(FID, eid, res) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "res_v2_eur_unrel.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+
+### REMOVE REP-MEASURES
+
+i2 <- data.table::fread(project_path("OLINK_i2.tsv"))
+i3 <- data.table::fread(project_path("OLINK_i3.tsv"))
+
+sum(df$eid %in% c(i2$eid, i3$eid))
+#[1] 1052
+
+
+df %>%
+  filter(!eid %in% c(i2$eid, i3$eid)) %>%
+  mutate(FID = eid) %>%
+  select(FID, eid, res) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "res_v2_eur_norep.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+
+
+# FEMALES ONLY
+
+ids_0 <- covs$eid[covs$sex == 0]
+df %>% mutate(FID = eid, res_abs = abs(res)) %>%
+  filter(eid %in% ids_0) %>%
+  select(FID, eid, res, res_abs) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "phenotypes_0.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+ids_1 <- covs$eid[covs$sex == 1]
+df %>% mutate(FID = eid, res_abs = abs(res)) %>%
+  filter(eid %in% ids_1) %>%
+  select(FID, eid, res, res_abs) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "phenotypes_1.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+
+# Chronotype
+
+sleep <- data.table::fread(project_path("chronotype2.tsv")) %>%
+  filter(!eid %in% df$eid) %>%
+  select(eid,
+         chrono = `1180-0.0`) %>%
+  mutate(chrono = case_when(
+    chrono == 1 ~ 2,
+    chrono == 2 ~ 1,
+    chrono == -1~ 0,
+    chrono == 3 ~ -1,
+    chrono == 4 ~ -2)) %>%
+  left_join(gen_covs %>% select(eid, rel)) %>%
+  inner_join(anc) %>%
+  mutate(
+    chrono_b = case_when(
+      chrono %in% c(1, 2)    ~ "morning",
+      chrono %in% c(-1, -2)  ~ "evening",
+      TRUE                   ~ NA_character_
+    )
+  ) %>%
+  left_join(gen_covs %>% select(eid, rel))
+  filter(rel == 0)
+
+table(sleep$chrono)
+
+sleep %>% mutate(FID = eid) %>%
+  rename(IID = eid) %>%
+  select(FID, IID, chrono) %>%
+  data.table::fwrite(., "phenotypes_chrono_eur.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+sleep %>% mutate(FID = eid) %>%
+  rename(IID = eid) %>%
+  select(FID, IID, chrono_b) %>%
+  mutate(chrono_b2 = case_when(chrono_b == "morning" ~ 1,
+                               chrono_b == "evening" ~ 0,
+                               TRUE ~ NA)) %>% #count(chrono_b2)
+  select(FID, IID, chrono_b2) %>%
+  data.table::fwrite(., "phenotypes_chronob_eur.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+
+### gcta
+
+# All chr in one file
+
+
+write(c(project_path(glue::glue("Bulk/Imputation/UKB imputation from genotype/ukb22828_c{1:22}_b0_v3.bgen")),
+        project_path(glue::glue("Bulk/Imputation/UKB imputation from genotype/ukb22828_{1:22}_b0_v3.sample"))),
+      file = "geno_chrs.txt")
+
+
+covs %>%
+  left_join(gen_covs) %>%
+  mutate(FID = eid) %>%
+  select(FID, eid,  age_recruitment,contains("PC")) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "qcovar.txt", sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+
+covs %>%
+  left_join(gen_covs) %>%
+  mutate(FID = eid) %>%
+  select(FID, eid,  sex, batch) %>%
+  mutate(batch = case_when(is.na(batch) ~ NA_character_,
+                           TRUE ~paste0("b",batch)),
+         batch = as.factor(batch)) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "covar.txt", sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+
+
+covs %>%
+  left_join(gen_covs) %>%
+  mutate(FID = eid) %>%
+  select(FID, eid,  age_recruitment,contains("PC")) %>%
+  left_join(olink %>% select(eid, angpt1, tnr, sema3f, spon2, spink5, relt, gdf15, efna1)) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "qcovar_prots.txt", sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+
+covs %>%
+  left_join(gen_covs) %>%
+  left_join(readRDS("protein_PCA.rds") %>% rename_with(~ paste0("p", .x), .cols = -eid) %>% select(1:11)) %>%
+  mutate(FID = eid) %>%
+  select(FID, eid,  age_recruitment,contains("PC"), contains("pPC")) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "qcovar_pPCA.txt", sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+
+
+
+### snps pQTLS
+
+
+### NMR
+
+
+covs <- data.table::fread(project_path("covariates.tsv")) %>%
+  mutate(across(c(2,3, 6, 7, 9), as.factor),
+         bmi = `21002-0.0` / (`50-0.0`/100)^2,
+         smoking = case_when(`20116-0.0` == "-3" ~ NA_character_,
+                             TRUE ~ `20116-0.0`)) %>% select(-"50-0.0", -"21002-0.0", -"20116-0.0")
+
+colnames(covs) <- c("eid", "sex", "birth_year",  "age_recruitment",  "assessment_centre", "month_attending", "bmi", "smoking")
+
+gen_covs <- data.table::fread(project_path("genetic_covs.tsv")) %>%
+  select(eid, "22009-0.1":"22009-0.20", `22006-0.0`, `22021-0.0`, `22000-0.0`)
+colnames(gen_covs) <- c("eid", paste0("PC", 1:20), "is_white", "rel", "batch")
+
+l <- list.files(project_path("biomarkers_3"), full.names = T)
+
+data_b <- tibble(f = l[str_detect(l, "predictions")]) %>%
+  mutate(d = map(f, readRDS),
+         type = stringr::str_extract(f, "(?<=predictions_)([^_]+)")) %>%
+  unnest(d) %>%
+  pivot_wider(id_cols = c(eid, time_day), names_from = type, values_from = contains("pred")) %>%
+  filter(!is.na(pred_lgb_NMR)) %>%
+  select(eid, time_day, pred_lgb_NMR) %>%
+  left_join(covs) %>%
+  left_join(gen_covs) %>%
+  filter(is_white == 1) %>%
+  filter(rel == 0)
+
+data_b$res <- residuals(lm(pred_lgb_NMR ~ time_day, data = data_b))
+
+data_b %>% mutate(FID = eid) %>%
+  select(FID, eid, sex, age_recruitment, batch, contains("PC")) %>%
+  mutate(across(c(sex, batch), as.factor)) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "covariates.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+data_b %>% mutate(FID = eid, res_abs = rint(abs(res))) %>%
+  select(FID, eid, res, res_abs) %>%
+  rename(IID = eid) %>%
+  data.table::fwrite(., "phenotypes_NMR.txt", sep = "\t", quote = FALSE, row.names = FALSE)

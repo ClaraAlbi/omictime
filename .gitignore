@@ -1,8 +1,46 @@
-.Rproj.user
+# R/RStudio session files
+.Rproj.user/
 .Rhistory
 .RData
 .Ruserdata
-data
-field.tsv
+.omictime_copy.Rproj
+
+# Operating-system metadata
 .DS_Store
-R/.DS_Store
+**/.DS_Store
+
+# Local path configuration (copy from the tracked examples)
+config/paths.R
+config/paths.env
+
+# Controlled or locally supplied data
+data/
+data_share/
+field.tsv
+
+# Generated model objects and intermediate results
+models/
+results/
+outputs/
+*.rds
+*.RDS
+*.rda
+*.lgb
+*.ubj
+*.model
+*.profile
+*.sscore
+
+# Cluster job logs
+logs/
+*.out
+*.err
+
+# Public release models (override the generated-model rules above)
+!models/
+models/*
+!models/proteomic_prediction/
+!models/proteomic_prediction/README.md
+!models/proteomic_prediction/*.rds
+!models/proteomic_prediction/*.lgb
+!models/proteomic_prediction/*.ubj
