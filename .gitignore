@@ -3,7 +3,7 @@
 .Rhistory
 .RData
 .Ruserdata
-.omictime_copy.Rproj
+*.Rproj
 
 # Operating-system metadata
 .DS_Store
